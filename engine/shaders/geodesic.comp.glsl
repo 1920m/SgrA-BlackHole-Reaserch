@@ -30,6 +30,7 @@ layout(push_constant) uniform PC {
     float a_star, r_cam, incl_deg, fov;
     float disk_r_in, disk_r_out, exposure_ev;
     uint shade_mode;
+    uint y_offset; // banded dispatch (offscreen mode: TDR-safe submissions)
 } pc;
 
 const double PI = 3.14159265358979323846LF;
@@ -146,7 +147,8 @@ vec3 shade_starfield(float theta, float phi) {
 }
 
 void main() {
-    uvec2 pix = gl_GlobalInvocationID.xy;
+    uvec2 pix = uvec2(gl_GlobalInvocationID.x,
+                      gl_GlobalInvocationID.y + pc.y_offset);
     if (pix.x >= pc.width || pix.y >= pc.height) return;
 
     // ---- camera ray (ZAMO tetrad), mirrors RaytraceCpu::camera_ray ---------
@@ -204,14 +206,17 @@ void main() {
     int crossings = 0;
     double esc_th = 0.0LF, esc_ph = 0.0LF;
 
-    // Fixed-ratio adaptive stepping: h scales with distance (approximates the
-    // CPU controller closely enough for identical classification).
+    // Proportional step control in Mino time: Δr ≈ 2% of r per step
+    // (h = 0.02 r/|p_r|) and Δθ ≤ 0.05 (h ≤ 0.05/|p_θ|). Constraint
+    // projection below keeps the on-shell relations exact, so RK4's local
+    // error only perturbs the trajectory phase at O(h⁴) ~ 1e-7/step.
     double prev[6];
-    for (int step = 0; step < 20000 && outcome == 0; ++step) {
+    for (int step = 0; step < 8000 && outcome == 0; ++step) {
         for (int i = 0; i < 6; ++i) prev[i] = y[i];
         double rr = y[1];
-        double h = 0.04LF * rr / max(1.0LF, sqrt(abs(radial_potential(cc, rr))) / (rr * rr));
-        h = min(h, 0.35LF);
+        double h = 0.02LF * rr / (abs(y[4]) + 1e-6LF);
+        h = min(h, 0.05LF / (abs(y[5]) + 1.0LF));
+        h = min(h, 0.01LF);
         rk4_step(cc, y, h);
 
         // constraint projection (see CPU tracer notes)

@@ -34,8 +34,13 @@ App::~App() {
 }
 
 void App::create_render_target() {
-    target_w_ = ctx_->swapchain_extent().width;
-    target_h_ = ctx_->swapchain_extent().height;
+    if (opts_.offscreen) {
+        target_w_ = static_cast<uint32_t>(opts_.width);
+        target_h_ = static_cast<uint32_t>(opts_.height);
+    } else {
+        target_w_ = ctx_->swapchain_extent().width;
+        target_h_ = ctx_->swapchain_extent().height;
+    }
 
     VkImageCreateInfo ici{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     ici.imageType = VK_IMAGE_TYPE_2D;
@@ -87,20 +92,7 @@ void App::record(VkCommandBuffer cmd, uint32_t sc_index, float t) {
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
                             pipeline_->layout(), 0, 1, &set, 0, nullptr);
 
-    const KerrMetric metric(1.0, opts_.a_star);
-    PushConstants pc{};
-    pc.image_index = 0;
-    pc.width = target_w_;
-    pc.height = target_h_;
-    pc.time_s = t;
-    pc.a_star = opts_.a_star;
-    pc.r_cam = opts_.r_cam;
-    pc.incl_deg = opts_.incl_deg;
-    pc.fov = opts_.fov;
-    pc.disk_r_in = static_cast<float>(metric.r_isco(true));
-    pc.disk_r_out = opts_.disk_r_out;
-    pc.exposure_ev = opts_.exposure_ev;
-    pc.shade_mode = opts_.shade_mode;
+    PushConstants pc = make_push_constants(t);
     vkCmdPushConstants(cmd, pipeline_->layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
                        sizeof(pc), &pc);
     vkCmdDispatch(cmd, (target_w_ + 7) / 8, (target_h_ + 7) / 8, 1);
@@ -184,7 +176,96 @@ void App::save_screenshot() {
     vmaDestroyBuffer(ctx_->allocator(), buf, alloc);
 }
 
+PushConstants App::make_push_constants(float t) const {
+    const KerrMetric metric(1.0, opts_.a_star);
+    PushConstants pc{};
+    pc.image_index = 0;
+    pc.width = target_w_;
+    pc.height = target_h_;
+    pc.time_s = t;
+    pc.a_star = opts_.a_star;
+    pc.r_cam = opts_.r_cam;
+    pc.incl_deg = opts_.incl_deg;
+    pc.fov = opts_.fov;
+    pc.disk_r_in = static_cast<float>(metric.r_isco(true));
+    pc.disk_r_out = opts_.disk_r_out;
+    pc.exposure_ev = opts_.exposure_ev;
+    pc.shade_mode = opts_.shade_mode;
+    pc.y_offset = 0;
+    return pc;
+}
+
+// Offscreen batch render: exact width×height target, one queue submission per
+// row band (keeps each GPU packet well under the ~2 s Windows TDR watchdog for
+// the double-precision geodesic shader), then screenshot and exit.
+int App::run_offscreen() {
+    auto& f = ctx_->frame(0);
+    const uint32_t band_rows = 16;
+    PushConstants pc = make_push_constants(0.0f);
+
+    bool first = true;
+    for (uint32_t y0 = 0; y0 < target_h_; y0 += band_rows) {
+        vkResetCommandBuffer(f.cmd, 0);
+        VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(f.cmd, &bi);
+        if (first) {
+            Context::image_barrier(f.cmd, target_, VK_IMAGE_LAYOUT_UNDEFINED,
+                                   VK_IMAGE_LAYOUT_GENERAL,
+                                   VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+                                   VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                   VK_ACCESS_SHADER_WRITE_BIT);
+            first = false;
+        }
+        vkCmdBindPipeline(f.cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
+                          pipeline_->pipeline());
+        const VkDescriptorSet set = bindless_->set();
+        vkCmdBindDescriptorSets(f.cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
+                                pipeline_->layout(), 0, 1, &set, 0, nullptr);
+        pc.y_offset = y0;
+        vkCmdPushConstants(f.cmd, pipeline_->layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc), &pc);
+        const uint32_t rows = std::min(band_rows, target_h_ - y0);
+        vkCmdDispatch(f.cmd, (target_w_ + 7) / 8, (rows + 7) / 8, 1);
+        vkEndCommandBuffer(f.cmd);
+
+        VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        si.commandBufferCount = 1;
+        si.pCommandBuffers = &f.cmd;
+        check(vkQueueSubmit(ctx_->queue(), 1, &si, VK_NULL_HANDLE),
+              "vkQueueSubmit(offscreen band)");
+        ctx_->wait_idle();
+    }
+    // GENERAL → TRANSFER_SRC for the readback
+    {
+        vkResetCommandBuffer(f.cmd, 0);
+        VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(f.cmd, &bi);
+        Context::image_barrier(f.cmd, target_, VK_IMAGE_LAYOUT_GENERAL,
+                               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                               VK_ACCESS_SHADER_WRITE_BIT,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               VK_ACCESS_TRANSFER_READ_BIT);
+        vkEndCommandBuffer(f.cmd);
+        VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        si.commandBufferCount = 1;
+        si.pCommandBuffers = &f.cmd;
+        check(vkQueueSubmit(ctx_->queue(), 1, &si, VK_NULL_HANDLE),
+              "vkQueueSubmit(offscreen barrier)");
+        ctx_->wait_idle();
+    }
+    if (!opts_.screenshot_path.empty()) save_screenshot();
+    std::printf("[app] offscreen render %ux%u complete, validation errors: %d, "
+                "warnings: %d\n",
+                target_w_, target_h_, Context::validation_errors.load(),
+                Context::validation_warnings.load());
+    return Context::validation_errors.load();
+}
+
 int App::run() {
+    if (opts_.offscreen) return run_offscreen();
     const auto t0 = std::chrono::steady_clock::now();
     int frame_count = 0;
     int frame_slot = 0;

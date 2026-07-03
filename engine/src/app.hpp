@@ -26,6 +26,8 @@ struct AppOptions {
     float disk_r_out = 18.0f;
     float exposure_ev = 0.0f;
     uint32_t shade_mode = 0; // 0 beauty, 1 diagnostic (CPU/GPU compare)
+    bool offscreen = false;  // render target exactly width×height in TDR-safe
+                             // row bands, save screenshot, exit (no present)
 };
 
 // Push-constant block shared with the shaders (must match GLSL layout).
@@ -36,6 +38,7 @@ struct PushConstants {
     float a_star, r_cam, incl_deg, fov;
     float disk_r_in, disk_r_out, exposure_ev;
     uint32_t shade_mode;
+    uint32_t y_offset;
 };
 static_assert(sizeof(PushConstants) <= 128);
 
@@ -52,6 +55,8 @@ private:
     void destroy_render_target();
     void record(VkCommandBuffer cmd, uint32_t sc_index, float t);
     void save_screenshot();
+    int run_offscreen();
+    PushConstants make_push_constants(float t) const;
 
     AppOptions opts_;
     std::unique_ptr<vk::Context> ctx_;

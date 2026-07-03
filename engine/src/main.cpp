@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--incl")) opts.incl_deg = static_cast<float>(std::atof(next("--incl")));
         else if (!std::strcmp(argv[i], "--exposure")) opts.exposure_ev = static_cast<float>(std::atof(next("--exposure")));
         else if (!std::strcmp(argv[i], "--diagnostic")) opts.shade_mode = 1;
+        else if (!std::strcmp(argv[i], "--offscreen")) opts.offscreen = true;
         else if (!std::strcmp(argv[i], "--rcam")) opts.r_cam = static_cast<float>(std::atof(next("--rcam")));
         else {
             std::fprintf(stderr, "unknown arg: %s\n", argv[i]);
