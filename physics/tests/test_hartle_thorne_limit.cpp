@@ -55,8 +55,9 @@ TEST_CASE("F1/F2 branch continuity at the series switch radius",
 
 TEST_CASE("Quadrupole deviation has the correct far-field structure",
           "[hartle-thorne][physics]") {
-    // δg_tt = −ε_q (1−2M/r)(1−3cos²θ) F1(r) → +ε_q (1−3cos²θ) M³/r³ as r→∞
-    // (F1 → −M³/r³). Angular structure ∝ P₂; radial decay r⁻³.
+    // δg_tt = +ε_q (1−2M/r)(1−3cos²θ) F1(r) → −ε_q (1−3cos²θ) M³/r³ as r→∞
+    // (F1 → −M³/r³), i.e. Newtonian δΦ = −δQ P₂/r³ with δQ = +ε_q M³ — the
+    // project's convention, anchored by the pericenter-shift test below.
     const double eps_q = 0.05;
     const KerrMetric kerr(1.0, 0.5);
     const HartleThorneMetric ht(1.0, 0.5, eps_q);
@@ -64,7 +65,7 @@ TEST_CASE("Quadrupole deviation has the correct far-field structure",
         for (double th : {0.3, 1.0, 2.0}) {
             const double dgtt = ht.components(r, th)(0, 0) - kerr.components(r, th)(0, 0);
             const double ct = std::cos(th);
-            const double expected = eps_q * (1.0 - 3.0 * ct * ct) / (r * r * r);
+            const double expected = -eps_q * (1.0 - 3.0 * ct * ct) / (r * r * r);
             INFO("r=" << r << " th=" << th);
             // Tolerance: O(M/r) series corrections plus the float cancellation
             // noise of subtracting two O(1) metric components (~1e-16/|δg|).
@@ -77,6 +78,79 @@ TEST_CASE("Quadrupole deviation has the correct far-field structure",
     const double dg_node =
         ht.components(50.0, th_node)(0, 0) - kerr.components(50.0, th_node)(0, 0);
     CHECK_THAT(dg_node, WithinAbs(0.0, 1e-14));
+}
+
+TEST_CASE("Quadrupole pericenter shift matches -3 pi eps_q (M/p)^2",
+          "[hartle-thorne][precession][physics]") {
+    // Equatorial orbit, a* = 0, p ≈ 480 M: measure the pericenter advance with
+    // and without eps_q and compare the difference against the analytic
+    // quadrupole term (GRPrecession). Validates the sign chain:
+    // Q_total = −Ma² + ε_q M³  ⇒  δ(Δω) = −3π ε_q (M/p)².
+    const double e = 0.3, r_p = 370.0;
+    const double a_orb = r_p / (1.0 - e);
+    const double p_slr = a_orb * (1.0 - e * e);
+
+    auto measure_precession = [&](const IMetric& metric) {
+        TimelikeGeodesic geo(metric);
+        // exact turning-point elements (Schwarzschild potential, a*=0 core)
+        const double r_a = a_orb * (1.0 + e);
+        const double fp = 1.0 - 2.0 / r_p, fa = 1.0 - 2.0 / r_a;
+        const double L2 = 2.0 * (1.0 / r_p - 1.0 / r_a) /
+                          (fp / (r_p * r_p) - fa / (r_a * r_a));
+        TimelikeState y{};
+        y[1] = r_p;
+        y[2] = 1.5707963267948966;
+        y[7] = std::sqrt(L2) / (r_p * r_p);
+        const Metric4<double> g0 = metric.components(y[1], y[2]);
+        y[4] = TimelikeGeodesic::solve_ut(g0, 0.0, 0.0, y[7]);
+
+        TimelikeStepper stepper{&geo, 1e-12, 1e-12};
+        double tau = 0.0, h = 1.0;
+        TimelikeState prev = y;
+        double tau_prev = tau;
+        bool past_apo = false;
+        for (int i = 0; i < 2'000'000; ++i) {
+            prev = y;
+            tau_prev = tau;
+            stepper.step(tau, y, h);
+            if (y[5] < -1e-14) past_apo = true;
+            if (past_apo && prev[5] < 0.0 && y[5] >= 0.0) {
+                // bisect u^r zero crossing
+                double lo = tau_prev, hi = tau;
+                TimelikeState ylo = prev;
+                auto rhs_fn = [&geo](double, const TimelikeState& s,
+                                     TimelikeState& d) { geo.rhs(s, d); };
+                DormandPrince54<8, decltype(rhs_fn)> rk(rhs_fn, 1e30, 1e30);
+                for (int it = 0; it < 60; ++it) {
+                    const double mid = 0.5 * (lo + hi);
+                    TimelikeState trial = ylo;
+                    double t0 = lo;
+                    rk.try_step(t0, trial, mid - lo);
+                    if (trial[5] < 0.0) { lo = mid; ylo = trial; }
+                    else hi = mid;
+                }
+                return ylo[3] - 2.0 * 3.14159265358979323846;
+            }
+        }
+        FAIL("no pericenter return");
+        return 0.0;
+    };
+
+    const double eps_q = 40.0; // large lever arm, still |h| ≪ |g|
+    const KerrMetric schw(1.0, 0.0);
+    const HartleThorneMetric ht(1.0, 0.0, eps_q);
+    const double dw0 = measure_precession(schw);
+    const double dw1 = measure_precession(ht);
+    const double delta = dw1 - dw0;
+    const double analytic = -3.0 * 3.14159265358979323846 * eps_q /
+                            (p_slr * p_slr);
+    INFO("dw(Schw)=" << dw0 << " dw(HT)=" << dw1 << " delta=" << delta
+                     << " analytic=" << analytic);
+    // Schwarzschild part must match 6π/p to O(M/p):
+    CHECK_THAT(dw0, Catch::Matchers::WithinRel(
+                        6.0 * 3.14159265358979323846 / p_slr, 0.02));
+    // Quadrupole shift: sign and magnitude (higher-order corrections O(M/p)).
+    CHECK_THAT(delta, Catch::Matchers::WithinRel(analytic, 0.05));
 }
 
 TEST_CASE("Timelike geodesics in HT metric conserve E, L_z and normalisation",

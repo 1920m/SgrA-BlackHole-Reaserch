@@ -20,14 +20,17 @@ constexpr double kSigVz = 5.0;   // km/s
 struct S2CostFunctor {
     const S2Dataset* data;
     double a_star, eps_q;
+    bool eps_q_is_param = false; // 14-parameter (no-hair) mode
 
     bool operator()(double const* const* params, double* residuals) const {
         const S2Parameters p = S2Parameters::from_array(params[0]);
+        const double eq = eps_q_is_param ? params[0][S2Parameters::kNumParams]
+                                         : eps_q;
         const int n_ast = static_cast<int>(data->astrometry.size());
         const int n_rv = static_cast<int>(data->rv.size());
         const int n_res = 2 * n_ast + n_rv + 5;
 
-        S2Model model(a_star, eps_q);
+        S2Model model(a_star, eq);
         double t_min = 1e9, t_max = -1e9;
         for (const auto& a : data->astrometry) {
             t_min = std::min(t_min, a.epoch_yr);
@@ -177,6 +180,99 @@ std::vector<double> OrbitFitter::covariance(
     for (int i = 0; i < N; ++i)
         sigma[i] = std::sqrt(std::max(0.0, C[i * N + i]));
     return C;
+}
+
+FitResult OrbitFitter::fit_nohair(const S2Parameters& start, double eps_q_start,
+                                  double* eps_q_best,
+                                  double* eps_q_sigma) const {
+    constexpr int N = S2Parameters::kNumParams;
+    const int n_res = data_->n_data() + 5;
+
+    auto* functor = new S2CostFunctor{data_, a_star_, 0.0, /*eps_q_is_param=*/true};
+    auto* cost = new ceres::DynamicNumericDiffCostFunction<S2CostFunctor,
+                                                           ceres::CENTRAL>(
+        functor);
+    cost->AddParameterBlock(N + 1);
+    cost->SetNumResiduals(n_res);
+
+    std::array<double, N + 1> x{};
+    const auto s = start.to_array();
+    std::copy(s.begin(), s.end(), x.begin());
+    x[N] = eps_q_start;
+
+    ceres::Problem problem;
+    problem.AddResidualBlock(cost, nullptr, x.data());
+    ceres::Solver::Options opts;
+    opts.linear_solver_type = ceres::DENSE_QR;
+    opts.max_num_iterations = 300;
+    opts.function_tolerance = 1e-12;
+    opts.num_threads = 8;
+    ceres::Solver::Summary summary;
+    ceres::Solve(opts, &problem, &summary);
+
+    FitResult out;
+    out.params = S2Parameters::from_array(x.data());
+    out.report = summary.BriefReport();
+    out.converged = summary.termination_type == ceres::CONVERGENCE;
+    out.n_residuals = data_->n_data();
+    out.chi2 = 2.0 * summary.final_cost;
+    out.dof = data_->n_data() - (N + 1);
+    out.chi2_red = out.chi2 / out.dof;
+    *eps_q_best = x[N];
+
+    // 14×14 covariance from an explicit central-difference Jacobian.
+    {
+        S2CostFunctor f{data_, a_star_, 0.0, true};
+        const std::array<double, N + 1> step = {2e3, 2.0, 5e-3, 2e-5, 2e-3,
+                                                2e-3, 2e-3, 2e-5, 2e-3, 2e-3,
+                                                1e-3, 1e-3, 0.05, 200.0};
+        std::vector<std::vector<double>> J(N + 1, std::vector<double>(n_res));
+        for (int k = 0; k < N + 1; ++k) {
+            auto xp = x, xm = x;
+            xp[k] += step[k];
+            xm[k] -= step[k];
+            std::vector<double> rp(n_res), rm(n_res);
+            const double* bp[1] = {xp.data()};
+            const double* bm[1] = {xm.data()};
+            f(bp, rp.data());
+            f(bm, rm.data());
+            for (int i = 0; i < n_res; ++i)
+                J[k][i] = (rp[i] - rm[i]) / (2.0 * step[k]);
+        }
+        // Invert JᵀJ (Gauss-Jordan)
+        const int M = N + 1;
+        std::vector<double> A(M * M, 0.0), C(M * M, 0.0);
+        for (int a = 0; a < M; ++a)
+            for (int b = 0; b < M; ++b) {
+                double sum = 0.0;
+                for (int i = 0; i < n_res; ++i) sum += J[a][i] * J[b][i];
+                A[a * M + b] = sum;
+            }
+        for (int i = 0; i < M; ++i) C[i * M + i] = 1.0;
+        for (int col = 0; col < M; ++col) {
+            int piv = col;
+            for (int r = col + 1; r < M; ++r)
+                if (std::abs(A[r * M + col]) > std::abs(A[piv * M + col])) piv = r;
+            for (int c = 0; c < M; ++c) {
+                std::swap(A[col * M + c], A[piv * M + c]);
+                std::swap(C[col * M + c], C[piv * M + c]);
+            }
+            const double d = A[col * M + col];
+            for (int c = 0; c < M; ++c) { A[col * M + c] /= d; C[col * M + c] /= d; }
+            for (int r = 0; r < M; ++r) {
+                if (r == col) continue;
+                const double m = A[r * M + col];
+                for (int c = 0; c < M; ++c) {
+                    A[r * M + c] -= m * A[col * M + c];
+                    C[r * M + c] -= m * C[col * M + c];
+                }
+            }
+        }
+        for (int i = 0; i < N; ++i)
+            out.sigma[i] = std::sqrt(std::max(0.0, C[i * M + i]));
+        *eps_q_sigma = std::sqrt(std::max(0.0, C[N * M + N]));
+    }
+    return out;
 }
 
 FitResult OrbitFitter::fit(const S2Parameters& start) const {

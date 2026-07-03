@@ -82,9 +82,14 @@ Metric4<T> HartleThorneMetric::components_impl(T r, T theta) const {
     const T f1 = F1_impl<T>(r, M);
     const T f2 = F2_impl<T>(r, M);
 
-    // GB06 sign convention ε = −ε_q (Q_GB = −J²/M − εM³ vs this project's
-    // Q_total = −Ma² + ε_q M³):  g = g_Kerr − ε_q h.
-    const double e = -eps_q_;
+    // Sign convention, anchored empirically (see test_hartle_thorne_limit
+    // "[precession]"): with the + sign below the far-field Newtonian limit is
+    // δΦ = −δQ P₂(cosθ)/r³ with δQ = +ε_q M³, i.e. exactly the project's
+    // Q_total = −M a² + ε_q M³, and the measured pericenter shift matches
+    // δ(Δω) = −3π ε_q (M/p)². (GB06 list h^{ab} as the perturbation of the
+    // inverse metric, so the covariant deviation enters with the opposite
+    // sign to a naive index-lowering of their eq. (15).)
+    const double e = eps_q_;
     g(0, 0) += T(e) * f * ang * f1;
     g(1, 1) += T(e) * ang * f1 / f;
     g(2, 2) += T(e) * (-r * r * ang * f2);

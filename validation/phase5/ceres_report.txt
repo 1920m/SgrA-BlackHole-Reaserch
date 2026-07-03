@@ -1,0 +1,44 @@
+
+Solver Summary (v 2.2.0-eigen-(3.5.0)-no_lapack)
+
+                                     Original                  Reduced
+Parameter blocks                            1                        1
+Parameters                                 13                       13
+Residual blocks                             1                        1
+Residuals                                 339                      339
+
+Minimizer                        TRUST_REGION
+
+Dense linear algebra library            EIGEN 
+Trust region strategy     LEVENBERG_MARQUARDT
+                                        Given                     Used
+Linear solver                        DENSE_QR                 DENSE_QR
+Threads                                     8                        8
+Linear solver ordering              AUTOMATIC                        1
+
+Cost:
+Initial                          8.255735e+02
+Final                            1.538850e+02
+Change                           6.716886e+02
+
+Minimizer iterations                       16
+Successful steps                            8
+Unsuccessful steps                          8
+Line search steps                          39
+
+Time (in seconds):
+Preprocessor                         0.000756
+
+  Residual only evaluation           0.042201 (16)
+    Line search cost evaluation      0.000000
+  Jacobian & residual evaluation     3.583567 (54)
+    Line search gradient evaluation   3.026361
+  Linear solver                      0.000806 (16)
+  Line search polynomial minimization  0.004559
+Minimizer                            3.635065
+
+Postprocessor                        0.000008
+Total                                3.635829
+
+Termination:                      CONVERGENCE (Parameter tolerance reached. Relative step_norm: 3.271995e-15 <= 1.000000e-12.)
+

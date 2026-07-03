@@ -140,6 +140,57 @@ int main(int argc, char** argv) {
                  dw_s * constants::rad_to_arcmin,
                  dw_lt * constants::rad_to_arcmin);
 
+    // ---- Phase 5: no-hair probe --------------------------------------------
+    nlohmann::json nohair;
+    if (mode == "nohair") {
+        double eq_best = 0.0, eq_sigma = 0.0;
+        spdlog::info("no-hair mode: 14-parameter fit with free eps_q ...");
+        const FitResult nh = fitter.fit_nohair(p, 0.0, &eq_best, &eq_sigma);
+        spdlog::info("eps_q = {:.1f} +- {:.1f} (chi2={:.2f}, chi2red={:.4f})",
+                     eq_best, eq_sigma, nh.chi2, nh.chi2_red);
+
+        // Profile-likelihood scan for a robust 95% CI (Δχ² = 3.84).
+        nlohmann::json profile = nlohmann::json::array();
+        std::vector<std::pair<double, double>> prof;
+        for (double f : {-3.0, -2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0}) {
+            const double eq = eq_best + f * eq_sigma;
+            OrbitFitter pf(data, 0.0, eq);
+            const FitResult r = pf.fit(nh.params);
+            prof.push_back({eq, r.chi2});
+            profile.push_back({{"eps_q", eq}, {"chi2", r.chi2}});
+            spdlog::info("profile eps_q={:.1f}: chi2={:.3f}", eq, r.chi2);
+        }
+        // quadratic fit of χ²(ε_q) around the minimum → 95% CI half-width
+        double cmin = 1e30, emin = 0.0;
+        for (auto& pr : prof)
+            if (pr.second < cmin) { cmin = pr.second; emin = pr.first; }
+        // effective curvature from the ±2σ points
+        double curv = 0.0;
+        int ncurv = 0;
+        for (auto& pr : prof) {
+            const double de = pr.first - emin;
+            if (std::abs(de) > 0.5 * eq_sigma) {
+                curv += 2.0 * (pr.second - cmin) / (de * de);
+                ++ncurv;
+            }
+        }
+        curv /= std::max(1, ncurv);
+        const double ci95 = std::sqrt(3.84 / std::max(curv, 1e-30));
+        spdlog::info("no-hair 95% CI: eps_q = {:.1f} +- {:.1f} "
+                     "(0 within CI: {})",
+                     emin, ci95, std::abs(emin) < ci95 ? "YES" : "NO");
+        nohair = {{"eps_q_best", eq_best},
+                  {"eps_q_sigma", eq_sigma},
+                  {"eps_q_profile_min", emin},
+                  {"eps_q_ci95_halfwidth", ci95},
+                  {"zero_within_ci95", std::abs(emin) < ci95},
+                  {"chi2_nohair", nh.chi2},
+                  {"chi2red_nohair", nh.chi2_red},
+                  {"profile", profile},
+                  {"forecast_sigma_10_more_orbits",
+                   eq_sigma / std::sqrt(1.0 + 10.0 / 1.5)}};
+    }
+
     nlohmann::json j{
         {"mode", mode},
         {"n_astrometry", data.astrometry.size()},
@@ -171,6 +222,7 @@ int main(int argc, char** argv) {
                        {"R0_pc", 8277.0}, {"sigma_R0_pc", 9.0},
                        {"period_yr", 16.0518}, {"e", 0.8839}}},
     };
+    if (!nohair.is_null()) j["nohair"] = nohair;
     std::ofstream(out_dir / "s2_fit.json") << j.dump(2) << "\n";
     std::ofstream(out_dir / "ceres_report.txt") << res.report << "\n";
     spdlog::info("wrote {}", (out_dir / "s2_fit.json").string());

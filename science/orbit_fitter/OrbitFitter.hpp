@@ -60,6 +60,11 @@ public:
     // Phase-5 variant (14th parameter); here the 13-parameter fit.
     FitResult fit(const S2Parameters& start) const;
 
+    // Phase 5: 14-parameter fit with the Hartle-Thorne quadrupole deviation
+    // ε_q free. Returns the usual result plus ε_q best fit and 1σ.
+    FitResult fit_nohair(const S2Parameters& start, double eps_q_start,
+                         double* eps_q_best, double* eps_q_sigma) const;
+
     // χ² at a parameter point (diagnostics).
     double chi2(const S2Parameters& p) const;
 
