@@ -224,7 +224,8 @@ std::array<float, 3> shade_starfield(double theta, double phi) {
                                 static_cast<std::uint32_t>(cj * 19349663);
     const float r0 = hash01(hcell);
     if (r0 > 0.82f) { // star present in this cell
-        const float u = (theta / cell) - std::floor(theta / cell);
+        const float u =
+            static_cast<float>((theta / cell) - std::floor(theta / cell));
         const float v = static_cast<float>(
             std::fmod(std::fmod(phi, 2.0 * kPi) + 2.0 * kPi, 2.0 * kPi) / cell -
             std::floor(std::fmod(std::fmod(phi, 2.0 * kPi) + 2.0 * kPi, 2.0 * kPi) / cell));

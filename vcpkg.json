@@ -34,7 +34,8 @@
         "volk",
         "vulkan-memory-allocator",
         "vk-bootstrap",
-        "shaderc"
+        "shaderc",
+        "vulkan-validationlayers"
       ]
     }
   }
