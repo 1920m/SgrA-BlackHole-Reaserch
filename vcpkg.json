@@ -1,0 +1,41 @@
+{
+  "name": "sgr-a-research-sim",
+  "version-string": "0.1.0",
+  "description": "Physically rigorous simulation of Sagittarius A*: Kerr geodesics, S-star orbit fitting, photon-ring substructure, and no-hair tests.",
+  "dependencies": [
+    "glm",
+    "catch2",
+    "benchmark",
+    "eigen3",
+    "spdlog",
+    "nlohmann-json",
+    "stb"
+  ],
+  "features": {
+    "science": {
+      "description": "Orbit fitting and spectral fitting modules (Ceres Solver)",
+      "dependencies": [
+        "ceres"
+      ]
+    },
+    "engine": {
+      "description": "Vulkan 1.3 real-time renderer",
+      "dependencies": [
+        "glfw3",
+        {
+          "name": "imgui",
+          "features": [
+            "docking-experimental",
+            "glfw-binding",
+            "vulkan-binding"
+          ]
+        },
+        "vulkan-headers",
+        "volk",
+        "vulkan-memory-allocator",
+        "vk-bootstrap",
+        "shaderc"
+      ]
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "core-dev",
+      "displayName": "Debug — physics only",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "core-rel",
+      "displayName": "Release — physics only",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "sci-rel",
+      "displayName": "Release — physics + science (Ceres)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_MANIFEST_FEATURES": "science",
+        "SGR_BUILD_SCIENCE": "ON"
+      }
+    },
+    {
+      "name": "engine-dev",
+      "displayName": "Debug — full stack incl. Vulkan (validation layers)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_MANIFEST_FEATURES": "science;engine",
+        "SGR_BUILD_SCIENCE": "ON",
+        "SGR_BUILD_ENGINE": "ON"
+      }
+    },
+    {
+      "name": "engine-rel",
+      "displayName": "Release — full stack incl. Vulkan",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_MANIFEST_FEATURES": "science;engine",
+        "SGR_BUILD_SCIENCE": "ON",
+        "SGR_BUILD_ENGINE": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "core-dev", "configurePreset": "core-dev" },
+    { "name": "core-rel", "configurePreset": "core-rel" },
+    { "name": "sci-rel", "configurePreset": "sci-rel" },
+    { "name": "engine-dev", "configurePreset": "engine-dev" },
+    { "name": "engine-rel", "configurePreset": "engine-rel" }
+  ],
+  "testPresets": [
+    { "name": "core-dev", "configurePreset": "core-dev", "output": { "outputOnFailure": true } },
+    { "name": "core-rel", "configurePreset": "core-rel", "output": { "outputOnFailure": true } },
+    { "name": "sci-rel", "configurePreset": "sci-rel", "output": { "outputOnFailure": true } },
+    { "name": "engine-dev", "configurePreset": "engine-dev", "output": { "outputOnFailure": true } },
+    { "name": "engine-rel", "configurePreset": "engine-rel", "output": { "outputOnFailure": true } }
+  ]
+}

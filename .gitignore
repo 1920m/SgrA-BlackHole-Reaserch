@@ -6,6 +6,9 @@ cmake-build-*/
 # vcpkg
 vcpkg_installed/
 
+# Machine-specific CMake presets
+CMakeUserPresets.json
+
 # IDE
 .vs/
 .vscode/
