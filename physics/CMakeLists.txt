@@ -1,5 +1,6 @@
-# sgr_physics — CPU physics foundation (Phase 0)
+# sgr_physics — CPU physics foundation (Phase 0) + reference renderer (Phases 1–3)
 find_package(spdlog CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 add_library(sgr_physics STATIC
     src/constants.cpp
@@ -7,10 +8,12 @@ add_library(sgr_physics STATIC
     src/null_geodesics.cpp
     src/timelike_geodesics.cpp
     src/hartle_thorne.cpp
+    src/raytrace_cpu.cpp
 )
 target_include_directories(sgr_physics PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
+target_include_directories(sgr_physics PRIVATE ${Stb_INCLUDE_DIR})
 target_link_libraries(sgr_physics PUBLIC spdlog::spdlog)
 
 if(SGR_BUILD_TESTS)
@@ -21,6 +24,7 @@ if(SGR_BUILD_TESTS)
         tests/test_conserved_quantities_null.cpp
         tests/test_timelike_normalisation.cpp
         tests/test_hartle_thorne_limit.cpp
+        tests/test_shadow_schwarzschild.cpp
     )
     target_link_libraries(sgr_physics_tests PRIVATE
         sgr_physics Catch2::Catch2WithMain)
