@@ -9,6 +9,7 @@ add_library(sgr_physics STATIC
     src/timelike_geodesics.cpp
     src/hartle_thorne.cpp
     src/raytrace_cpu.cpp
+    src/disk_model.cpp
 )
 target_include_directories(sgr_physics PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -26,6 +27,7 @@ if(SGR_BUILD_TESTS)
         tests/test_hartle_thorne_limit.cpp
         tests/test_shadow_schwarzschild.cpp
         tests/test_shadow_kerr.cpp
+        tests/test_disk_model.cpp
     )
     target_link_libraries(sgr_physics_tests PRIVATE
         sgr_physics Catch2::Catch2WithMain)

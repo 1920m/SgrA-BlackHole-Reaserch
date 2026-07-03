@@ -30,7 +30,9 @@ endif()
 
 add_subdirectory(physics)
 
-if(SGR_BUILD_SCIENCE AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/science/CMakeLists.txt)
+# science/ is always added when present; the Ceres-dependent fitters inside it
+# are gated on SGR_BUILD_SCIENCE (photon_ring only needs the physics lib).
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/science/CMakeLists.txt)
     add_subdirectory(science)
 endif()
 

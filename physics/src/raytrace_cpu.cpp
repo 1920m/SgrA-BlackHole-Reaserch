@@ -201,8 +201,10 @@ inline float hash01(std::uint32_t x) {
     return static_cast<float>(x) * (1.0f / 4294967296.0f);
 }
 
+} // namespace
+
 // Procedural starfield + faint coordinate grid so lensing is visible.
-std::array<float, 3> shade_background(double theta, double phi) {
+std::array<float, 3> shade_starfield(double theta, double phi) {
     std::array<float, 3> col{0.004f, 0.005f, 0.009f};
 
     // celestial grid every 10°, drawn faintly (validation aid: shows lensing)
@@ -242,10 +244,10 @@ std::array<float, 3> shade_background(double theta, double phi) {
 }
 
 // Phase-1 built-in shading: starfield background + uniform warm disk band.
-std::array<float, 3> shade_phase1(const TraceResult& res, const RaytraceCpu&) {
+static std::array<float, 3> shade_phase1(const TraceResult& res, const RaytraceCpu&) {
     switch (res.outcome) {
         case RayOutcome::Escaped:
-            return shade_background(res.escape_theta, res.escape_phi);
+            return shade_starfield(res.escape_theta, res.escape_phi);
         case RayOutcome::DiskHit: {
             // simple emissive band, 1/r² falloff — replaced in Phase 3
             const float f = static_cast<float>(36.0 / (res.disk.r * res.disk.r));
@@ -258,10 +260,8 @@ std::array<float, 3> shade_phase1(const TraceResult& res, const RaytraceCpu&) {
     }
 }
 
-} // namespace
-
 ImageRGB render_frame(const RaytraceCpu& tracer, ShadeFn shade, int supersample) {
-    if (!shade) shade = &shade_phase1;
+    if (!shade) shade = shade_phase1;
     const auto& cam = tracer.camera();
     ImageRGB img;
     img.resize(cam.width, cam.height);
