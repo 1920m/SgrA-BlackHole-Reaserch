@@ -223,6 +223,7 @@ int App::run() {
 
         const VkPipelineStageFlags wait_stage =
             VK_PIPELINE_STAGE_TRANSFER_BIT;
+        const VkSemaphore present_sem = ctx_->render_finished(sc_index);
         VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
         si.waitSemaphoreCount = 1;
         si.pWaitSemaphores = &f.image_available;
@@ -230,12 +231,12 @@ int App::run() {
         si.commandBufferCount = 1;
         si.pCommandBuffers = &f.cmd;
         si.signalSemaphoreCount = 1;
-        si.pSignalSemaphores = &f.render_finished;
+        si.pSignalSemaphores = &present_sem;
         check(vkQueueSubmit(ctx_->queue(), 1, &si, f.in_flight), "vkQueueSubmit");
 
         VkPresentInfoKHR pi{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
         pi.waitSemaphoreCount = 1;
-        pi.pWaitSemaphores = &f.render_finished;
+        pi.pWaitSemaphores = &present_sem;
         pi.swapchainCount = 1;
         VkSwapchainKHR sc = ctx_->swapchain();
         pi.pSwapchains = &sc;

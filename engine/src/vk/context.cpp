@@ -131,7 +131,6 @@ Context::Context(int width, int height, const char* title,
               "vkAllocateCommandBuffers");
         VkSemaphoreCreateInfo sci{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         check(vkCreateSemaphore(device_, &sci, nullptr, &f.image_available), "sem");
-        check(vkCreateSemaphore(device_, &sci, nullptr, &f.render_finished), "sem");
         VkFenceCreateInfo fci{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
         fci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         check(vkCreateFence(device_, &fci, nullptr, &f.in_flight), "fence");
@@ -152,9 +151,19 @@ void Context::create_swapchain() {
     swapchain_format_ = vkb_sc.image_format;
     swapchain_extent_ = vkb_sc.extent;
     sc_images_ = vkb_sc.get_images().value();
+
+    // One present-wait semaphore per swapchain image (validation-clean reuse).
+    render_finished_.resize(sc_images_.size());
+    for (auto& s : render_finished_) {
+        VkSemaphoreCreateInfo sci{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        check(vkCreateSemaphore(device_, &sci, nullptr, &s), "sem(present)");
+    }
 }
 
 void Context::destroy_swapchain() {
+    for (auto s : render_finished_)
+        if (s) vkDestroySemaphore(device_, s, nullptr);
+    render_finished_.clear();
     if (swapchain_) vkDestroySwapchainKHR(device_, swapchain_, nullptr);
     swapchain_ = VK_NULL_HANDLE;
 }
@@ -192,7 +201,6 @@ Context::~Context() {
         for (auto& f : frames_) {
             if (f.in_flight) vkDestroyFence(device_, f.in_flight, nullptr);
             if (f.image_available) vkDestroySemaphore(device_, f.image_available, nullptr);
-            if (f.render_finished) vkDestroySemaphore(device_, f.render_finished, nullptr);
             if (f.pool) vkDestroyCommandPool(device_, f.pool, nullptr);
         }
         destroy_swapchain();
