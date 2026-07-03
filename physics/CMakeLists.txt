@@ -25,6 +25,7 @@ if(SGR_BUILD_TESTS)
         tests/test_timelike_normalisation.cpp
         tests/test_hartle_thorne_limit.cpp
         tests/test_shadow_schwarzschild.cpp
+        tests/test_shadow_kerr.cpp
     )
     target_link_libraries(sgr_physics_tests PRIVATE
         sgr_physics Catch2::Catch2WithMain)

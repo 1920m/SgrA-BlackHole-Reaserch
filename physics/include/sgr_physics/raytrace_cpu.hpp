@@ -123,10 +123,15 @@ bool write_png_srgb(const ImageRGB& img, const char* path, double exposure_ev = 
 
 // Render a full frame: background starfield + optional disk (Phase 1 uses a
 // simple emissive band; Phase 3 swaps in Novikov-Thorne shading via `shade`).
-// `shade` maps a TraceResult to linear RGB; pass nullptr for the built-in
-// Phase-1 look (procedural starfield + uniform warm disk band).
-using ShadeFn = std::array<float, 3> (*)(const TraceResult&, const RaytraceCpu&);
-ImageRGB render_frame(const RaytraceCpu& tracer, ShadeFn shade = nullptr,
+// `shade` maps a TraceResult to linear RGB; pass an empty function for the
+// built-in Phase-1 look (procedural starfield + uniform warm disk band).
+using ShadeFn =
+    std::function<std::array<float, 3>(const TraceResult&, const RaytraceCpu&)>;
+ImageRGB render_frame(const RaytraceCpu& tracer, ShadeFn shade = {},
                       int supersample = 1);
+
+// The built-in starfield shading for escaped rays — exposed so custom disk
+// shaders can reuse the same background.
+std::array<float, 3> shade_starfield(double theta, double phi);
 
 } // namespace sgr
