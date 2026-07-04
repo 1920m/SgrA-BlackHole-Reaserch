@@ -54,6 +54,21 @@ App::App(const AppOptions& opts) : opts_(opts) {
     if (opts_.t_peak_k > 0.0f) live_.t_peak_k = opts_.t_peak_k;
 
     live_.science_mode = opts_.science;
+
+    // Scroll = camera zoom (installed before ImGui's backend so its handler
+    // chains to ours; ImGui consumes the event first when a window is
+    // hovered — see the WantCaptureMouse guard in the callback).
+    glfwSetWindowUserPointer(ctx_->window(), this);
+    glfwSetScrollCallback(ctx_->window(), [](GLFWwindow* w, double, double dy) {
+        auto* app = static_cast<App*>(glfwGetWindowUserPointer(w));
+        if (!app || app->opts_.no_mouse || app->mode_ != UiMode::Simulation)
+            return;
+        if (app->hud_ && app->hud_->wants_mouse()) return;
+        app->live_.r_cam = std::clamp(
+            app->live_.r_cam * std::pow(0.90f, static_cast<float>(dy)),
+            15.0f, 400.0f);
+    });
+
     if (opts_.shader == "disk") load_luts();
 
     // Phase 9: cinematic menu — load the baked hero plate (blit source only;
@@ -100,6 +115,7 @@ void App::apply_preset(int index) {
     live_.exposure_ev = p.exposure_ev;
     live_.t_peak_k = p.t_peak_k;
     live_.r_cam = p.r_cam;
+    live_.turb = p.turb;
 }
 
 App::Texture App::create_texture_png(const std::string& path,
@@ -498,6 +514,8 @@ PushConstants App::make_push_constants(float t) const {
     pc.shade_mode = opts_.shader == "disk" ? live_.lut_slot : opts_.shade_mode;
     pc.y_offset = 0;
     pc.t_peak_k = live_.t_peak_k;
+    pc.turb = live_.turb;
+    pc.cam_phi = live_.cam_phi;
 
     // Page-Thorne normalisation, cached against the parameters it depends on.
     static thread_local double cached_a = -10.0, cached_rout = -1.0,
@@ -619,10 +637,37 @@ int App::run() {
                 return_to_menu();
         }
 
-        if (mode_ == UiMode::Simulation)
+        if (mode_ == UiMode::Simulation) {
             for (int k = 0; k < 5; ++k)
                 if (glfwGetKey(ctx_->window(), GLFW_KEY_1 + k) == GLFW_PRESS)
                     apply_preset(k);
+
+            // Mouse-drag orbit: horizontal = azimuth, vertical = inclination
+            // (full range — above and below the disk plane; a small dead zone
+            // at exactly 90° avoids the degenerate edge-on camera).
+            if (!opts_.no_mouse) {
+                double mx = 0.0, my = 0.0;
+                glfwGetCursorPos(ctx_->window(), &mx, &my);
+                const bool lmb = glfwGetMouseButton(ctx_->window(),
+                                                    GLFW_MOUSE_BUTTON_LEFT) ==
+                                 GLFW_PRESS;
+                const bool ui_mouse = hud_ && hud_->wants_mouse();
+                if (lmb && dragging_) {
+                    live_.cam_phi += static_cast<float>(mx - drag_x_) * 0.005f;
+                    float incl = live_.incl_deg +
+                                 static_cast<float>(my - drag_y_) * 0.20f;
+                    incl = std::clamp(incl, 1.0f, 179.0f);
+                    if (incl > 89.3f && incl < 90.7f)
+                        incl = (my - drag_y_) >= 0.0 ? 90.7f : 89.3f;
+                    live_.incl_deg = incl;
+                }
+                dragging_ = lmb && !ui_mouse;
+                drag_x_ = mx;
+                drag_y_ = my;
+            }
+        } else {
+            dragging_ = false;
+        }
         if (hud_) hud_->new_frame(fps_now);
 
         auto& f = ctx_->frame(frame_slot);

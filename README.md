@@ -100,8 +100,16 @@ and add `--validation` (exit code = error count; the gates require zero).
 
 ## 🎛 The modes
 
-Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation,
-keys **1–5** switch presets and **Esc** returns to the menu.
+Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
+
+- **drag** to orbit the black hole in 3D — full 360° azimuth and inclination,
+  above *and* below the disk plane
+- **scroll** to zoom (camera radius 15–400 M)
+- keys **1–5** switch presets, **Esc** returns to the menu
+- the **turbulence** slider adds a filament layer sheared by the real
+  Keplerian differential rotation — display-only, mean-1 on the
+  Page–Thorne flux, so the g⁴ Doppler physics is untouched (set it to 0,
+  or use the PHYSICAL preset, for the exact analytic disk)
 
 | Menu item | What it does |
 |---|---|
@@ -146,6 +154,7 @@ keys **1–5** switch presets and **Esc** returns to the menu.
 --astar X --incl DEG  override physics parameters
 --width W --height H  window size          --scale S   render-resolution knob
 --frames N            exit after N frames  --screenshot out.png
+--no-mouse            disable orbit/zoom input (repeatable screenshots)
 --validation          Vulkan validation layers ON (exit code = error count)
 ```
 

@@ -203,6 +203,10 @@ void SimHUD::load_science_artifacts() {
     science_available_ = true;
 }
 
+bool SimHUD::wants_mouse() const {
+    return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse;
+}
+
 void SimHUD::new_frame(double fps) {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -244,17 +248,21 @@ void SimHUD::draw_controls(double fps) {
         app_->apply_preset(preset);
     }
     ImGui::SliderFloat("a* (spin)", &lp.a_star, 0.0f, 0.998f, "%.3f");
-    ImGui::SliderFloat("inclination [deg]", &lp.incl_deg, 1.0f, 89.0f, "%.1f");
-    ImGui::SliderFloat("camera r [M]", &lp.r_cam, 25.0f, 200.0f, "%.0f");
+    ImGui::SliderFloat("inclination [deg]", &lp.incl_deg, 1.0f, 179.0f, "%.1f");
+    ImGui::SliderFloat("camera r [M]", &lp.r_cam, 15.0f, 400.0f, "%.0f");
     ImGui::SliderFloat("fov [rad]", &lp.fov, 0.2f, 1.4f, "%.2f");
     ImGui::SliderFloat("disk r_out [M]", &lp.disk_r_out, 8.0f, 30.0f, "%.1f");
     ImGui::SliderFloat("exposure [EV]", &lp.exposure_ev, -3.0f, 4.0f, "%.1f");
     ImGui::SliderFloat("T_peak [K]", &lp.t_peak_k, 2000.0f, 20000.0f, "%.0f");
+    ImGui::SliderFloat("turbulence", &lp.turb, 0.0f, 1.0f, "%.2f");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Artistic filament layer sheared by the real\n"
+                          "Keplerian rotation. 0 = pure Page-Thorne\n"
+                          "(the physics is identical either way).");
     ImGui::Separator();
     ImGui::Checkbox("Science Mode (S2 orbit + fit)", &lp.science_mode);
-    ImGui::TextDisabled(app_->menu_enabled()
-                            ? "keys 1-5: presets  |  Esc: menu"
-                            : "keys 1-5: presets  |  Esc: quit");
+    ImGui::TextDisabled("drag: orbit  |  wheel: zoom  |  keys 1-5: presets");
+    ImGui::TextDisabled(app_->menu_enabled() ? "Esc: menu" : "Esc: quit");
     ImGui::End();
 }
 

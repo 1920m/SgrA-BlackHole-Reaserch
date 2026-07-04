@@ -30,6 +30,10 @@ public:
     // Build this frame's UI (call between glfwPollEvents and record).
     void new_frame(double fps);
 
+    // True when ImGui owns the mouse (hovering/dragging a window) — the
+    // camera orbit/zoom controls stand down then.
+    bool wants_mouse() const;
+
     // Record the overlay pass over the given swapchain image
     // (expects TRANSFER_DST_OPTIMAL; leaves PRESENT_SRC_KHR).
     void record(VkCommandBuffer cmd, uint32_t sc_index);

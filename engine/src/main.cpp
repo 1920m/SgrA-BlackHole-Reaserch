@@ -42,6 +42,7 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--menu")) opts.menu = true;
         else if (!std::strcmp(argv[i], "--demo")) opts.demo_frames = std::atoi(next("--demo"));
         else if (!std::strcmp(argv[i], "--panel")) opts.panel = next("--panel");
+        else if (!std::strcmp(argv[i], "--no-mouse")) opts.no_mouse = true;
         else if (!std::strcmp(argv[i], "--science")) opts.science = true;
         else if (!std::strcmp(argv[i], "--preset")) opts.preset = std::atoi(next("--preset"));
         else if (!std::strcmp(argv[i], "--scale")) opts.render_scale = static_cast<float>(std::atof(next("--scale")));

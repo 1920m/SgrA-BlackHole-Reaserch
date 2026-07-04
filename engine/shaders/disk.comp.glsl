@@ -27,6 +27,8 @@ layout(push_constant) uniform PC {
     uint y_offset;
     float flux_max;    // max Page-Thorne flux (CPU precomputed for T scaling)
     float t_peak_k;    // peak effective temperature [K]
+    float turb;        // artistic turbulence amount 0..1 (0 = pure analytic)
+    float cam_phi;     // camera orbit azimuth [rad]
 } pc;
 
 const float PI = 3.14159265;
@@ -103,6 +105,41 @@ float pt_flux(float r, float a, float r_in) {
         br -= 3.0 * (x3 - a) * (x3 - a) / (x3 * (x3 - x1) * (x3 - x2)) *
               log((x - x3) / (x0 - x3));
     return max(0.0, br / (x * x * x * x * denom * x * x));
+}
+
+// ---- artistic turbulence layer (display only; physics untouched) ------------
+// Mean-1 multiplicative filament pattern in (log r, φ), advected by the REAL
+// relativistic circular-orbit angular velocity Ω = 1/(r^{3/2} + a): the
+// differential rotation shears the noise into the trailing spiral filaments
+// seen in MHD disk simulations. turb = 0 recovers the exact Page-Thorne disk.
+float hash2(vec2 i) {
+    uvec2 q = uvec2(ivec2(i) + 8192);
+    uint h = q.x * 1597334677u ^ q.y * 3812015801u;
+    h ^= h >> 16; h *= 0x7feb352du; h ^= h >> 15; h *= 0x846ca68bu; h ^= h >> 16;
+    return float(h) * (1.0 / 4294967296.0);
+}
+float vnoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash2(i), hash2(i + vec2(1, 0)), u.x),
+               mix(hash2(i + vec2(0, 1)), hash2(i + vec2(1, 1)), u.x), u.y);
+}
+float turb_factor(float r, float phi) {
+    if (pc.turb <= 0.0) return 1.0;
+    float Om = 1.0 / (r * sqrt(r) + pc.a_star);   // Kerr circular orbit
+    float ph = phi - 0.30 * Om * pc.time_s;       // slow display-time swirl
+    // filaments: broad lanes radially (log r), stretched along the orbit
+    vec2 p = vec2(log(r) * 9.0, ph * 3.0);
+    float n = 0.0, w = 0.5, wsum = 0.0;
+    for (int i = 0; i < 5; ++i) {
+        n += w * vnoise(p);
+        wsum += w;
+        p = p * vec2(2.03, 1.91) + vec2(17.13, 9.71);
+        w *= 0.58;
+    }
+    n /= wsum;                                     // mean 0.5
+    float f = mix(1.0, 0.25 + 1.5 * n, pc.turb);   // mean stays 1
+    return f * f;                                  // deepen the contrast
 }
 
 // ---- starfield (matches CPU) ------------------------------------------------
@@ -186,7 +223,7 @@ void main() {
     float r_escape = max(2.0 * r0, 300.0);
 
     int outcome = 0;
-    float disk_r = 0.0, disk_g = 1.0;
+    float disk_r = 0.0, disk_g = 1.0, disk_ph = 0.0;
     float esc_th = 0.0, esc_ph = 0.0;
 
     float prev_c = c0;
@@ -196,6 +233,10 @@ void main() {
         float h = 0.04 * y[1] / (abs(y[4]) + 1e-4);
         h = min(h, 0.10 / (abs(y[5]) + 1.0));
         h = min(h, 0.08);
+        // polar-axis guard: the θ-equation stiffens as sinθ → 0 (Lz²/sin³θ);
+        // under-resolved steps there alias into a dotted column of phantom
+        // disk crossings on the spin axis
+        h = min(h, 0.015 + 0.25 * abs(sin(y[2])));
         rk4_step(cc, y, h);
 
         float Rp = radial_potential(cc, y[1]);
@@ -215,6 +256,7 @@ void main() {
             float hh = 0.04 * prev[1] / (abs(prev[4]) + 1e-4);
             hh = min(hh, 0.10 / (abs(prev[5]) + 1.0));
             hh = min(hh, 0.08);
+            hh = min(hh, 0.015 + 0.25 * abs(sin(prev[2])));
             for (int it = 0; it < 18; ++it) {
                 float mid = 0.5 * (lo + hi);
                 float tr[6];
@@ -227,6 +269,7 @@ void main() {
             if (r_x >= pc.disk_r_in && r_x <= pc.disk_r_out) {
                 outcome = 3;
                 disk_r = r_x;
+                disk_ph = cr[3];
                 float Om = 1.0 / (r_x * sqrt(r_x) + a);
                 float sg = r_x * r_x;
                 float dl = r_x * r_x - 2.0 * r_x + a * a;
@@ -251,9 +294,11 @@ void main() {
 
     vec3 col = vec3(0.0);
     if (outcome == 2) {
-        col = shade_starfield(esc_th, esc_ph);
+        // camera azimuth rotates the whole sky with the orbit
+        col = shade_starfield(esc_th, esc_ph + pc.cam_phi);
     } else if (outcome == 3) {
         float F = pt_flux(disk_r, a, pc.disk_r_in);
+        F *= turb_factor(disk_r, disk_ph + pc.cam_phi);
         float T = pc.t_peak_k * pow(max(F, 0.0) / pc.flux_max, 0.25);
         float Tobs = disk_g * T;
         // colour: physical blackbody colormap, log-T parameterised
@@ -267,10 +312,14 @@ void main() {
     col *= exp2(pc.exposure_ev);
     // artistic preset grade (display only; §9 — physics untouched)
     if (pc.shade_mode > 0u && outcome == 3) {
-        // palette remap on display luminance (LUT PNGs are sRGB-encoded, so
-        // the sampled value is the final display colour for that intensity)
+        // palette remap on COMPRESSED log display luminance: the physical
+        // (gT)^4 brightness spans ~4 decades across the disk, which a linear
+        // display crushes to black outside the beamed side. A ~14-stop log
+        // window (the same trick photographic tone mapping uses) keeps the
+        // whole disk inside the LUT ramp so the filaments read everywhere.
+        // The LUT PNGs are sRGB-encoded: the sample IS the display colour.
         float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-        float lu = pow(clamp(luma, 0.0, 1.0), 1.0 / 2.2);
+        float lu = clamp(1.0 + log2(max(luma, 1e-7)) / 24.0, 0.0, 1.0);
         vec3 graded = texture(luts[pc.shade_mode], vec2(lu, 0.5)).rgb;
         imageStore(storage_images[pc.image_index], ivec2(pix),
                    vec4(graded, 1.0));

@@ -27,6 +27,7 @@ struct AppOptions {
                                       // every N frames (Gate 9 evidence)
     std::string panel;                // open this menu panel at boot
                                       // (about|nohair|scope|gallery|settings)
+    bool no_mouse = false;            // ignore mouse orbit/zoom (automation)
     // Physics parameters forwarded to the shader (Phase 7+). Negative /
     // sentinel values mean "not set on the CLI": the preset (live mode) or
     // the per-shader defaults fill them in.
@@ -57,6 +58,8 @@ struct PushConstants {
     uint32_t y_offset;
     float flux_max;   // Page-Thorne max flux (CPU precomputed)
     float t_peak_k;   // peak disk temperature [K]
+    float turb;       // artistic turbulence amount 0..1 (0 = pure analytic)
+    float cam_phi;    // camera azimuth [rad] (axisymmetric: rotates the disk)
 };
 static_assert(sizeof(PushConstants) <= 128);
 
@@ -123,11 +126,15 @@ private:
     UiMode mode_ = UiMode::Simulation;
     Texture hero_{};
     bool esc_prev_ = false;
+    bool dragging_ = false;
+    double drag_x_ = 0.0, drag_y_ = 0.0;
 
 public:
     // Live-tunable state (edited by the HUD; consumed by make_push_constants).
     struct LiveParams {
         float a_star, incl_deg, fov, r_cam, disk_r_out, exposure_ev, t_peak_k;
+        float turb = 0.0f;    // artistic turbulence layer (post-validation)
+        float cam_phi = 0.0f; // orbit azimuth [rad], mouse-driven
         uint32_t lut_slot = 0;
         int preset = 0;
         bool science_mode = false;
