@@ -29,6 +29,7 @@ layout(push_constant) uniform PC {
     float t_peak_k;    // peak effective temperature [K]
     float turb;        // artistic turbulence amount 0..1 (0 = pure analytic)
     float cam_phi;     // camera orbit azimuth [rad]
+    float time_scale;  // filament advection: Ω [1/M] per wall-clock second
 } pc;
 
 const float PI = 3.14159265;
@@ -127,7 +128,9 @@ float vnoise(vec2 p) {
 float turb_factor(float r, float phi) {
     if (pc.turb <= 0.0) return 1.0;
     float Om = 1.0 / (r * sqrt(r) + pc.a_star);   // Kerr circular orbit
-    float ph = phi - 0.30 * Om * pc.time_s;       // slow display-time swirl
+    // time_scale = rot_speed / (GM/c³): at rot_speed 1 this is the true
+    // wall-clock rotation of Sgr A* (ISCO orbit ≈ 8.5 min — patience).
+    float ph = phi - Om * pc.time_s * pc.time_scale;
     // filaments: broad lanes radially (log r), stretched along the orbit
     vec2 p = vec2(log(r) * 9.0, ph * 3.0);
     float n = 0.0, w = 0.5, wsum = 0.0;

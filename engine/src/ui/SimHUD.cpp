@@ -238,7 +238,8 @@ void SimHUD::draw_controls(double fps) {
     ImGui::SetNextWindowPos({12, 12}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({330, 0}, ImGuiCond_FirstUseEver);
     ImGui::Begin("SGR A* - controls");
-    ImGui::Text("%.1f fps  |  GTX 1050 fp32 live path", fps);
+    ImGui::Text("%.1f fps  |  %ux%u internal  |  fp32 live path", fps,
+                app_->target_width(), app_->target_height());
     ImGui::Separator();
 
     int preset = lp.preset;
@@ -259,6 +260,25 @@ void SimHUD::draw_controls(double fps) {
         ImGui::SetTooltip("Artistic filament layer sheared by the real\n"
                           "Keplerian rotation. 0 = pure Page-Thorne\n"
                           "(the physics is identical either way).");
+    ImGui::SliderFloat("rotation [x real]", &lp.rot_speed, 0.0f, 1000.0f,
+                       "%.1f", ImGuiSliderFlags_Logarithmic);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Filament advection speed in multiples of real\n"
+                          "Sgr A* time. At 1.0 the innermost orbit takes\n"
+                          "~8.5 minutes of wall clock - a real black hole\n"
+                          "this heavy looks almost frozen. Crank it up to\n"
+                          "watch the shear.");
+    ImGui::Separator();
+    if (ImGui::Checkbox("auto resolution (target 13 fps)", &lp.auto_res) &&
+        !lp.auto_res)
+        app_->request_target_rebuild();
+    if (ImGui::SliderFloat("render scale", &lp.render_scale, 0.25f, 2.0f,
+                           "%.2f"))
+        app_->request_target_rebuild();
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Internal render resolution vs window size.\n"
+                          "Above 1.0 = supersampled anti-aliasing.\n"
+                          "Auto mode adjusts this to hold ~13 fps.");
     ImGui::Separator();
     ImGui::Checkbox("Science Mode (S2 orbit + fit)", &lp.science_mode);
     ImGui::TextDisabled("drag: orbit  |  wheel: zoom  |  keys 1-5: presets");

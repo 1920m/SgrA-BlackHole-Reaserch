@@ -31,6 +31,7 @@ App::App(const AppOptions& opts) : opts_(opts) {
         *ctx_, bindless_->layout(),
         std::string(SGR_SHADER_DIR) + "/" + opts.shader + ".comp.glsl",
         sizeof(PushConstants));
+    live_.render_scale = std::clamp(opts_.render_scale, 0.25f, 2.0f);
     create_render_target();
 
     // live parameters: preset defaults → per-shader defaults → CLI overrides
@@ -52,6 +53,7 @@ App::App(const AppOptions& opts) : opts_(opts) {
     if (opts_.disk_r_out > 0.0f) live_.disk_r_out = opts_.disk_r_out;
     if (opts_.exposure_ev > -900.0f) live_.exposure_ev = opts_.exposure_ev;
     if (opts_.t_peak_k > 0.0f) live_.t_peak_k = opts_.t_peak_k;
+    if (opts_.rot_speed >= 0.0f) live_.rot_speed = opts_.rot_speed;
 
     live_.science_mode = opts_.science;
 
@@ -256,7 +258,9 @@ void App::create_render_target() {
         target_w_ = static_cast<uint32_t>(opts_.width);
         target_h_ = static_cast<uint32_t>(opts_.height);
     } else {
-        const float s = std::clamp(opts_.render_scale, 0.2f, 1.0f);
+        // live_.render_scale is runtime-tunable (auto-res / HUD slider);
+        // > 1 renders oversized and the LINEAR blit downsamples (cheap SSAA).
+        const float s = std::clamp(live_.render_scale, 0.25f, 2.0f);
         target_w_ = std::max(16u, static_cast<uint32_t>(
                                       ctx_->swapchain_extent().width * s));
         target_h_ = std::max(16u, static_cast<uint32_t>(
@@ -516,6 +520,9 @@ PushConstants App::make_push_constants(float t) const {
     pc.t_peak_k = live_.t_peak_k;
     pc.turb = live_.turb;
     pc.cam_phi = live_.cam_phi;
+    // 1.0 on the slider = real Sgr A* wall-clock: one geometric time unit
+    // (GM/c³) is 21.17 s for M = 4.297e6 Msun.
+    pc.time_scale = live_.rot_speed / 21.17f;
 
     // Page-Thorne normalisation, cached against the parameters it depends on.
     static thread_local double cached_a = -10.0, cached_rout = -1.0,
@@ -670,6 +677,14 @@ int App::run() {
         }
         if (hud_) hud_->new_frame(fps_now);
 
+        if (target_rebuild_) {
+            target_rebuild_ = false;
+            live_.render_scale = std::clamp(live_.render_scale, 0.25f, 2.0f);
+            ctx_->wait_idle();
+            destroy_render_target();
+            create_render_target();
+        }
+
         auto& f = ctx_->frame(frame_slot);
         vkWaitForFences(ctx_->device(), 1, &f.in_flight, VK_TRUE, UINT64_MAX);
 
@@ -735,9 +750,40 @@ int App::run() {
         if (std::chrono::duration<double>(now - fps_t0).count() > 2.0) {
             fps_now = fps_frames /
                       std::chrono::duration<double>(now - fps_t0).count();
-            std::printf("[app] %.1f fps\n", fps_now);
+            std::printf("[app] %.1f fps (scale %.2f)\n", fps_now,
+                        live_.render_scale);
             fps_t0 = now;
             fps_frames = 0;
+
+            // Auto resolution: hold ~13 fps (user-chosen) by scaling the
+            // internal render target. Cost per frame ~ pixels ~ scale², so
+            // sqrt(fps/target) is the equalising step; blend 70% toward it
+            // and ignore <5% moves to avoid oscillation. Menu mode is a
+            // cheap blit — never scale on its numbers.
+            if (live_.auto_res && mode_ == UiMode::Simulation &&
+                fps_now > 0.0) {
+                if (autores_skip_) {
+                    // this sample includes the rebuild stall — not a real
+                    // performance measurement
+                    autores_skip_ = false;
+                } else {
+                    const float target = 13.0f;
+                    float want =
+                        live_.render_scale *
+                        std::clamp(std::sqrt(static_cast<float>(fps_now) /
+                                             target),
+                                   0.74f, 1.35f); // bounded step per sample
+                    want = std::clamp(want, 0.25f, 2.0f);
+                    const float next = live_.render_scale +
+                                       0.7f * (want - live_.render_scale);
+                    if (std::fabs(next - live_.render_scale) >
+                        0.05f * live_.render_scale) {
+                        live_.render_scale = next;
+                        request_target_rebuild();
+                        autores_skip_ = true;
+                    }
+                }
+            }
         }
     }
 

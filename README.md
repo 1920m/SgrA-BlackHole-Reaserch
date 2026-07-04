@@ -110,6 +110,14 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
   Keplerian differential rotation — display-only, mean-1 on the
   Page–Thorne flux, so the g⁴ Doppler physics is untouched (set it to 0,
   or use the PHYSICAL preset, for the exact analytic disk)
+- the **rotation [× real]** slider animates the filaments at multiples of
+  real Sgr A* wall-clock time. At 1.0 (the default) the innermost orbit
+  takes ~8.5 minutes — a 4-million-solar-mass black hole genuinely looks
+  almost frozen. Push it to a few hundred to watch the differential shear
+  wind the filaments into trailing spirals
+- **auto resolution** (on by default) adjusts the internal render scale to
+  hold ~13 fps at any window size; the **render scale** slider overrides it
+  manually (0.25×–2×; above 1× = supersampled anti-aliasing)
 
 | Menu item | What it does |
 |---|---|
@@ -155,6 +163,7 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 --width W --height H  window size          --scale S   render-resolution knob
 --frames N            exit after N frames  --screenshot out.png
 --no-mouse            disable orbit/zoom input (repeatable screenshots)
+--rot X               disk rotation speed in multiples of real time
 --validation          Vulkan validation layers ON (exit code = error count)
 ```
 

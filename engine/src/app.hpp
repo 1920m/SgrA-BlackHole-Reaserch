@@ -28,6 +28,7 @@ struct AppOptions {
     std::string panel;                // open this menu panel at boot
                                       // (about|nohair|scope|gallery|settings)
     bool no_mouse = false;            // ignore mouse orbit/zoom (automation)
+    float rot_speed = -1.0f;          // disk rotation ×real (-1: default 1.0)
     // Physics parameters forwarded to the shader (Phase 7+). Negative /
     // sentinel values mean "not set on the CLI": the preset (live mode) or
     // the per-shader defaults fill them in.
@@ -60,6 +61,7 @@ struct PushConstants {
     float t_peak_k;   // peak disk temperature [K]
     float turb;       // artistic turbulence amount 0..1 (0 = pure analytic)
     float cam_phi;    // camera azimuth [rad] (axisymmetric: rotates the disk)
+    float time_scale; // filament advection: Ω [1/M] per wall-clock second
 };
 static_assert(sizeof(PushConstants) <= 128);
 
@@ -80,6 +82,12 @@ public:
     void enter_simulation(bool science, bool scope = false);
     void return_to_menu() { mode_ = UiMode::Menu; }
     void request_quit();
+
+    // Recreate the internal render target next frame (render_scale changed
+    // via the HUD slider or the auto-resolution controller).
+    void request_target_rebuild() { target_rebuild_ = true; }
+    uint32_t target_width() const { return target_w_; }
+    uint32_t target_height() const { return target_h_; }
 
     // Generic sampled/blit texture loaded from a PNG (LUTs, hero plate,
     // gallery thumbnails).
@@ -128,6 +136,8 @@ private:
     bool esc_prev_ = false;
     bool dragging_ = false;
     double drag_x_ = 0.0, drag_y_ = 0.0;
+    bool target_rebuild_ = false;
+    bool autores_skip_ = false; // discard the fps sample after a rebuild
 
 public:
     // Live-tunable state (edited by the HUD; consumed by make_push_constants).
@@ -135,6 +145,12 @@ public:
         float a_star, incl_deg, fov, r_cam, disk_r_out, exposure_ev, t_peak_k;
         float turb = 0.0f;    // artistic turbulence layer (post-validation)
         float cam_phi = 0.0f; // orbit azimuth [rad], mouse-driven
+        // Disk rotation in multiples of REAL Sgr A* wall-clock time
+        // (1.0 = physical: GM/c³ = 21.17 s per geometric time unit, one
+        // ISCO orbit ≈ 8.5 min — crank it up to actually see the swirl).
+        float rot_speed = 1.0f;
+        float render_scale = 1.0f; // internal render resolution multiplier
+        bool auto_res = true;      // hold ~13 fps by adjusting render_scale
         uint32_t lut_slot = 0;
         int preset = 0;
         bool science_mode = false;
