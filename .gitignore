@@ -21,3 +21,12 @@ CMakeUserPresets.json
 # OS
 Thumbs.db
 .DS_Store
+
+# LaTeX build artefacts (main.pdf is a tracked deliverable)
+paper/main.aux
+paper/main.bbl
+paper/main.blg
+paper/main.log
+paper/main.out
+paper/main.toc
+imgui.ini
