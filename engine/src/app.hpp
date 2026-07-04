@@ -22,6 +22,11 @@ struct AppOptions {
     int max_frames = -1;              // -1: run until window closes
     std::string screenshot_path;      // save last frame if non-empty
     std::string shader = "solid";     // shaders/<name>.comp.glsl
+    bool menu = false;                // boot to the cinematic menu (Phase 9)
+    int demo_frames = 0;              // >0: scripted menu→sim→menu transition
+                                      // every N frames (Gate 9 evidence)
+    std::string panel;                // open this menu panel at boot
+                                      // (about|nohair|scope|gallery|settings)
     // Physics parameters forwarded to the shader (Phase 7+). Negative /
     // sentinel values mean "not set on the CLI": the preset (live mode) or
     // the per-shader defaults fill them in.
@@ -63,10 +68,36 @@ public:
     // Runs the loop; returns the number of validation errors observed.
     int run();
 
+    // UI mode (Phase 9): the menu shows the baked hero plate (no compute);
+    // the live renderer only runs in Simulation mode.
+    enum class UiMode { Menu, Simulation };
+    UiMode mode() const { return mode_; }
+    bool menu_enabled() const { return opts_.menu; }
+    const std::string& boot_panel() const { return opts_.panel; }
+    void enter_simulation(bool science, bool scope = false);
+    void return_to_menu() { mode_ = UiMode::Menu; }
+    void request_quit();
+
+    // Generic sampled/blit texture loaded from a PNG (LUTs, hero plate,
+    // gallery thumbnails).
+    struct Texture {
+        VkImage image = VK_NULL_HANDLE;
+        VmaAllocation alloc = nullptr;
+        VkImageView view = VK_NULL_HANDLE;
+        int w = 0, h = 0;
+    };
+    // Loads a PNG, uploads via staging, transitions to `final_layout`; the
+    // texture is owned by the App (freed in ~App). Returns w=0 on failure.
+    Texture create_texture_png(const std::string& path,
+                               VkImageUsageFlags usage,
+                               VkImageLayout final_layout);
+    VkSampler lut_sampler() const { return lut_sampler_; }
+
 private:
     void create_render_target();
     void destroy_render_target();
     void record(VkCommandBuffer cmd, uint32_t sc_index, float t);
+    void record_menu(VkCommandBuffer cmd, uint32_t sc_index, float t);
     void save_screenshot();
     int run_offscreen();
     PushConstants make_push_constants(float t) const;
@@ -85,13 +116,13 @@ private:
     bool target_initialised_ = false;
     uint32_t last_sc_index_ = 0;
 
-    struct LutTexture {
-        VkImage image = VK_NULL_HANDLE;
-        VmaAllocation alloc = nullptr;
-        VkImageView view = VK_NULL_HANDLE;
-    };
-    std::vector<LutTexture> luts_;
+    std::vector<Texture> owned_textures_;
     VkSampler lut_sampler_ = VK_NULL_HANDLE;
+    size_t n_luts_ = 0;
+
+    UiMode mode_ = UiMode::Simulation;
+    Texture hero_{};
+    bool esc_prev_ = false;
 
 public:
     // Live-tunable state (edited by the HUD; consumed by make_push_constants).
@@ -100,6 +131,7 @@ public:
         uint32_t lut_slot = 0;
         int preset = 0;
         bool science_mode = false;
+        bool scope_mode = false; // photon-ring scope framing active
     } live_{};
     void apply_preset(int index);
 };

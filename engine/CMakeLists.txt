@@ -27,6 +27,7 @@ add_executable(sgr_engine
     src/vk/pipeline.cpp
     src/vk/descriptors.cpp
     src/ui/SimHUD.cpp
+    src/modes/MenuMode.cpp
     third_party/imgui_impl_vulkan.cpp
 )
 target_include_directories(sgr_engine PRIVATE src ${Stb_INCLUDE_DIR})

@@ -11,3 +11,6 @@ target_link_libraries(compare_shadow PRIVATE sgr_physics nlohmann_json::nlohmann
 
 add_executable(sweep_tool sweep_tool.cpp)
 target_link_libraries(sweep_tool PRIVATE sgr_physics nlohmann_json::nlohmann_json)
+
+add_executable(render_hero render_hero.cpp)
+target_link_libraries(render_hero PRIVATE sgr_physics)

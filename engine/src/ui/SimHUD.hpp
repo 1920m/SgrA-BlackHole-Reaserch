@@ -7,12 +7,14 @@
 
 #include <volk.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace sgr {
 
 class App;
+class MenuMode;
 namespace vk { class Context; }
 
 class SimHUD {
@@ -38,9 +40,11 @@ private:
     void load_science_artifacts();
     void draw_controls(double fps);
     void draw_science();
+    void draw_scope_overlay();
 
     vk::Context* ctx_;
     App* app_;
+    std::unique_ptr<MenuMode> menu_; // Phase 9 (only when --menu)
     VkRenderPass render_pass_ = VK_NULL_HANDLE;
     VkDescriptorPool imgui_pool_ = VK_NULL_HANDLE;
     std::vector<VkFramebuffer> framebuffers_;

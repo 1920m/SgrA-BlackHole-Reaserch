@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include "app.hpp"
+#include "modes/MenuMode.hpp"
 #include "vk/context.hpp"
 
 namespace sgr {
@@ -76,6 +77,11 @@ SimHUD::SimHUD(vk::Context& ctx, App& app) : ctx_(&ctx), app_(&app) {
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
     ImGui::GetStyle().WindowRounding = 4.0f;
+    if (app_->menu_enabled()) {
+        // Menu fonts must be in the atlas before the backend builds it.
+        menu_ = std::make_unique<MenuMode>();
+        menu_->load_fonts();
+    }
     ImGui_ImplGlfw_InitForVulkan(ctx_->window(), true);
 
     // Vendored backend built with VK_NO_PROTOTYPES: route its dispatch
@@ -101,6 +107,7 @@ SimHUD::SimHUD(vk::Context& ctx, App& app) : ctx_(&ctx), app_(&app) {
     ImGui_ImplVulkan_Init(&ii);
 
     load_science_artifacts();
+    if (menu_) menu_->load_artifacts(*app_);
 }
 
 void SimHUD::create_framebuffers() {
@@ -200,9 +207,26 @@ void SimHUD::new_frame(double fps) {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    draw_controls(fps);
-    if (app_->live_.science_mode) draw_science();
+    if (menu_ && app_->mode() == App::UiMode::Menu) {
+        if (menu_->draw(*app_)) draw_controls(fps);
+    } else {
+        draw_controls(fps);
+        if (app_->live_.science_mode) draw_science();
+        if (app_->live_.scope_mode) draw_scope_overlay();
+    }
     ImGui::Render();
+}
+
+void SimHUD::draw_scope_overlay() {
+    const ImVec2 ds = ImGui::GetIO().DisplaySize;
+    ImGui::SetNextWindowPos({ds.x - 340, 12}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({320, 0}, ImGuiCond_FirstUseEver);
+    ImGui::Begin("PHOTON RING SCOPE - live");
+    ImGui::TextWrapped("Narrow-field view of the shadow edge: the bright thin "
+                       "arc hugging the silhouette is the n=1 sub-ring.");
+    ImGui::TextDisabled("fov %.2f rad, r_cam %.0f M  |  Esc: menu",
+                        app_->live_.fov, app_->live_.r_cam);
+    ImGui::End();
 }
 
 void SimHUD::draw_controls(double fps) {
@@ -228,7 +252,9 @@ void SimHUD::draw_controls(double fps) {
     ImGui::SliderFloat("T_peak [K]", &lp.t_peak_k, 2000.0f, 20000.0f, "%.0f");
     ImGui::Separator();
     ImGui::Checkbox("Science Mode (S2 orbit + fit)", &lp.science_mode);
-    ImGui::TextDisabled("keys 1-5: presets  |  Esc: quit");
+    ImGui::TextDisabled(app_->menu_enabled()
+                            ? "keys 1-5: presets  |  Esc: menu"
+                            : "keys 1-5: presets  |  Esc: quit");
     ImGui::End();
 }
 

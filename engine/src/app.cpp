@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <vector>
@@ -54,8 +55,39 @@ App::App(const AppOptions& opts) : opts_(opts) {
 
     live_.science_mode = opts_.science;
     if (opts_.shader == "disk") load_luts();
+
+    // Phase 9: cinematic menu — load the baked hero plate (blit source only;
+    // the live renderer stays idle while the menu is up).
+    if (opts_.menu) {
+        mode_ = UiMode::Menu;
+        hero_ = create_texture_png(
+            std::string(SGR_ASSET_DIR) + "/hero_plate_4k.png",
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        if (hero_.w == 0)
+            std::fprintf(stderr,
+                         "[app] hero plate missing — menu uses black backdrop\n");
+    }
+
     if (opts_.hud) hud_ = std::make_unique<SimHUD>(*ctx_, *this);
 }
+
+void App::enter_simulation(bool science, bool scope) {
+    const bool was_scope = live_.scope_mode;
+    live_.science_mode = science;
+    live_.scope_mode = scope;
+    if (scope) {
+        // Photon-ring scope framing: shadow + n=1 ring fill the frame.
+        live_.r_cam = 60.0f;
+        live_.fov = 0.22f;
+    } else if (was_scope) {
+        apply_preset(live_.preset); // restore normal framing
+        live_.fov = 0.70f;
+    }
+    mode_ = UiMode::Simulation;
+}
+
+void App::request_quit() { glfwSetWindowShouldClose(ctx_->window(), GLFW_TRUE); }
 
 void App::apply_preset(int index) {
     if (index < 0 || index >= static_cast<int>(kDiskPresets.size())) index = 0;
@@ -68,6 +100,103 @@ void App::apply_preset(int index) {
     live_.exposure_ev = p.exposure_ev;
     live_.t_peak_k = p.t_peak_k;
     live_.r_cam = p.r_cam;
+}
+
+App::Texture App::create_texture_png(const std::string& path,
+                                     VkImageUsageFlags usage,
+                                     VkImageLayout final_layout) {
+    Texture tex;
+    int w = 0, h = 0, comp = 0;
+    unsigned char* px = stbi_load(path.c_str(), &w, &h, &comp, 4);
+    if (!px) {
+        std::fprintf(stderr, "[app] missing texture %s\n", path.c_str());
+        return tex;
+    }
+    VkImageCreateInfo ici{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    ici.imageType = VK_IMAGE_TYPE_2D;
+    ici.format = VK_FORMAT_R8G8B8A8_UNORM;
+    ici.extent = {static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1};
+    ici.mipLevels = 1;
+    ici.arrayLayers = 1;
+    ici.samples = VK_SAMPLE_COUNT_1_BIT;
+    ici.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ici.usage = usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VmaAllocationCreateInfo aci{};
+    aci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+    check(vmaCreateImage(ctx_->allocator(), &ici, &aci, &tex.image, &tex.alloc,
+                         nullptr),
+          "vmaCreateImage(texture)");
+
+    // staging upload
+    VkBufferCreateInfo bci{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bci.size = 4ull * w * h;
+    bci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    VmaAllocationCreateInfo sai{};
+    sai.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+    sai.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    VkBuffer staging;
+    VmaAllocation salloc;
+    VmaAllocationInfo sinfo;
+    check(vmaCreateBuffer(ctx_->allocator(), &bci, &sai, &staging, &salloc,
+                          &sinfo),
+          "vmaCreateBuffer(texture staging)");
+    std::memcpy(sinfo.pMappedData, px, 4ull * w * h);
+    stbi_image_free(px);
+
+    // The read of `final_layout` after the upload can be a transfer (blit
+    // source) or a shader sample — cover both in the destination scope.
+    const VkPipelineStageFlags dst_stage =
+        final_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+            ? VK_PIPELINE_STAGE_TRANSFER_BIT
+            : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    const VkAccessFlags dst_access =
+        final_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+            ? VK_ACCESS_TRANSFER_READ_BIT
+            : VK_ACCESS_SHADER_READ_BIT;
+
+    auto& f = ctx_->frame(0);
+    vkResetCommandBuffer(f.cmd, 0);
+    VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(f.cmd, &bi);
+    Context::image_barrier(f.cmd, tex.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+                           VK_PIPELINE_STAGE_TRANSFER_BIT,
+                           VK_ACCESS_TRANSFER_WRITE_BIT);
+    VkBufferImageCopy region{};
+    region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    region.imageExtent = {static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1};
+    vkCmdCopyBufferToImage(f.cmd, staging, tex.image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    Context::image_barrier(f.cmd, tex.image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, final_layout,
+                           VK_PIPELINE_STAGE_TRANSFER_BIT,
+                           VK_ACCESS_TRANSFER_WRITE_BIT, dst_stage, dst_access);
+    vkEndCommandBuffer(f.cmd);
+    VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    si.commandBufferCount = 1;
+    si.pCommandBuffers = &f.cmd;
+    vkQueueSubmit(ctx_->queue(), 1, &si, VK_NULL_HANDLE);
+    ctx_->wait_idle();
+    vmaDestroyBuffer(ctx_->allocator(), staging, salloc);
+
+    if (usage & VK_IMAGE_USAGE_SAMPLED_BIT) {
+        VkImageViewCreateInfo vci{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        vci.image = tex.image;
+        vci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        vci.format = VK_FORMAT_R8G8B8A8_UNORM;
+        vci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        check(vkCreateImageView(ctx_->device(), &vci, nullptr, &tex.view),
+              "vkCreateImageView(texture)");
+    }
+    tex.w = w;
+    tex.h = h;
+    owned_textures_.push_back(tex);
+    return tex;
 }
 
 void App::load_luts() {
@@ -85,96 +214,22 @@ void App::load_luts() {
     for (uint32_t slot = 0; slot < 5; ++slot) {
         const std::string path = std::string(SGR_ASSET_DIR) + "/luts/" +
                                  names[slot] + ".png";
-        int w = 0, h = 0, comp = 0;
-        unsigned char* px = stbi_load(path.c_str(), &w, &h, &comp, 4);
-        if (!px) {
-            std::fprintf(stderr, "[app] missing LUT %s\n", path.c_str());
-            continue;
-        }
-        LutTexture lut;
-        VkImageCreateInfo ici{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-        ici.imageType = VK_IMAGE_TYPE_2D;
-        ici.format = VK_FORMAT_R8G8B8A8_UNORM;
-        ici.extent = {static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1};
-        ici.mipLevels = 1;
-        ici.arrayLayers = 1;
-        ici.samples = VK_SAMPLE_COUNT_1_BIT;
-        ici.tiling = VK_IMAGE_TILING_OPTIMAL;
-        ici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        VmaAllocationCreateInfo aci{};
-        aci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-        check(vmaCreateImage(ctx_->allocator(), &ici, &aci, &lut.image,
-                             &lut.alloc, nullptr),
-              "vmaCreateImage(lut)");
-
-        // staging upload
-        VkBufferCreateInfo bci{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        bci.size = 4ull * w * h;
-        bci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        VmaAllocationCreateInfo sai{};
-        sai.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-        sai.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-                    VMA_ALLOCATION_CREATE_MAPPED_BIT;
-        VkBuffer staging;
-        VmaAllocation salloc;
-        VmaAllocationInfo sinfo;
-        check(vmaCreateBuffer(ctx_->allocator(), &bci, &sai, &staging, &salloc,
-                              &sinfo),
-              "vmaCreateBuffer(lut staging)");
-        std::memcpy(sinfo.pMappedData, px, 4ull * w * h);
-        stbi_image_free(px);
-
-        auto& f = ctx_->frame(0);
-        vkResetCommandBuffer(f.cmd, 0);
-        VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        vkBeginCommandBuffer(f.cmd, &bi);
-        Context::image_barrier(f.cmd, lut.image, VK_IMAGE_LAYOUT_UNDEFINED,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-                               VK_PIPELINE_STAGE_TRANSFER_BIT,
-                               VK_ACCESS_TRANSFER_WRITE_BIT);
-        VkBufferImageCopy region{};
-        region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        region.imageExtent = {static_cast<uint32_t>(w),
-                              static_cast<uint32_t>(h), 1};
-        vkCmdCopyBufferToImage(f.cmd, staging, lut.image,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-        Context::image_barrier(f.cmd, lut.image,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                               VK_PIPELINE_STAGE_TRANSFER_BIT,
-                               VK_ACCESS_TRANSFER_WRITE_BIT,
-                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                               VK_ACCESS_SHADER_READ_BIT);
-        vkEndCommandBuffer(f.cmd);
-        VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-        si.commandBufferCount = 1;
-        si.pCommandBuffers = &f.cmd;
-        vkQueueSubmit(ctx_->queue(), 1, &si, VK_NULL_HANDLE);
-        ctx_->wait_idle();
-        vmaDestroyBuffer(ctx_->allocator(), staging, salloc);
-
-        VkImageViewCreateInfo vci{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-        vci.image = lut.image;
-        vci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        vci.format = VK_FORMAT_R8G8B8A8_UNORM;
-        vci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-        check(vkCreateImageView(ctx_->device(), &vci, nullptr, &lut.view),
-              "vkCreateImageView(lut)");
+        const Texture lut = create_texture_png(
+            path, VK_IMAGE_USAGE_SAMPLED_BIT,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        if (lut.w == 0) continue;
         bindless_->write_sampled_image(slot, lut.view, lut_sampler_);
-        luts_.push_back(lut);
+        ++n_luts_;
     }
-    std::printf("[app] loaded %zu LUTs\n", luts_.size());
+    std::printf("[app] loaded %zu LUTs\n", n_luts_);
 }
 
 App::~App() {
     if (ctx_) ctx_->wait_idle();
     hud_.reset();
-    for (auto& l : luts_) {
-        if (l.view) vkDestroyImageView(ctx_->device(), l.view, nullptr);
-        if (l.image) vmaDestroyImage(ctx_->allocator(), l.image, l.alloc);
+    for (auto& t : owned_textures_) {
+        if (t.view) vkDestroyImageView(ctx_->device(), t.view, nullptr);
+        if (t.image) vmaDestroyImage(ctx_->allocator(), t.image, t.alloc);
     }
     if (lut_sampler_) vkDestroySampler(ctx_->device(), lut_sampler_, nullptr);
     destroy_render_target();
@@ -227,7 +282,70 @@ void App::destroy_render_target() {
     target_ = VK_NULL_HANDLE;
 }
 
+// Menu frame: no compute — blit the baked hero plate with a slow pan/zoom
+// (subtle background motion per the design reference), then the ImGui pass.
+void App::record_menu(VkCommandBuffer cmd, uint32_t sc_index, float t) {
+    const VkImage sc_img = ctx_->swapchain_images()[sc_index];
+    const uint32_t sw = ctx_->swapchain_extent().width;
+    const uint32_t sh = ctx_->swapchain_extent().height;
+
+    Context::image_barrier(cmd, sc_img, VK_IMAGE_LAYOUT_UNDEFINED,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+                           VK_PIPELINE_STAGE_TRANSFER_BIT,
+                           VK_ACCESS_TRANSFER_WRITE_BIT);
+
+    if (hero_.w > 0) {
+        // Ken Burns crop: aspect-correct window into the 4K plate, drifting
+        // slowly. Amplitudes stay well inside the over-rendered margins.
+        const float zoom = 0.90f + 0.035f * std::sin(0.031f * t);
+        const float cx = 0.5f + 0.040f * std::sin(0.017f * t);
+        const float cy = 0.5f + 0.030f * std::sin(0.011f * t + 1.7f);
+        const float fit = std::min(static_cast<float>(hero_.w) / sw,
+                                   static_cast<float>(hero_.h) / sh);
+        const float crop_w = sw * fit * zoom;
+        const float crop_h = sh * fit * zoom;
+        const float x0 = std::clamp(cx * hero_.w - 0.5f * crop_w, 0.0f,
+                                    hero_.w - crop_w);
+        const float y0 = std::clamp(cy * hero_.h - 0.5f * crop_h, 0.0f,
+                                    hero_.h - crop_h);
+
+        VkImageBlit blit{};
+        blit.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        blit.srcOffsets[0] = {static_cast<int32_t>(x0),
+                              static_cast<int32_t>(y0), 0};
+        blit.srcOffsets[1] = {static_cast<int32_t>(x0 + crop_w),
+                              static_cast<int32_t>(y0 + crop_h), 1};
+        blit.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        blit.dstOffsets[1] = {static_cast<int32_t>(sw), static_cast<int32_t>(sh),
+                              1};
+        vkCmdBlitImage(cmd, hero_.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                       sc_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+                       VK_FILTER_LINEAR);
+    } else {
+        // No plate baked yet: clear to near-black.
+        VkClearColorValue clear{{0.01f, 0.01f, 0.015f, 1.0f}};
+        VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        vkCmdClearColorImage(cmd, sc_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                             &clear, 1, &range);
+    }
+
+    if (hud_) {
+        hud_->record(cmd, sc_index);
+    } else {
+        Context::image_barrier(cmd, sc_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               VK_ACCESS_TRANSFER_WRITE_BIT,
+                               VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0);
+    }
+}
+
 void App::record(VkCommandBuffer cmd, uint32_t sc_index, float t) {
+    if (mode_ == UiMode::Menu) {
+        record_menu(cmd, sc_index, t);
+        return;
+    }
     // storage image → GENERAL (first use: from UNDEFINED)
     Context::image_barrier(
         cmd, target_,
@@ -348,9 +466,13 @@ void App::save_screenshot() {
         rgb[3 * i + 1] = src[4 * i + 1];
         rgb[3 * i + 2] = src[4 * i + ib];
     }
-    stbi_write_png(opts_.screenshot_path.c_str(), target_w_, target_h_, 3,
-                   rgb.data(), 3 * target_w_);
-    std::printf("[app] screenshot written: %s\n", opts_.screenshot_path.c_str());
+    if (stbi_write_png(opts_.screenshot_path.c_str(), target_w_, target_h_, 3,
+                       rgb.data(), 3 * target_w_))
+        std::printf("[app] screenshot written: %s\n",
+                    opts_.screenshot_path.c_str());
+    else
+        std::fprintf(stderr, "[app] screenshot FAILED (missing directory?): %s\n",
+                     opts_.screenshot_path.c_str());
     vmaDestroyBuffer(ctx_->allocator(), buf, alloc);
     target_w_ = target_w_save;
     target_h_ = target_h_save;
@@ -476,10 +598,31 @@ int App::run() {
     while (!glfwWindowShouldClose(ctx_->window())) {
         glfwPollEvents();
         if (opts_.max_frames >= 0 && frame_count >= opts_.max_frames) break;
-        if (glfwGetKey(ctx_->window(), GLFW_KEY_ESCAPE) == GLFW_PRESS) break;
-        for (int k = 0; k < 5; ++k)
-            if (glfwGetKey(ctx_->window(), GLFW_KEY_1 + k) == GLFW_PRESS)
-                apply_preset(k);
+
+        // Esc (edge-triggered): sim → menu when the menu exists, else quit;
+        // in the menu itself Esc quits.
+        const bool esc =
+            glfwGetKey(ctx_->window(), GLFW_KEY_ESCAPE) == GLFW_PRESS;
+        if (esc && !esc_prev_) {
+            if (opts_.menu && mode_ == UiMode::Simulation)
+                return_to_menu();
+            else
+                break;
+        }
+        esc_prev_ = esc;
+
+        // Scripted transition demo (Gate 9): menu → sim → menu.
+        if (opts_.demo_frames > 0) {
+            if (frame_count == opts_.demo_frames)
+                enter_simulation(true);
+            else if (frame_count == 2 * opts_.demo_frames)
+                return_to_menu();
+        }
+
+        if (mode_ == UiMode::Simulation)
+            for (int k = 0; k < 5; ++k)
+                if (glfwGetKey(ctx_->window(), GLFW_KEY_1 + k) == GLFW_PRESS)
+                    apply_preset(k);
         if (hud_) hud_->new_frame(fps_now);
 
         auto& f = ctx_->frame(frame_slot);
