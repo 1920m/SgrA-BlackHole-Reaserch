@@ -113,36 +113,54 @@ float pt_flux(float r, float a, float r_in) {
 // relativistic circular-orbit angular velocity Ω = 1/(r^{3/2} + a): the
 // differential rotation shears the noise into the trailing spiral filaments
 // seen in MHD disk simulations. turb = 0 recovers the exact Page-Thorne disk.
-float hash2(vec2 i) {
+// Lattice hash, periodic in y with period `per` (the azimuthal direction —
+// a non-periodic pattern would seam at φ = ±π, which projects exactly onto
+// the image's central column and reads as a vertical zipper).
+float hash2p(vec2 i, float per) {
+    i.y = mod(i.y, per);
     uvec2 q = uvec2(ivec2(i) + 8192);
     uint h = q.x * 1597334677u ^ q.y * 3812015801u;
     h ^= h >> 16; h *= 0x7feb352du; h ^= h >> 15; h *= 0x846ca68bu; h ^= h >> 16;
     return float(h) * (1.0 / 4294967296.0);
 }
-float vnoise(vec2 p) {
+float vnoise(vec2 p, float per) {
     vec2 i = floor(p), f = fract(p);
     vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash2(i), hash2(i + vec2(1, 0)), u.x),
-               mix(hash2(i + vec2(0, 1)), hash2(i + vec2(1, 1)), u.x), u.y);
+    return mix(mix(hash2p(i, per), hash2p(i + vec2(1, 0), per), u.x),
+               mix(hash2p(i + vec2(0, 1), per), hash2p(i + vec2(1, 1), per),
+                   u.x),
+               u.y);
 }
 float turb_factor(float r, float phi) {
     if (pc.turb <= 0.0) return 1.0;
     float Om = 1.0 / (r * sqrt(r) + pc.a_star);   // Kerr circular orbit
+    // Pattern phase = azimuth + STATIC shear winding + live advection.
+    // The winding term (120·Ω, several turns at the ISCO tapering to a
+    // fraction of a turn at the rim) is what turbulence looks like after
+    // the differential rotation has stretched it for many orbits — fine
+    // trailing streamlines instead of fresh isotropic patches.
     // time_scale = rot_speed / (GM/c³): at rot_speed 1 this is the true
     // wall-clock rotation of Sgr A* (ISCO orbit ≈ 8.5 min — patience).
-    float ph = phi - Om * pc.time_s * pc.time_scale;
-    // filaments: broad lanes radially (log r), stretched along the orbit
-    vec2 p = vec2(log(r) * 9.0, ph * 3.0);
+    float ph = phi + 120.0 * Om - Om * pc.time_s * pc.time_scale;
+    // strongly anisotropic: fine radial striations, long orbital coherence.
+    // Azimuthal lattice frequency 8/2π with the period doubling per octave
+    // keeps the pattern exactly 2π-periodic (no seam on the axis column).
+    const float kTwoPi = 6.28318530718;
+    float per = 8.0;
+    vec2 p = vec2(log(r) * 22.0, ph * (per / kTwoPi));
     float n = 0.0, w = 0.5, wsum = 0.0;
     for (int i = 0; i < 5; ++i) {
-        n += w * vnoise(p);
+        n += w * vnoise(p, per);
         wsum += w;
-        p = p * vec2(2.03, 1.91) + vec2(17.13, 9.71);
-        w *= 0.58;
+        p = vec2(p.x * 1.93 + 17.13, p.y * 2.0);
+        per *= 2.0;
+        w *= 0.60;
     }
-    n /= wsum;                                     // mean 0.5
-    float f = mix(1.0, 0.25 + 1.5 * n, pc.turb);   // mean stays 1
-    return f * f;                                  // deepen the contrast
+    n /= wsum;                                      // mean 0.5
+    // Lane depth ~3.5 stops: enough for strong streamlines, shallow enough
+    // that the magnified caustic image of the lanes stays smooth.
+    float f = mix(1.0, 0.30 + 1.40 * n, pc.turb);   // mean stays 1
+    return f * f;
 }
 
 // ---- starfield (matches CPU) ------------------------------------------------
@@ -176,16 +194,39 @@ vec3 shade_starfield(float theta, float phi) {
     return col;
 }
 
-void main() {
-    uvec2 pix = uvec2(gl_GlobalInvocationID.x,
-                      gl_GlobalInvocationID.y + pc.y_offset);
-    if (pix.x >= pc.width || pix.y >= pc.height) return;
+// Linear-sRGB emission of the disk surface at BL radius r_x, azimuth phi_x,
+// redshift factor g (blackbody at g·T_eff; bolometric (gT)^4 brightness).
+vec3 disk_emission(float r_x, float phi_x, float g) {
+    float F = pt_flux(r_x, pc.a_star, pc.disk_r_in);
+    F *= turb_factor(r_x, phi_x);
+    // Artistic presets: exponential (stops-based) emissivity taper over the
+    // outer rim — a linear fade barely moves the logarithmic display grade.
+    // (Display only; the PHYSICAL path keeps the sharp model annulus.)
+    if (pc.shade_mode > 0u) {
+        float rn = (r_x - pc.disk_r_in) /
+                   max(pc.disk_r_out - pc.disk_r_in, 1e-3);
+        F *= exp2(-15.0 * smoothstep(0.55, 1.0, rn));
+    }
+    float T = pc.t_peak_k * pow(max(F, 0.0) / pc.flux_max, 0.25);
+    float Tobs = g * T;
+    float u = clamp((log(max(Tobs, 501.0)) - log(500.0)) /
+                    (log(60000.0) - log(500.0)), 0.0, 1.0);
+    vec3 hue = texture(luts[0], vec2(u, 0.5)).rgb;
+    return hue * pow(Tobs / 6500.0, 4.0);
+}
 
+// Trace one camera ray (sub-pixel coordinates). Disk emission accumulates
+// front-to-back with per-crossing opacity (the artistic rim is translucent,
+// so stars and lensed inner structure show through the faded edge); the sky
+// radiance is returned separately so main() can grade only the disk part.
+// Returns the remaining transmittance toward the background.
+float shade_sample(float px_f, float py_f, out vec3 disk_out,
+                   out vec3 sky_out) {
     float a = pc.a_star;
     float r0 = pc.r_cam;
     float th0 = pc.incl_deg * PI / 180.0;
-    float x = 2.0 * (float(pix.x) + 0.5) / float(pc.width) - 1.0;
-    float yy = 1.0 - 2.0 * (float(pix.y) + 0.5) / float(pc.height);
+    float x = 2.0 * px_f / float(pc.width) - 1.0;
+    float yy = 1.0 - 2.0 * py_f / float(pc.height);
     float aspect = float(pc.height) / float(pc.width);
     float thalf = tan(0.5 * pc.fov);
     float tx = thalf * x, ty = thalf * yy * aspect;
@@ -226,21 +267,31 @@ void main() {
     float r_escape = max(2.0 * r0, 300.0);
 
     int outcome = 0;
-    float disk_r = 0.0, disk_g = 1.0, disk_ph = 0.0;
+    vec3 acc = vec3(0.0);   // accumulated disk emission (front to back)
+    float Tr = 1.0;         // transmittance toward the background
+    int ncross = 0;         // translucent crossings so far (bounded)
+    int cross_step = -1;    // step index of the first crossing
     float esc_th = 0.0, esc_ph = 0.0;
 
     float prev_c = c0;
     float prev[6];
     for (int step = 0; step < 1200 && outcome == 0; ++step) {
         for (int i = 0; i < 6; ++i) prev[i] = y[i];
-        float h = 0.04 * y[1] / (abs(y[4]) + 1e-4);
-        h = min(h, 0.10 / (abs(y[5]) + 1.0));
-        h = min(h, 0.08);
+        // After the first translucent crossing the ray only supplies the
+        // background behind the veil — step twice as fast and stop caring
+        // after 500 further steps (keeps rim-piercing rays from burning the
+        // whole budget at small radii).
+        float relax = (ncross > 0) ? 2.0 : 1.0;
+        float h = relax * 0.04 * y[1] / (abs(y[4]) + 1e-4);
+        h = min(h, relax * 0.10 / (abs(y[5]) + 1.0));
+        h = min(h, relax * 0.08);
         // polar-axis guard: the θ-equation stiffens as sinθ → 0 (Lz²/sin³θ);
         // under-resolved steps there alias into a dotted column of phantom
         // disk crossings on the spin axis
         h = min(h, 0.015 + 0.25 * abs(sin(y[2])));
         rk4_step(cc, y, h);
+        if (cross_step >= 0 && step - cross_step > 500 && outcome == 0)
+            outcome = 1; // background budget exhausted: fade to black
 
         float Rp = radial_potential(cc, y[1]);
         if (Rp >= 0.0) y[4] = (y[4] >= 0.0) ? sqrt(Rp) : -sqrt(Rp);
@@ -250,29 +301,39 @@ void main() {
             if (Tp >= 0.0) y[5] = (y[5] >= 0.0) ? sqrt(Tp) : -sqrt(Tp);
         }
 
-        if (prev_c * cth < 0.0 && (abs(prev_c) > 1e-7 || abs(cth) > 1e-7)) {
-            // bisect the equatorial crossing
-            float lo = 0.0, hi = 1.0; // fraction of the last step
+        // Radial quick-reject: only bisect crossings that can touch the
+        // annulus. Without this, translucent grazing rays skimming the disk
+        // plane pay the 18-step bisection on every oscillation and the
+        // frame rate collapses by an order of magnitude.
+        bool may_hit =
+            max(prev[1], y[1]) >= pc.disk_r_in - 0.5 &&
+            min(prev[1], y[1]) <= pc.disk_r_out + 0.5;
+        if (may_hit && prev_c * cth < 0.0 &&
+            (abs(prev_c) > 1e-7 || abs(cth) > 1e-7)) {
             float cr[6];
             for (int i = 0; i < 6; ++i) cr[i] = y[i];
-            // reconstruct the step size taken (same controller, prev state)
-            float hh = 0.04 * prev[1] / (abs(prev[4]) + 1e-4);
-            hh = min(hh, 0.10 / (abs(prev[5]) + 1.0));
-            hh = min(hh, 0.08);
-            hh = min(hh, 0.015 + 0.25 * abs(sin(prev[2])));
-            for (int it = 0; it < 18; ++it) {
-                float mid = 0.5 * (lo + hi);
-                float tr[6];
-                for (int i = 0; i < 6; ++i) tr[i] = prev[i];
-                rk4_step(cc, tr, mid * hh);
-                if (cos(tr[2]) * prev_c > 0.0) lo = mid; else hi = mid;
-                for (int i = 0; i < 6; ++i) cr[i] = tr[i];
+            if (abs(prev_c) > 5e-3 || abs(cth) > 5e-3) {
+                // bisect the equatorial crossing
+                float lo = 0.0, hi = 1.0; // fraction of the last step
+                // reconstruct the step size (same controller, prev state)
+                float hh = 0.04 * prev[1] / (abs(prev[4]) + 1e-4);
+                hh = min(hh, 0.10 / (abs(prev[5]) + 1.0));
+                hh = min(hh, 0.08);
+                hh = min(hh, 0.015 + 0.25 * abs(sin(prev[2])));
+                for (int it = 0; it < 12; ++it) {
+                    float mid = 0.5 * (lo + hi);
+                    float tr[6];
+                    for (int i = 0; i < 6; ++i) tr[i] = prev[i];
+                    rk4_step(cc, tr, mid * hh);
+                    if (cos(tr[2]) * prev_c > 0.0) lo = mid; else hi = mid;
+                    for (int i = 0; i < 6; ++i) cr[i] = tr[i];
+                }
             }
+            // else: grazing in-plane — the endpoint IS the crossing to
+            // step accuracy; bisecting every oscillation is what used to
+            // collapse the frame rate on rim-skimming rays
             float r_x = cr[1];
             if (r_x >= pc.disk_r_in && r_x <= pc.disk_r_out) {
-                outcome = 3;
-                disk_r = r_x;
-                disk_ph = cr[3];
                 float Om = 1.0 / (r_x * sqrt(r_x) + a);
                 float sg = r_x * r_x;
                 float dl = r_x * r_x - 2.0 * r_x + a * a;
@@ -281,7 +342,25 @@ void main() {
                 float gtp = -2.0 * a * r_x / sg;
                 float gpp = AA / sg;
                 float dn = -(gtt + 2.0 * Om * gtp + Om * Om * gpp);
-                disk_g = 1.0 / ((1.0 / sqrt(dn)) * (cc.E - Om * cc.Lz));
+                float g_x = 1.0 / ((1.0 / sqrt(dn)) * (cc.E - Om * cc.Lz));
+
+                // Opacity: the PHYSICAL preset keeps the opaque model disk;
+                // artistic presets turn translucent over the faded rim so
+                // the disk dissolves into space instead of cutting a black
+                // silhouette out of the starfield.
+                float o = 1.0;
+                if (pc.shade_mode > 0u) {
+                    float rn = (r_x - pc.disk_r_in) /
+                               max(pc.disk_r_out - pc.disk_r_in, 1e-3);
+                    o = smoothstep(0.98, 0.60, rn);
+                }
+                acc += Tr * o * disk_emission(r_x, cr[3] + pc.cam_phi, g_x);
+                Tr *= 1.0 - o;
+                ++ncross;
+                if (cross_step < 0) cross_step = step;
+                // stop when effectively opaque, or after enough translucent
+                // passes that further contributions are negligible
+                if (Tr < 0.05 || ncross >= 6) outcome = 3;
             }
         }
         prev_c = cth;
@@ -295,39 +374,63 @@ void main() {
     }
     if (outcome == 0) outcome = 1;
 
-    vec3 col = vec3(0.0);
-    if (outcome == 2) {
-        // camera azimuth rotates the whole sky with the orbit
-        col = shade_starfield(esc_th, esc_ph + pc.cam_phi);
-    } else if (outcome == 3) {
-        float F = pt_flux(disk_r, a, pc.disk_r_in);
-        F *= turb_factor(disk_r, disk_ph + pc.cam_phi);
-        float T = pc.t_peak_k * pow(max(F, 0.0) / pc.flux_max, 0.25);
-        float Tobs = disk_g * T;
-        // colour: physical blackbody colormap, log-T parameterised
-        float u = clamp((log(max(Tobs, 501.0)) - log(500.0)) /
-                        (log(60000.0) - log(500.0)), 0.0, 1.0);
-        vec3 hue = texture(luts[0], vec2(u, 0.5)).rgb;
-        // brightness: bolometric (g·T)⁴ scale
-        float L = pow(Tobs / 6500.0, 4.0);
-        col = hue * L;
+    disk_out = acc;
+    // camera azimuth rotates the whole sky with the orbit; the sky shines
+    // through whatever transmittance the disk crossings left over
+    sky_out = (outcome == 2)
+                  ? Tr * shade_starfield(esc_th, esc_ph + pc.cam_phi)
+                  : vec3(0.0);
+    return Tr;
+}
+
+void main() {
+    uvec2 pix = uvec2(gl_GlobalInvocationID.x,
+                      gl_GlobalInvocationID.y + pc.y_offset);
+    if (pix.x >= pc.width || pix.y >= pc.height) return;
+
+    float px_f = float(pix.x) + 0.5;
+    float py_f = float(pix.y) + 0.5;
+
+    // The spin axis projects onto the central image column, where the
+    // lensed polar caustic of the far-side disk is ~1 px wide and aliases
+    // badly at one ray per pixel. Supersample just those columns (2×2).
+    const float axis_halfwidth = 6.0;
+    bool near_axis =
+        abs(px_f - 0.5 * float(pc.width)) < axis_halfwidth;
+
+    vec3 disk_acc = vec3(0.0), sky_acc = vec3(0.0);
+    int ns = near_axis ? 4 : 1;
+    for (int s = 0; s < ns; ++s) {
+        vec2 o = (ns == 1) ? vec2(0.0)
+                           : (vec2(float(s & 1), float(s >> 1)) - 0.5) * 0.5;
+        vec3 d, sk;
+        shade_sample(px_f + o.x, py_f + o.y, d, sk);
+        disk_acc += d;
+        sky_acc += sk;
     }
-    col *= exp2(pc.exposure_ev);
+    float ev = exp2(pc.exposure_ev);
+    vec3 disk_c = disk_acc / float(ns) * ev;
+    vec3 sky_c = sky_acc / float(ns) * ev;
+
     // artistic preset grade (display only; §9 — physics untouched)
-    if (pc.shade_mode > 0u && outcome == 3) {
+    if (pc.shade_mode > 0u) {
         // palette remap on COMPRESSED log display luminance: the physical
         // (gT)^4 brightness spans ~4 decades across the disk, which a linear
-        // display crushes to black outside the beamed side. A ~14-stop log
+        // display crushes to black outside the beamed side. A wide log
         // window (the same trick photographic tone mapping uses) keeps the
         // whole disk inside the LUT ramp so the filaments read everywhere.
         // The LUT PNGs are sRGB-encoded: the sample IS the display colour.
-        float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-        float lu = clamp(1.0 + log2(max(luma, 1e-7)) / 24.0, 0.0, 1.0);
+        // The luma floor sits BELOW the 24-stop window so a fully faded
+        // pixel maps to exactly 0 = the LUT's true black; the (attenuated)
+        // sky adds on top, so the translucent rim shows stars through it.
+        float luma = dot(disk_c, vec3(0.2126, 0.7152, 0.0722));
+        float lu = clamp(1.0 + log2(max(luma, 1e-9)) / 24.0, 0.0, 1.0);
         vec3 graded = texture(luts[pc.shade_mode], vec2(lu, 0.5)).rgb;
+        vec3 sky_disp = pow(clamp(sky_c, 0.0, 1.0), vec3(1.0 / 2.2));
         imageStore(storage_images[pc.image_index], ivec2(pix),
-                   vec4(graded, 1.0));
+                   vec4(clamp(graded + sky_disp, 0.0, 1.0), 1.0));
         return;
     }
-    col = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2));
+    vec3 col = pow(clamp(disk_c + sky_c, 0.0, 1.0), vec3(1.0 / 2.2));
     imageStore(storage_images[pc.image_index], ivec2(pix), vec4(col, 1.0));
 }

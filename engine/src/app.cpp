@@ -675,8 +675,9 @@ int App::run() {
         } else {
             dragging_ = false;
         }
-        if (hud_) hud_->new_frame(fps_now);
-
+        // Render-scale change: rebuild the target between frames, before
+        // ImGui starts building this frame's draw data (keeps the rebuild
+        // from interleaving with any per-frame CPU state).
         if (target_rebuild_) {
             target_rebuild_ = false;
             live_.render_scale = std::clamp(live_.render_scale, 0.25f, 2.0f);
@@ -684,6 +685,8 @@ int App::run() {
             destroy_render_target();
             create_render_target();
         }
+
+        if (hud_) hud_->new_frame(fps_now);
 
         auto& f = ctx_->frame(frame_slot);
         vkWaitForFences(ctx_->device(), 1, &f.in_flight, VK_TRUE, UINT64_MAX);
