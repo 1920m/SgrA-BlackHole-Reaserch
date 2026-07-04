@@ -1,0 +1,58 @@
+#pragma once
+// ImGui HUD (Phase 8): render pass + framebuffers for the overlay (classic
+// render pass — dynamic rendering unavailable on this hardware, see
+// engine/CMakeLists.txt), parameter sliders, preset switching, and the
+// Science Mode window (S2 orbit view + fit numbers loaded from the Phase 4
+// artefacts when present).
+
+#include <volk.h>
+
+#include <string>
+#include <vector>
+
+namespace sgr {
+
+class App;
+namespace vk { class Context; }
+
+class SimHUD {
+public:
+    SimHUD(vk::Context& ctx, App& app);
+    ~SimHUD();
+    SimHUD(const SimHUD&) = delete;
+    SimHUD& operator=(const SimHUD&) = delete;
+
+    // Rebuild framebuffers after swapchain recreation.
+    void on_swapchain_recreated();
+
+    // Build this frame's UI (call between glfwPollEvents and record).
+    void new_frame(double fps);
+
+    // Record the overlay pass over the given swapchain image
+    // (expects TRANSFER_DST_OPTIMAL; leaves PRESENT_SRC_KHR).
+    void record(VkCommandBuffer cmd, uint32_t sc_index);
+
+private:
+    void create_framebuffers();
+    void destroy_framebuffers();
+    void load_science_artifacts();
+    void draw_controls(double fps);
+    void draw_science();
+
+    vk::Context* ctx_;
+    App* app_;
+    VkRenderPass render_pass_ = VK_NULL_HANDLE;
+    VkDescriptorPool imgui_pool_ = VK_NULL_HANDLE;
+    std::vector<VkFramebuffer> framebuffers_;
+    std::vector<VkImageView> sc_views_;
+
+    // Science Mode data (loaded once if the Phase 4 outputs exist)
+    struct Track { std::vector<float> t, ra, dec, vr; };
+    Track model_;
+    struct Points { std::vector<float> t, ra, dec, sra, sdec, vr, svr; };
+    Points ast_;
+    std::string fit_summary_;
+    bool science_available_ = false;
+};
+
+} // namespace sgr

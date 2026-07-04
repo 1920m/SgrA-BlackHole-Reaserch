@@ -16,12 +16,18 @@ find_package(unofficial-shaderc CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 
+# The Vulkan backend is compiled into this target (vendored from the exact
+# imgui source vcpkg built, see third_party/) so it shares our VK_NO_PROTOTYPES
+# + volk dispatch; the port's prebuilt backend object crashes in Init on this
+# setup (its member object is then simply never pulled from imgui.lib).
 add_executable(sgr_engine
     src/main.cpp
     src/app.cpp
     src/vk/context.cpp
     src/vk/pipeline.cpp
     src/vk/descriptors.cpp
+    src/ui/SimHUD.cpp
+    third_party/imgui_impl_vulkan.cpp
 )
 target_include_directories(sgr_engine PRIVATE src ${Stb_INCLUDE_DIR})
 target_compile_definitions(sgr_engine PRIVATE

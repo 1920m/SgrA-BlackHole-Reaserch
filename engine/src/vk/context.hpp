@@ -37,6 +37,7 @@ public:
     Context& operator=(const Context&) = delete;
 
     GLFWwindow* window() const { return window_; }
+    VkInstance instance() const { return instance_; }
     VkDevice device() const { return device_; }
     VkPhysicalDevice physical() const { return physical_; }
     VmaAllocator allocator() const { return allocator_; }

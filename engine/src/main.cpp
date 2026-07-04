@@ -37,6 +37,12 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--exposure")) opts.exposure_ev = static_cast<float>(std::atof(next("--exposure")));
         else if (!std::strcmp(argv[i], "--diagnostic")) opts.shade_mode = 1;
         else if (!std::strcmp(argv[i], "--offscreen")) opts.offscreen = true;
+        else if (!std::strcmp(argv[i], "--hud")) opts.hud = true;
+        else if (!std::strcmp(argv[i], "--science")) opts.science = true;
+        else if (!std::strcmp(argv[i], "--preset")) opts.preset = std::atoi(next("--preset"));
+        else if (!std::strcmp(argv[i], "--scale")) opts.render_scale = static_cast<float>(std::atof(next("--scale")));
+        else if (!std::strcmp(argv[i], "--fov")) opts.fov = static_cast<float>(std::atof(next("--fov")));
+        else if (!std::strcmp(argv[i], "--tpeak")) opts.t_peak_k = static_cast<float>(std::atof(next("--tpeak")));
         else if (!std::strcmp(argv[i], "--rcam")) opts.r_cam = static_cast<float>(std::atof(next("--rcam")));
         else {
             std::fprintf(stderr, "unknown arg: %s\n", argv[i]);

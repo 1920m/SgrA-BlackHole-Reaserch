@@ -2,14 +2,19 @@
 
 #include <GLFW/glfw3.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <vector>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include <stb_image_write.h>
 
+#include "sgr_physics/disk_model.hpp"
 #include "sgr_physics/metric.hpp"
+#include "ui/SimHUD.hpp"
 
 namespace sgr {
 
@@ -26,10 +31,152 @@ App::App(const AppOptions& opts) : opts_(opts) {
         std::string(SGR_SHADER_DIR) + "/" + opts.shader + ".comp.glsl",
         sizeof(PushConstants));
     create_render_target();
+
+    // live parameters: preset defaults → per-shader defaults → CLI overrides
+    apply_preset(opts_.preset); // sets r_cam too — must precede the overrides
+    const bool live_path = opts_.shader == "disk";
+    live_.fov = live_path ? 0.70f : 0.032f;
+    if (!live_path) {
+        live_.r_cam = 1000.0f;
+        live_.a_star = 0.94f;
+        live_.incl_deg = 80.0f;
+        live_.disk_r_out = 18.0f;
+        live_.exposure_ev = 0.0f;
+        live_.t_peak_k = 6300.0f;
+    }
+    if (opts_.a_star >= 0.0f) live_.a_star = opts_.a_star;
+    if (opts_.incl_deg >= 0.0f) live_.incl_deg = opts_.incl_deg;
+    if (opts_.fov > 0.0f) live_.fov = opts_.fov;
+    if (opts_.r_cam > 0.0f) live_.r_cam = opts_.r_cam;
+    if (opts_.disk_r_out > 0.0f) live_.disk_r_out = opts_.disk_r_out;
+    if (opts_.exposure_ev > -900.0f) live_.exposure_ev = opts_.exposure_ev;
+    if (opts_.t_peak_k > 0.0f) live_.t_peak_k = opts_.t_peak_k;
+
+    live_.science_mode = opts_.science;
+    if (opts_.shader == "disk") load_luts();
+    if (opts_.hud) hud_ = std::make_unique<SimHUD>(*ctx_, *this);
+}
+
+void App::apply_preset(int index) {
+    if (index < 0 || index >= static_cast<int>(kDiskPresets.size())) index = 0;
+    const DiskPreset& p = kDiskPresets[index];
+    live_.preset = index;
+    live_.lut_slot = p.lut_slot;
+    live_.a_star = p.a_star;
+    live_.incl_deg = p.inclination_deg;
+    live_.disk_r_out = p.disk_outer_r;
+    live_.exposure_ev = p.exposure_ev;
+    live_.t_peak_k = p.t_peak_k;
+    live_.r_cam = p.r_cam;
+}
+
+void App::load_luts() {
+    const char* names[] = {"disk_colormap", "firestorm", "gargantua", "arctic",
+                           "nebula"};
+    VkSamplerCreateInfo sci{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    sci.magFilter = VK_FILTER_LINEAR;
+    sci.minFilter = VK_FILTER_LINEAR;
+    sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    check(vkCreateSampler(ctx_->device(), &sci, nullptr, &lut_sampler_),
+          "vkCreateSampler(lut)");
+
+    for (uint32_t slot = 0; slot < 5; ++slot) {
+        const std::string path = std::string(SGR_ASSET_DIR) + "/luts/" +
+                                 names[slot] + ".png";
+        int w = 0, h = 0, comp = 0;
+        unsigned char* px = stbi_load(path.c_str(), &w, &h, &comp, 4);
+        if (!px) {
+            std::fprintf(stderr, "[app] missing LUT %s\n", path.c_str());
+            continue;
+        }
+        LutTexture lut;
+        VkImageCreateInfo ici{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+        ici.imageType = VK_IMAGE_TYPE_2D;
+        ici.format = VK_FORMAT_R8G8B8A8_UNORM;
+        ici.extent = {static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1};
+        ici.mipLevels = 1;
+        ici.arrayLayers = 1;
+        ici.samples = VK_SAMPLE_COUNT_1_BIT;
+        ici.tiling = VK_IMAGE_TILING_OPTIMAL;
+        ici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VmaAllocationCreateInfo aci{};
+        aci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        check(vmaCreateImage(ctx_->allocator(), &ici, &aci, &lut.image,
+                             &lut.alloc, nullptr),
+              "vmaCreateImage(lut)");
+
+        // staging upload
+        VkBufferCreateInfo bci{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        bci.size = 4ull * w * h;
+        bci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        VmaAllocationCreateInfo sai{};
+        sai.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        sai.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                    VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        VkBuffer staging;
+        VmaAllocation salloc;
+        VmaAllocationInfo sinfo;
+        check(vmaCreateBuffer(ctx_->allocator(), &bci, &sai, &staging, &salloc,
+                              &sinfo),
+              "vmaCreateBuffer(lut staging)");
+        std::memcpy(sinfo.pMappedData, px, 4ull * w * h);
+        stbi_image_free(px);
+
+        auto& f = ctx_->frame(0);
+        vkResetCommandBuffer(f.cmd, 0);
+        VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(f.cmd, &bi);
+        Context::image_barrier(f.cmd, lut.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               VK_ACCESS_TRANSFER_WRITE_BIT);
+        VkBufferImageCopy region{};
+        region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        region.imageExtent = {static_cast<uint32_t>(w),
+                              static_cast<uint32_t>(h), 1};
+        vkCmdCopyBufferToImage(f.cmd, staging, lut.image,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        Context::image_barrier(f.cmd, lut.image,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               VK_ACCESS_TRANSFER_WRITE_BIT,
+                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                               VK_ACCESS_SHADER_READ_BIT);
+        vkEndCommandBuffer(f.cmd);
+        VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        si.commandBufferCount = 1;
+        si.pCommandBuffers = &f.cmd;
+        vkQueueSubmit(ctx_->queue(), 1, &si, VK_NULL_HANDLE);
+        ctx_->wait_idle();
+        vmaDestroyBuffer(ctx_->allocator(), staging, salloc);
+
+        VkImageViewCreateInfo vci{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        vci.image = lut.image;
+        vci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        vci.format = VK_FORMAT_R8G8B8A8_UNORM;
+        vci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        check(vkCreateImageView(ctx_->device(), &vci, nullptr, &lut.view),
+              "vkCreateImageView(lut)");
+        bindless_->write_sampled_image(slot, lut.view, lut_sampler_);
+        luts_.push_back(lut);
+    }
+    std::printf("[app] loaded %zu LUTs\n", luts_.size());
 }
 
 App::~App() {
     if (ctx_) ctx_->wait_idle();
+    hud_.reset();
+    for (auto& l : luts_) {
+        if (l.view) vkDestroyImageView(ctx_->device(), l.view, nullptr);
+        if (l.image) vmaDestroyImage(ctx_->allocator(), l.image, l.alloc);
+    }
+    if (lut_sampler_) vkDestroySampler(ctx_->device(), lut_sampler_, nullptr);
     destroy_render_target();
 }
 
@@ -38,8 +185,11 @@ void App::create_render_target() {
         target_w_ = static_cast<uint32_t>(opts_.width);
         target_h_ = static_cast<uint32_t>(opts_.height);
     } else {
-        target_w_ = ctx_->swapchain_extent().width;
-        target_h_ = ctx_->swapchain_extent().height;
+        const float s = std::clamp(opts_.render_scale, 0.2f, 1.0f);
+        target_w_ = std::max(16u, static_cast<uint32_t>(
+                                      ctx_->swapchain_extent().width * s));
+        target_h_ = std::max(16u, static_cast<uint32_t>(
+                                      ctx_->swapchain_extent().height * s));
     }
 
     VkImageCreateInfo ici{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
@@ -121,18 +271,36 @@ void App::record(VkCommandBuffer cmd, uint32_t sc_index, float t) {
                           static_cast<int32_t>(ctx_->swapchain_extent().height), 1};
     vkCmdBlitImage(cmd, target_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, sc_img,
                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
-                   VK_FILTER_NEAREST);
+                   target_w_ == ctx_->swapchain_extent().width
+                       ? VK_FILTER_NEAREST
+                       : VK_FILTER_LINEAR);
 
-    Context::image_barrier(cmd, sc_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                           VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                           VK_PIPELINE_STAGE_TRANSFER_BIT,
-                           VK_ACCESS_TRANSFER_WRITE_BIT,
-                           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0);
+    if (hud_) {
+        // The HUD render pass consumes TRANSFER_DST and ends in PRESENT_SRC.
+        hud_->record(cmd, sc_index);
+    } else {
+        Context::image_barrier(cmd, sc_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               VK_ACCESS_TRANSFER_WRITE_BIT,
+                               VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0);
+    }
 }
 
 void App::save_screenshot() {
     ctx_->wait_idle();
-    // Copy the storage image to a host-visible buffer.
+    // With the HUD active, capture the composited swapchain image (UI
+    // included); otherwise read back the compute target directly.
+    const bool from_swapchain = static_cast<bool>(hud_);
+    const VkImage src_img = from_swapchain
+                                ? ctx_->swapchain_images()[last_sc_index_]
+                                : target_;
+    const uint32_t sw = from_swapchain ? ctx_->swapchain_extent().width : target_w_;
+    const uint32_t sh = from_swapchain ? ctx_->swapchain_extent().height : target_h_;
+    const uint32_t target_w_save = target_w_, target_h_save = target_h_;
+    target_w_ = sw;
+    target_h_ = sh;
+
     VkBufferCreateInfo bci{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bci.size = 4ull * target_w_ * target_h_;
     bci.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -151,10 +319,17 @@ void App::save_screenshot() {
     VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(f.cmd, &bi);
+    if (from_swapchain) {
+        Context::image_barrier(f.cmd, src_img, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               VK_ACCESS_TRANSFER_READ_BIT);
+    }
     VkBufferImageCopy region{};
     region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
     region.imageExtent = {target_w_, target_h_, 1};
-    vkCmdCopyImageToBuffer(f.cmd, target_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    vkCmdCopyImageToBuffer(f.cmd, src_img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                            buf, 1, &region);
     vkEndCommandBuffer(f.cmd);
     VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
@@ -163,35 +338,60 @@ void App::save_screenshot() {
     vkQueueSubmit(ctx_->queue(), 1, &si, VK_NULL_HANDLE);
     ctx_->wait_idle();
 
+    // Swapchain is BGRA; the compute target is RGBA.
+    const int ir = from_swapchain ? 2 : 0;
+    const int ib = from_swapchain ? 0 : 2;
     std::vector<unsigned char> rgb(3ull * target_w_ * target_h_);
     const auto* src = static_cast<const unsigned char*>(ainfo.pMappedData);
     for (size_t i = 0; i < static_cast<size_t>(target_w_) * target_h_; ++i) {
-        rgb[3 * i + 0] = src[4 * i + 0];
+        rgb[3 * i + 0] = src[4 * i + ir];
         rgb[3 * i + 1] = src[4 * i + 1];
-        rgb[3 * i + 2] = src[4 * i + 2];
+        rgb[3 * i + 2] = src[4 * i + ib];
     }
     stbi_write_png(opts_.screenshot_path.c_str(), target_w_, target_h_, 3,
                    rgb.data(), 3 * target_w_);
     std::printf("[app] screenshot written: %s\n", opts_.screenshot_path.c_str());
     vmaDestroyBuffer(ctx_->allocator(), buf, alloc);
+    target_w_ = target_w_save;
+    target_h_ = target_h_save;
 }
 
 PushConstants App::make_push_constants(float t) const {
-    const KerrMetric metric(1.0, opts_.a_star);
+    // Live params (HUD-editable) drive everything; offscreen/diagnostic modes
+    // run with the CLI values they were initialised from.
+    const KerrMetric metric(1.0, live_.a_star);
+    const double r_isco = metric.r_isco(true);
     PushConstants pc{};
     pc.image_index = 0;
     pc.width = target_w_;
     pc.height = target_h_;
     pc.time_s = t;
-    pc.a_star = opts_.a_star;
-    pc.r_cam = opts_.r_cam;
-    pc.incl_deg = opts_.incl_deg;
-    pc.fov = opts_.fov;
-    pc.disk_r_in = static_cast<float>(metric.r_isco(true));
-    pc.disk_r_out = opts_.disk_r_out;
-    pc.exposure_ev = opts_.exposure_ev;
-    pc.shade_mode = opts_.shade_mode;
+    pc.a_star = live_.a_star;
+    pc.r_cam = live_.r_cam;
+    pc.incl_deg = live_.incl_deg;
+    pc.fov = live_.fov;
+    pc.disk_r_in = static_cast<float>(r_isco);
+    pc.disk_r_out = live_.disk_r_out;
+    pc.exposure_ev = live_.exposure_ev;
+    pc.shade_mode = opts_.shader == "disk" ? live_.lut_slot : opts_.shade_mode;
     pc.y_offset = 0;
+    pc.t_peak_k = live_.t_peak_k;
+
+    // Page-Thorne normalisation, cached against the parameters it depends on.
+    static thread_local double cached_a = -10.0, cached_rout = -1.0,
+                               cached_fmax = 1.0;
+    if (cached_a != live_.a_star || cached_rout != live_.disk_r_out) {
+        const NovikovThorneDisk disk(live_.a_star, r_isco, live_.disk_r_out);
+        double fmax = 0.0;
+        for (int i = 0; i <= 512; ++i) {
+            const double r = r_isco + (live_.disk_r_out - r_isco) * i / 512.0;
+            fmax = std::max(fmax, disk.flux(r));
+        }
+        cached_a = live_.a_star;
+        cached_rout = live_.disk_r_out;
+        cached_fmax = std::max(fmax, 1e-12);
+    }
+    pc.flux_max = static_cast<float>(cached_fmax);
     return pc;
 }
 
@@ -272,9 +472,15 @@ int App::run() {
     auto fps_t0 = t0;
     int fps_frames = 0;
 
+    double fps_now = 0.0;
     while (!glfwWindowShouldClose(ctx_->window())) {
         glfwPollEvents();
         if (opts_.max_frames >= 0 && frame_count >= opts_.max_frames) break;
+        if (glfwGetKey(ctx_->window(), GLFW_KEY_ESCAPE) == GLFW_PRESS) break;
+        for (int k = 0; k < 5; ++k)
+            if (glfwGetKey(ctx_->window(), GLFW_KEY_1 + k) == GLFW_PRESS)
+                apply_preset(k);
+        if (hud_) hud_->new_frame(fps_now);
 
         auto& f = ctx_->frame(frame_slot);
         vkWaitForFences(ctx_->device(), 1, &f.in_flight, VK_TRUE, UINT64_MAX);
@@ -287,6 +493,7 @@ int App::run() {
             ctx_->recreate_swapchain();
             destroy_render_target();
             create_render_target();
+            if (hud_) hud_->on_swapchain_recreated();
             continue;
         }
         check(acq, "vkAcquireNextImageKHR");
@@ -327,18 +534,20 @@ int App::run() {
             ctx_->recreate_swapchain();
             destroy_render_target();
             create_render_target();
+            if (hud_) hud_->on_swapchain_recreated();
         } else {
             check(pres, "vkQueuePresentKHR");
         }
 
         ++frame_count;
         ++fps_frames;
+        last_sc_index_ = sc_index;
         frame_slot = (frame_slot + 1) % vk::kFramesInFlight;
         const auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration<double>(now - fps_t0).count() > 2.0) {
-            std::printf("[app] %.1f fps\n",
-                        fps_frames /
-                            std::chrono::duration<double>(now - fps_t0).count());
+            fps_now = fps_frames /
+                      std::chrono::duration<double>(now - fps_t0).count();
+            std::printf("[app] %.1f fps\n", fps_now);
             fps_t0 = now;
             fps_frames = 0;
         }
