@@ -1,0 +1,71 @@
+\begin{thebibliography}{}
+\makeatletter
+\relax
+\def\mn@urlcharsother{\let\do\@makeother \do\$\do\&\do\#\do\^\do\_\do\%\do\~}
+\def\mn@doi{\begingroup\mn@urlcharsother \@ifnextchar [ {\mn@doi@} {\mn@doi@[]}}
+\def\mn@doi@[#1]#2{\def\@tempa{#1}\ifx\@tempa\@empty \href {http://dx.doi.org/#2} {doi:#2}\else \href {http://dx.doi.org/#2} {#1}\fi \endgroup}
+\def\mn@eprint#1#2{\mn@eprint@#1:#2::\@nil}
+\def\mn@eprint@arXiv#1{\href {http://arxiv.org/abs/#1} {{\tt arXiv:#1}}}
+\def\mn@eprint@dblp#1{\href {http://dblp.uni-trier.de/rec/bibtex/#1.xml} {dblp:#1}}
+\def\mn@eprint@#1:#2:#3:#4\@nil{\def\@tempa {#1}\def\@tempb {#2}\def\@tempc {#3}\ifx \@tempc \@empty \let \@tempc \@tempb \let \@tempb \@tempa \fi \ifx \@tempb \@empty \def\@tempb {arXiv}\fi \@ifundefined {mn@eprint@\@tempb}{\@tempb:\@tempc}{\expandafter \expandafter \csname mn@eprint@\@tempb\endcsname \expandafter{\@tempc}}}
+
+\bibitem[\protect\citeauthoryear{Bardeen}{Bardeen}{1973}]{Bardeen1973}
+Bardeen J.~M.,  1973, Black Holes (Les Astres Occlus), pp 215--239
+
+\bibitem[\protect\citeauthoryear{Bardeen, Press  \& Teukolsky}{Bardeen et~al.}{1972}]{BardeenPressTeukolsky1972}
+Bardeen J.~M.,  Press W.~H.,   Teukolsky S.~A.,  1972, \mn@doi [The Astrophysical Journal] {10.1086/151796}, 178, 347
+
+\bibitem[\protect\citeauthoryear{Carter}{Carter}{1968}]{Carter1968}
+Carter B.,  1968, \mn@doi [Physical Review] {10.1103/PhysRev.174.1559}, 174, 1559
+
+\bibitem[\protect\citeauthoryear{{Event Horizon Telescope Collaboration}}{{Event Horizon Telescope Collaboration}}{2022}]{EHT2022}
+{Event Horizon Telescope Collaboration} 2022, \mn@doi [The Astrophysical Journal Letters] {10.3847/2041-8213/ac6674}, 930, L12
+
+\bibitem[\protect\citeauthoryear{{GRAVITY Collaboration}}{{GRAVITY Collaboration}}{2018}]{Gravity2018}
+{GRAVITY Collaboration} 2018, \mn@doi [Astronomy and Astrophysics] {10.1051/0004-6361/201833718}, 615, L15
+
+\bibitem[\protect\citeauthoryear{{GRAVITY Collaboration}}{{GRAVITY Collaboration}}{2020}]{Gravity2020}
+{GRAVITY Collaboration} 2020, \mn@doi [Astronomy and Astrophysics] {10.1051/0004-6361/202037813}, 636, L5
+
+\bibitem[\protect\citeauthoryear{{GRAVITY Collaboration}}{{GRAVITY Collaboration}}{2022}]{Gravity2022}
+{GRAVITY Collaboration} 2022, \mn@doi [Astronomy and Astrophysics] {10.1051/0004-6361/202142465}, 657, L12
+
+\bibitem[\protect\citeauthoryear{Gillessen et~al.,}{Gillessen et~al.}{2017}]{Gillessen2017}
+Gillessen S.,  et~al., 2017, \mn@doi [The Astrophysical Journal] {10.3847/1538-4357/aa5c41}, 837, 30
+
+\bibitem[\protect\citeauthoryear{Glampedakis \& Babak}{Glampedakis \& Babak}{2006}]{GlampedakisBabak2006}
+Glampedakis K.,  Babak S.,  2006, \mn@doi [Classical and Quantum Gravity] {10.1088/0264-9381/23/12/013}, 23, 4167
+
+\bibitem[\protect\citeauthoryear{Hartle \& Thorne}{Hartle \& Thorne}{1968}]{HartleThorne1968}
+Hartle J.~B.,  Thorne K.~S.,  1968, \mn@doi [The Astrophysical Journal] {10.1086/149707}, 153, 807
+
+\bibitem[\protect\citeauthoryear{James, von Tunzelmann, Franklin  \& Thorne}{James et~al.}{2015}]{James2015}
+James O.,  von Tunzelmann E.,  Franklin P.,   Thorne K.~S.,  2015, \mn@doi [Classical and Quantum Gravity] {10.1088/0264-9381/32/6/065001}, 32, 065001
+
+\bibitem[\protect\citeauthoryear{Johnson et~al.,}{Johnson et~al.}{2020}]{Johnson2020}
+Johnson M.~D.,  et~al., 2020, \mn@doi [Science Advances] {10.1126/sciadv.aaz1310}, 6, eaaz1310
+
+\bibitem[\protect\citeauthoryear{Luminet}{Luminet}{1979}]{Luminet1979}
+Luminet J.-P.,  1979, Astronomy and Astrophysics, 75, 228
+
+\bibitem[\protect\citeauthoryear{Mino}{Mino}{2003}]{Mino2003}
+Mino Y.,  2003, \mn@doi [Physical Review D] {10.1103/PhysRevD.67.084027}, 67, 084027
+
+\bibitem[\protect\citeauthoryear{Novikov \& Thorne}{Novikov \& Thorne}{1973}]{NovikovThorne1973}
+Novikov I.~D.,  Thorne K.~S.,  1973, in DeWitt C.,  DeWitt B.~S.,  eds, , Black Holes (Les Astres Occlus).
+Gordon and Breach, New York, pp 343--450
+
+\bibitem[\protect\citeauthoryear{Page \& Thorne}{Page \& Thorne}{1974}]{PageThorne1974}
+Page D.~N.,  Thorne K.~S.,  1974, \mn@doi [The Astrophysical Journal] {10.1086/152990}, 191, 499
+
+\bibitem[\protect\citeauthoryear{Plewa et~al.,}{Plewa et~al.}{2015}]{Plewa2015}
+Plewa P.~M.,  et~al., 2015, \mn@doi [Monthly Notices of the Royal Astronomical Society] {10.1093/mnras/stv1910}, 453, 3234
+
+\bibitem[\protect\citeauthoryear{Psaltis, {\"O}zel, Chan  \& Marrone}{Psaltis et~al.}{2016}]{Psaltis2016}
+Psaltis D.,  {\"O}zel F.,  Chan C.-K.,   Marrone D.~P.,  2016, \mn@doi [The Astrophysical Journal] {10.3847/0004-637X/818/2/121}, 818, 121
+
+\bibitem[\protect\citeauthoryear{Will}{Will}{2008}]{Will2008}
+Will C.~M.,  2008, \mn@doi [The Astrophysical Journal Letters] {10.1086/528847}, 674, L25
+
+\makeatother
+\end{thebibliography}
