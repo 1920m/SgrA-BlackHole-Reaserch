@@ -27,18 +27,18 @@ Unsuccessful steps                          8
 Line search steps                          39
 
 Time (in seconds):
-Preprocessor                         0.000756
+Preprocessor                         0.000850
 
-  Residual only evaluation           0.042201 (16)
+  Residual only evaluation           0.054361 (16)
     Line search cost evaluation      0.000000
-  Jacobian & residual evaluation     3.583567 (54)
-    Line search gradient evaluation   3.026361
-  Linear solver                      0.000806 (16)
-  Line search polynomial minimization  0.004559
-Minimizer                            3.635065
+  Jacobian & residual evaluation     5.188289 (54)
+    Line search gradient evaluation   4.386656
+  Linear solver                      0.000999 (16)
+  Line search polynomial minimization  0.001117
+Minimizer                            5.246583
 
-Postprocessor                        0.000008
-Total                                3.635829
+Postprocessor                        0.000005
+Total                                5.247438
 
 Termination:                      CONVERGENCE (Parameter tolerance reached. Relative step_norm: 3.271995e-15 <= 1.000000e-12.)
 
