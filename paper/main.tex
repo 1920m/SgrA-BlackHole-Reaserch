@@ -595,16 +595,19 @@ frame parameters only to the extent of the \citet{Plewa2015} priors.
 
 \subsection{Performance}
 
-The CPU baseline integrates $\BenchCpuNullStepsPerS$ adaptive null-geodesic
-steps per second per core ($\BenchCpuTimelikeStepsPerS$ timelike;
-$\BenchCpuChristoffelPerS$ complex-step Christoffel evaluations). The
+The CPU baseline integrates \BenchCpuNullStepsPerS{} adaptive null-geodesic
+steps per second per core (\BenchCpuTimelikeStepsPerS{} timelike;
+\BenchCpuChristoffelPerS{} complex-step Christoffel evaluations). The
 double-precision GPU port traces the validated $64\times64$ shadow tile
 within the Windows watchdog budget in row-banded dispatches, and the
 single-precision interactive path sustains
-$\BenchGpuFpsHd$~fps at $1280\times720$
-($\BenchGpuFpsFullhd$~fps at $1920\times1080$;
-$\approx\BenchGpuRaysPerSHd$ ray--geodesics per second) on a GeForce
-GTX~1050 — a 2016 notebook-class GPU — with zero validation-layer errors.
+\BenchGpuFpsHd~fps at $1280\times720$
+(\BenchGpuFpsFullhd~fps at $1920\times1080$;
+$\approx$\BenchGpuMegaraysPerSHd{} million ray--geodesics per second) on a
+GeForce GTX~1050 — a 2016 notebook-class GPU — with zero validation-layer
+errors. (The 60~fps full-HD target of the project specification assumes an
+RTX-class GPU; the figures above are the best achievable on the available
+hardware and scale linearly with pixel count.)
 
 \subsection{Outlook}
 

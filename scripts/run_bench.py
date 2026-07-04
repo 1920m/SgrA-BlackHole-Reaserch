@@ -71,9 +71,11 @@ def main() -> None:
     # fullhd = 1920x1080).
     bench["gpu_fps_hd"] = run_gpu_fps(1280, 720)
     bench["gpu_fps_fullhd"] = run_gpu_fps(1920, 1080)
-    # HD live path: rays per second = pixels * fps (one geodesic per pixel).
+    # HD live path: rays per second = pixels * fps (one geodesic per pixel),
+    # in millions so the LaTeX macro reads naturally.
     if bench["gpu_fps_hd"]:
-        bench["gpu_rays_per_s_hd"] = round(1280 * 720 * bench["gpu_fps_hd"])
+        bench["gpu_megarays_per_s_hd"] = round(
+            1280 * 720 * bench["gpu_fps_hd"] / 1e6, 1)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(bench, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {OUT}")

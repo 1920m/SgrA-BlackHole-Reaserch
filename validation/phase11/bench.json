@@ -1,0 +1,8 @@
+{
+  "cpu_null_steps_per_s": 1340753,
+  "cpu_christoffel_per_s": 508369,
+  "cpu_timelike_steps_per_s": 78987,
+  "gpu_fps_hd": 47.5,
+  "gpu_fps_fullhd": 21.0,
+  "gpu_megarays_per_s_hd": 43.8
+}

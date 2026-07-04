@@ -117,8 +117,11 @@ def main() -> None:
     if bench:
         for k, v in bench.items():
             if isinstance(v, (int, float)):
+                # Thousands separators for large counts (use in text mode);
+                # %g would flip to scientific notation past 1e6.
+                val = f"{v:,.0f}" if abs(v) >= 1e4 else f"{v:g}"
                 macro("Bench" + "".join(w.capitalize() for w in k.split("_")),
-                      f"{v:g}")
+                      val)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
