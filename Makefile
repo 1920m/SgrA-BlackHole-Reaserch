@@ -11,13 +11,17 @@
 PY      ?= py -3.11
 BUILD   ?= build/sci-rel
 
-.PHONY: paper figures reproduce clean-paper
+.PHONY: paper thesis figures reproduce clean-paper
 
 figures:
 	$(PY) scripts/make_figures.py
+	$(PY) scripts/make_diagrams.py
 
 paper: figures
 	$(MAKE) -C paper
+
+thesis: figures
+	$(MAKE) -C paper thesis
 
 reproduce:
 	cmd //c "scripts\\vcenv.cmd ctest --preset sci-rel"
