@@ -1,4 +1,39 @@
 \chapter{Discussion and Limitations}
-\label{ch:ch16-discussion}
+\label{ch:discussion}
 
-\stub{idealisations, degeneracies, and comparison with current and future instruments.}
+\section{Limitations}
+\label{sec:limitations}
+
+Three idealisations bound the interpretation of the imaging results.
+First, the disk is the time-averaged, geometrically thin
+Novikov--Thorne solution; the real \sgra{} flow is a hot, geometrically
+thick, radiatively inefficient plasma, and our thin-disk images are a
+clean GR benchmark rather than a spectral model of \sgra{} itself
+(the EHT comparison in Chapter~\ref{ch:calib} concerns the ring
+diameter, which is a property of the spacetime, not of the emission
+model --- though the ring diameter retains a modest emission-model
+dependence through the location of the emitting material). Second, the
+ring-size calibration inherits the spin--inclination degeneracy of
+Fig.~\ref{fig:sweep}; the quoted agreement holds across the plausible
+$(\astar, i)$ range precisely because the observable varies so little.
+Third, the orbit fit adopts the \citet{Gillessen2017} compilation and its
+error model; systematic reference-frame errors are absorbed by the fitted
+frame parameters only to the extent of the \citet{Plewa2015} priors.
+
+\stub{Expanded: the axial lensing caustic vs real astrophysical jets
+(honest-limitations note, THESIS\_PLAN Part 1c); single-star quadrupole
+reach; fp32 live vs fp64 science split.}
+
+\section{Outlook}
+\label{sec:outlook}
+
+The forward model is deliberately modular: the metric is an interface, so
+any stationary axisymmetric candidate spacetime with a Carter-like
+structure (or none --- the Hartle--Thorne path integrates the full
+equations) can be dropped in and confronted with both data channels at
+once. Next-generation instruments motivate exactly this: ngEHT-class
+arrays project ring-diameter precision at the per-cent level and access to
+the $n=1$ sub-ring \citep{Johnson2020}, while continued GRAVITY astrometry
+of S2 --- and any confirmed closer star (S62 remains contested, as noted
+in Chapter~\ref{ch:nohair}) --- pushes the stellar channel toward the
+spin and quadrupole terms \citep{Will2008,Psaltis2016}.

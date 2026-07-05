@@ -1,4 +1,97 @@
 \chapter{The Reference Ray Tracer, Shadow, and Critical Curve}
-\label{ch:ch05-shadow}
+\label{ch:shadow}
 
-\stub{ZAMO camera, backward tracing, the Synge formula, the Bardeen critical curve, spherical photon orbits and Lyapunov exponents, gravitational lensing of the sky.}
+\section{The ZAMO camera and ray launching}
+\label{sec:camera}
+
+The virtual camera is a pinhole at BL radius $r_{\rm cam} = 1000\,M$
+carrying the orthonormal tetrad of a zero-angular-momentum observer
+(ZAMO): the observer with $u_\phi = 0$, four-velocity
+$u^\mu = (u^t, 0, 0, \omega u^t)$ where
+$\omega = -g_{t\phi}/g_{\phi\phi}$ is the frame-dragging rate and
+$u^t = 1/\sqrt{-(g_{tt} + 2\omega g_{t\phi} + \omega^2 g_{\phi\phi})}$.
+This tetrad reduces to the static observer at $a=0$ and remains well
+defined inside the ergosphere (\texttt{zamo\_tetrad} in
+\texttt{physics/src/raytrace\_cpu.cpp}). A local photon direction
+$(n^{\hat r}, n^{\hat\theta}, n^{\hat\phi})$ on the unit sphere is
+contracted with the tetrad legs to give the BL four-momentum, from which
+$(E, L_z, Q)$ follow algebraically (\texttt{camera\_ray}); rays are
+launched forward (null geodesics are reversible, so where a ray lands is
+what the pixel sees).
+
+\section{Grid-free boundary metrology}
+\label{sec:metrology}
+
+The shadow boundary is measured without any pixel grid: along each
+image-plane direction $\psi$ the captured/escaped transition is bracketed
+and bisected in camera angle, giving the critical angle $\alpha(\psi)$ to
+$\sim$$10^{-9}$~rad (\texttt{shadow\_boundary\_angle}). Angular radii are
+converted to impact parameters via
+$b = r\sin\alpha/\sqrt{1-2M/r}$ --- the flat-space relation corrected for
+the gravitational bending of the reference `straight line' at finite
+camera radius --- and quoted as diameters in units of $M$; the conversion
+to sky angle uses the GRAVITY mass and distance
+(Chapter~\ref{ch:calib}).
+
+\section{Schwarzschild validation: the Synge formula}
+\label{sec:synge}
+
+For $\astar = 0$ the critical impact parameter follows in three lines:
+the photon sphere sits where the effective potential
+$V(r) = (1-2M/r)/r^2$ peaks, $V'(r) = 0 \Rightarrow r_{\rm ph} = 3M$;
+the impact parameter of a circular photon orbit there is
+$b = 1/\sqrt{V(r_{\rm ph})} = 3M/\sqrt{1/3} = \sqrt{27}\,M$; and for an
+observer at finite radius the shadow angular radius is
+$\sin\alpha_{\rm sh} = \sqrt{27}\,M\sqrt{1-2M/r_{\rm obs}}/r_{\rm obs}$
+\citep[Synge's formula; see also][]{Luminet1979}
+(\texttt{schwarzschild\_shadow\_angle}). The traced boundary
+agrees with this to a relative deviation of $5\times10^{-16}$ --- machine
+precision --- and is circular to \SchwSpreadPct{} per cent over 32
+directions, with an equivalent diameter of $\SchwDiamM\,M$
+(the analytic value is $2\sqrt{27}\,M \simeq 10.3923\,M$). The same
+$2\sqrt{27}\,M$ anchor reappears independently in the
+$(\astar, i)$ sweep of Chapter~\ref{ch:calib}: every $\astar = 0$ grid
+row returns it identically at all inclinations, as it must by spherical
+symmetry.
+
+\section{The Kerr shadow and the Bardeen critical curve}
+\label{sec:bardeen}
+
+At $\astar = 0.94$ the shadow is displaced and flattened on the prograde
+side, in quantitative agreement with the analytic critical curve of
+\citet{Bardeen1973}: the traced boundary reproduces
+$\xi(r) = [r^2(3M-r)-a^2(r+M)]/[a(r-M)]$,
+$\eta(r) = r^3[4a^2M - r(r-3M)^2]/[a^2(r-M)^2]$ point-by-point
+(Fig.~\ref{fig:boundary}). Viewed edge-on the mean diameter is
+$\KerrDiamM\,M$.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.62\textwidth]{figures/fig_shadow_boundary.pdf}
+\caption{Traced Kerr shadow boundary at $\astar=0.94$, edge-on, against the
+analytic \citet{Bardeen1973} critical curve. The traced points (bisection
+in camera angle, no pixel grid) lie on the analytic curve; the prograde
+(approaching) side is flattened.}
+\label{fig:boundary}
+\end{figure}
+
+\stub{Derivation of the Bardeen $\xi(r), \eta(r)$ curve from the
+double-root condition on $R(r)$; critical-curve overlays for
+$\astar = 0, 0.5, 0.94, 0.998$ (needs the \texttt{sweep\_tool}
+extension).}
+
+\section{Spherical photon orbits and Lyapunov exponents}
+\label{sec:spherical}
+
+\stub{The full family of unstable spherical photon orbits at all
+inclinations; the Lyapunov exponent $\gamma$ of bound photon orbits and
+the sub-ring demagnification $e^{-\gamma}$. New figure: spherical
+photon-orbit radii and $\gamma$ vs $\astar$.}
+
+\section{Gravitational lensing of the disk and sky}
+\label{sec:lensing}
+
+\stub{User-requested topic (THESIS\_PLAN Part 1c): why the far side of
+the disk appears above and below the shadow; the Einstein-ring limit; the
+ray-bending schematic (from \texttt{make\_diagrams.py}) plus the traced
+lensed-disk render.}

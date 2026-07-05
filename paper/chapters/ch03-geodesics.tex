@@ -1,4 +1,82 @@
 \chapter{Geodesics and the Carter Constant}
-\label{ch:ch03-geodesics}
+\label{ch:geodesics}
 
-\stub{Hamilton-Jacobi separation, the potentials R and Theta, Mino time, and the second-order formulation.}
+\section{Constants of motion and the Carter separation}
+\label{sec:carter}
+
+Geodesics in Kerr admit four constants of motion: the energy $E$, the axial
+angular momentum $L_z$, the Carter constant $Q$ \citep{Carter1968}, and the
+norm $\mu^2$ of the four-momentum. With
+$P(r) = E(r^2+a^2)-aL_z$ the Carter-separated equations for a photon
+($\mu=0$) read
+\begin{align}
+\Sigma\,\frac{\mathrm{d}r}{\mathrm{d}\lambda} &= \pm\sqrt{R(r)},\nonumber\\
+\Sigma\,\frac{\mathrm{d}\theta}{\mathrm{d}\lambda} &=
+  \pm\sqrt{\Theta(\theta)},\nonumber\\
+\Sigma\,\frac{\mathrm{d}\phi}{\mathrm{d}\lambda} &=
+  -\Big(aE - \frac{L_z}{\sin^2\theta}\Big) + \frac{a}{\Delta}P(r),
+  \nonumber\\
+\Sigma\,\frac{\mathrm{d}t}{\mathrm{d}\lambda} &=
+  -a(aE\sin^2\theta - L_z) + \frac{(r^2+a^2)}{\Delta}P(r),
+\label{eq:carter}
+\end{align}
+with the potentials
+\begin{align}
+R(r) &= P(r)^2 - \Delta\left[(L_z-aE)^2 + Q\right],
+\label{eq:rpot}\\
+\Theta(\theta) &= Q - \cos^2\theta\left[a^2(-E^2) +
+\frac{L_z^2}{\sin^2\theta}\right].
+\label{eq:thetapot}
+\end{align}
+The potentials and their derivatives are implemented by
+\texttt{radial\_potential}, \texttt{polar\_potential} and their
+\texttt{\_deriv} companions in \texttt{physics/src/null\_geodesics.cpp}.
+
+\stub{The Hamilton--Jacobi derivation of the separation; $Q$ from the
+Killing--Yano tensor; turning points and orbit classification by the roots
+of $R(r)$. New figures: sample photon and timelike trajectories;
+turning-point structure of $R(r)$.}
+
+\section{Mino time and the second-order formulation}
+\label{sec:mino}
+
+Rather than integrating the first-order radial and polar equations with
+explicit sign bookkeeping at turning points, we adopt Mino time
+$\tau$ \citep{Mino2003}, defined by
+$\mathrm{d}\lambda = \Sigma\,\mathrm{d}\tau$, which decouples the $(r)$ and
+$(\theta)$ sectors, and evolve the \emph{second-order} equations obtained
+by differentiating $\dot r^2 = R(r)$ once:
+\begin{equation}
+\frac{\mathrm{d}^2 r}{\mathrm{d}\tau^2} = \tfrac{1}{2}R'(r), \qquad
+\frac{\mathrm{d}^2 \theta}{\mathrm{d}\tau^2} = \tfrac{1}{2}\Theta'(\theta),
+\label{eq:secondorder}
+\end{equation}
+in which turning points are ordinary smooth extrema and no square root of a
+near-zero quantity is ever taken. The first integrals
+$\dot r^2 = R(r)$ and $\dot\theta^2 = \Theta(\theta)$ then serve as exact
+algebraic constraints on the numerical solution, which we re-impose after
+every accepted step (Chapter~\ref{ch:numerics}). The coordinate
+singularities at $\theta = 0,\pi$ are regularised with a $10^{-8}$ clamp;
+they are properties of the BL chart, not of the spacetime.
+
+\section{Timelike geodesics}
+\label{sec:timelike}
+
+For timelike geodesics ($\mu=1$, stellar orbits) the radial potential gains
+the mass term, $R(r) = P^2 - \Delta[r^2 + (L_z-aE)^2 + Q]$, the polar
+potential becomes $\Theta = Q - \cos^2\theta[a^2(1-E^2)+L_z^2/\sin^2\theta]$,
+and the four-velocity normalisation $g_{\mu\nu}u^\mu u^\nu = -1$ provides an
+independent per-step health check (\texttt{solve\_ut} in
+\texttt{timelike\_geodesics.cpp} solves the normalisation quadratic;
+\texttt{carter\_q} recovers $Q$ from the state). We integrate stellar
+orbits in the full geodesic equations rather than any post-Newtonian
+expansion: at the S2 pericentre ($\sim$1470 Schwarzschild radii, orbital
+speed 2.6 per cent of $c$) the leading PN corrections are individually at
+the $10^{-4}$ level --- the same order as the measured redshift excess
+itself --- so the expansion error budget would have to be argued term by
+term, whereas the geodesic integrator's error budget is simply its
+conservation diagnostics.
+
+\stub{[OPTIONAL] The exact closed-form solution in elliptic integrals /
+Weierstrass $\wp$ (Rauch--Blandford, Gralla--Lupsasca) as an analytic
+integrator check; Mino-time vs affine-parameter figure.}

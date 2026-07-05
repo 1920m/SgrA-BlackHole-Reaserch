@@ -1,4 +1,128 @@
 \chapter{Introduction and Strong-Field Context}
-\label{ch:ch01-introduction}
+\label{ch:intro}
 
-\stub{Sgr A* as the unique dual laboratory; historical thread; contributions; reader's guide.}
+\section{Sagittarius A*: a dual strong-field laboratory}
+\label{sec:duallab}
+
+The compact radio source \sgra{} at the dynamical centre of the Milky Way is
+the nearest supermassive black hole and the only one for which two
+independent strong-field probes are available at once: the resolved orbits
+of the S-star cluster within a few thousand gravitational radii
+\citep{Gillessen2017,Gravity2018,Gravity2020,Gravity2022}, and the
+horizon-scale image of its photon ring obtained by the Event Horizon
+Telescope \citep{EHT2022}. Together they anchor the mass
+($4.297\pm0.012\times10^{6}\,\msun$), the distance ($8277\pm9$~pc), and the
+angular size of the emission ring ($51.8\pm2.3\,\muas$), making \sgra{} the
+cleanest laboratory for testing general relativity (GR) in the
+strong-field, low-velocity regime.
+
+\section{The no-hair theorem as a falsifiable target}
+\label{sec:nohairintro}
+
+The no-hair theorem states that the exterior spacetime of an astrophysical
+black hole is fully specified by its mass $M$ and spin $a$; in particular
+the mass quadrupole moment is locked to $Q = -M a^2$. Prospects for testing
+this with Galactic-centre stars were laid out by \citet{Will2008}, and with
+horizon-scale imaging by \citet{Psaltis2016}. Both programmes require a
+forward model that is exact in the strong field: post-Newtonian expansions
+degrade at the S2 pericentre ($r_{\rm peri} \approx 1470\,R_S$), and the
+photon ring is intrinsically a property of exact null geodesics
+\citep{Bardeen1973,Johnson2020}.
+
+\section{This programme}
+\label{sec:programme}
+
+This report describes such a forward model, built from first principles and
+validated at every layer. The simulator integrates the Carter-separated
+geodesic equations \citep{Carter1968} in Kerr spacetime, renders the
+accretion flow with the standard relativistic thin-disk model
+\citep{NovikovThorne1973,PageThorne1974}, fits real astrometric and
+spectroscopic data for the star S2, and embeds a free-quadrupole
+Hartle--Thorne metric \citep{HartleThorne1968,GlampedakisBabak2006} to
+constrain departures from Kerr. The same geodesic core runs on the GPU for
+interactive exploration, and every number quoted here is regenerated from
+the code by a single reproduction target.
+
+\section{Lineage of the imaging problem}
+\label{sec:lineage}
+
+The lineage of the imaging problem runs from \citet{Luminet1979}, who first
+computed the appearance of a thin disk around a Schwarzschild hole, to the
+modern gravity renderers of \citet{James2015}; our CPU reference tracer
+follows the same backward ray-tracing logic but is held to numerical
+standards set by the analytic theory (Chapter~\ref{ch:numerics}).
+
+\stub{Expanded historical thread — Kerr 1963 $\to$ Boyer--Lindquist 1967
+$\to$ Carter 1968 $\to$ Bardeen 1973 $\to$ Cunningham--Bardeen 1973 $\to$
+Luminet 1979 $\to$ James et al.\ (Interstellar) 2015 $\to$ GRAVITY
+2018/2020/2022 $\to$ EHT 2022 — lands with the expanded bibliography.}
+
+\section{Contributions}
+\label{sec:contributions}
+
+The specific contributions of this programme are:
+\begin{enumerate}
+\item a turning-point-free second-order Mino-time integration of the Carter
+equations with per-step constraint projection, which makes traced shadow
+boundaries independent of integrator tolerance
+(Chapter~\ref{ch:numerics});
+\item machine-precision validation of the traced Schwarzschild shadow
+against Synge's formula and of the Kerr shadow against the analytic
+critical curve (Chapter~\ref{ch:shadow});
+\item a 13-parameter full-geodesic fit to the public S2 data that
+recovers the GRAVITY mass and distance and reproduces both published
+relativistic effects with no tunable amplitudes
+(Chapter~\ref{ch:fitting});
+\item a quantified no-hair constraint from S2 alone, with a covariance
+forecast for continued monitoring (Chapter~\ref{ch:nohair});
+\item a validated double-precision GPU implementation of the same geodesic
+core (Chapter~\ref{ch:gpu}); and
+\item a single-command reproduction pipeline in which every number in
+this report is regenerated from source (Appendix~\ref{app:repro}).
+\end{enumerate}
+
+\section{Reader's guide}
+\label{sec:readersguide}
+
+The report is organised in four parts so that readers with different
+backgrounds can enter at different depths.
+
+\emph{Part~I — Foundations for the non-specialist} assumes no physics
+background. It explains, in plain language and with almost no equations,
+every concept the later chapters rely on: black holes and horizons, curved
+spacetime, spin and the shadow, the accretion disk and its colours, stellar
+orbits, and the statistical toolkit. Each primer chapter ends with a short
+list of the terms just introduced and a pointer to the chapter where the
+full treatment lives. Readers comfortable with general relativity can skip
+Part~I entirely.
+
+\emph{Part~II — Theory and Methods} derives, from first principles, every
+formula the simulator implements: the Kerr geometry and its characteristic
+radii (Chapter~\ref{ch:kerr}), the Carter-separated geodesics and their
+second-order Mino-time form (Chapter~\ref{ch:geodesics}), and the numerical
+integration machinery with its error analysis (Chapter~\ref{ch:numerics}).
+Each derivation cites the source function that implements it.
+
+\emph{Part~III — Results} presents the science: shadow and critical-curve
+metrology (Chapter~\ref{ch:shadow}), the relativistic thin disk
+(Chapter~\ref{ch:disk}), photon-ring substructure (Chapter~\ref{ch:ring}),
+the S-star forward model (Chapter~\ref{ch:sstar}), the S2 fit and its
+statistics (Chapter~\ref{ch:fitting}), the wider S-star cluster
+(Chapter~\ref{ch:cluster}), and the no-hair constraint
+(Chapter~\ref{ch:nohair}).
+
+\emph{Part~IV — Engineering, validation, and closing} documents the GPU
+implementation (Chapter~\ref{ch:gpu}), the \sgra{} calibration
+(Chapter~\ref{ch:calib}), the interactive instrument
+(Chapter~\ref{ch:instrument}), the development history and complete test
+suite (Chapter~\ref{ch:devhistory}), and closes with discussion and
+conclusions. The appendices carry extended algebra, algorithm pseudocode,
+number provenance, the reproduction pipeline, and a glossary.
+
+A reader who wants only the headline science should read
+Chapters~\ref{ch:shadow}, \ref{ch:fitting} and \ref{ch:nohair}, plus the
+calibration of Chapter~\ref{ch:calib}. A reader evaluating the numerics
+should read Chapters~\ref{ch:numerics} and \ref{ch:devhistory}. Every
+quantitative statement that is not a cited literature value is typeset from
+a generated macro and is reproducible by \texttt{make reproduce}
+(Appendix~\ref{app:repro}).

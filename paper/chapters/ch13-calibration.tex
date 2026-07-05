@@ -1,4 +1,68 @@
 \chapter{Sagittarius A* Calibration and Parameter Sweeps}
-\label{ch:ch13-calibration}
+\label{ch:calib}
 
-\stub{the angular-scale conversion, the ring-diameter measurement, and the spin-inclination sweep.}
+\section{From simulation units to the sky}
+\label{sec:conversion}
+
+The \sgra{} calibration adopts the GRAVITY mass and distance
+\citep{Gravity2022} and the EHT viewing geometry
+\citep[$i \approx 30\degr$;][]{EHT2022}. The conversion from the traced
+boundary to a sky angle proceeds step by step as follows
+(\texttt{sweep\_tool calibrate}).
+\begin{enumerate}
+\item One gravitational radius is
+$R_g = GM/c^2 = 4.297\times10^{6} \times 1.4766\,\mathrm{km}
+     = 6.346\times10^{9}\,\mathrm{m}$,
+using $GM_\odot/c^2 = 1.4766$~km.
+\item At $D = 8277\,\mathrm{pc} = 2.554\times10^{20}$~m it subtends
+$\theta_g = R_g/D = 2.485\times10^{-11}\,\mathrm{rad}
+ = \UasPerM\,\muas$.
+\item The traced critical boundary at $\astar = 0.94$, $i = 30\degr$ has
+mean diameter $\CalDiamM\,M$ (32-direction average of the bisected
+boundary, converted to impact parameters).
+\item The photon-ring angular diameter is therefore
+$d_{\rm ring} = \CalDiamM \times \UasPerM = \CalDiamUas\,\muas$.
+\end{enumerate}
+This falls within the EHT ring measurement of $51.8\pm2.3\,\muas$ and the
+inferred shadow diameter of $48.7\pm7\,\muas$ \citep{EHT2022}. At this
+near-face-on inclination the shadow is nearly circular (axis ratio
+\CalAxisRatio), consistent with the weak spin dependence emphasised by
+\citet{Psaltis2016}.
+
+\section{Error budget}
+\label{sec:errorbudget}
+
+The error budget of this comparison is dominated entirely by the
+observations, not the simulation. The traced boundary is bisected to
+$\sim$$10^{-9}$~rad in camera angle ($\ll 10^{-3}\,\muas$ equivalent),
+and the tolerance-independence established in
+Chapter~\ref{ch:numerics} removes the integrator from the budget.
+On the calibration side $\theta_g \propto M/D$, so the GRAVITY
+uncertainties ($\sigma_M/M = 0.28$ per cent,
+$\sigma_D/D = 0.11$ per cent) propagate to
+$0.30$ per cent in the predicted diameter --- about
+$0.15\,\muas$, twenty times smaller than the EHT error bar. The
+comparison is therefore limited by the $2.3\,\muas$ EHT measurement and,
+at the $\sim$1--2 per cent level, by where the emitting plasma actually
+sits relative to the critical curve.
+
+\section{The spin--inclination plane}
+\label{sec:sweep}
+
+Fig.~\ref{fig:sweep} maps the ring diameter over the
+full $(\astar, i)$ plane: the total spread is a few per cent, illustrating
+the well-known spin--inclination degeneracy of ring-size measurements.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\textwidth]{figures/fig_shadow_sweep.pdf}
+\caption{Photon-ring angular diameter at the GRAVITY mass and distance as a
+function of spin and inclination ($20\times20$ grid of traced boundaries).
+The EHT band $51.8\pm2.3\,\muas$ is indicated; the measurement constrains
+the $(\astar, i)$ plane only weakly.}
+\label{fig:sweep}
+\end{figure}
+
+\stub{New figures (need the \texttt{sweep\_tool} extension): axis-ratio
+map; shadow-displacement map; ring-diameter contour against the EHT band.
+Plus the spin-morphology tie-in of Section~\ref{sec:spinmorphology}.}

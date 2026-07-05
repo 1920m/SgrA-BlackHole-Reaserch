@@ -1,4 +1,60 @@
 \chapter{Numerical Methods and Error Analysis}
-\label{ch:ch04-numerics}
+\label{ch:numerics}
 
-\stub{Dormand-Prince 5(4), step control, constraint projection, complex-step differentiation, convergence studies.}
+\section{The Dormand--Prince 5(4) integrator}
+\label{sec:dp54}
+
+All geodesics are integrated with an adaptive Dormand--Prince 5(4)
+Runge--Kutta scheme (\texttt{DormandPrince54::try\_step} in
+\texttt{physics/include/sgr\_physics/integrator.hpp}): the embedded
+fourth-order solution provides the local error estimate, and a PI
+controller adapts the step to hold the mixed error norm
+$\epsilon = \max_i |y^{(5)}_i - y^{(4)}_i| /
+({\rm atol} + {\rm rtol}\,|y_i|)$ at unity. For null rays used in
+metrology the tolerances are $10^{-11}$ (absolute and relative).
+
+\stub{The full Butcher tableau; derivation of the embedded fourth-order
+error estimate; PI step-control stability. New figures (need
+\texttt{convergence\_tool}): conserved-quantity drift vs step size
+(log--log); step-size adaptation $h(\lambda)$ along a ray.}
+
+\section{Constraint projection}
+\label{sec:projectionsec}
+
+The decisive ingredient for shadow work is \emph{constraint projection}:
+after every accepted step the radial and polar Mino-time momenta are
+rescaled to satisfy the first integrals exactly,
+\begin{equation}
+\dot r \;\leftarrow\; \mathrm{sgn}(\dot r)\,\sqrt{R(r)}, \qquad
+\dot\theta \;\leftarrow\; \mathrm{sgn}(\dot\theta)\,\sqrt{\Theta(\theta)},
+\label{eq:projection}
+\end{equation}
+preserving the evolved sign (and leaving the momentum untouched within a
+turning-point guard band where $R$ or $\Theta$ dips below zero by less
+than the local error). Without projection, the small
+$\mathcal{O}({\rm rtol}\cdot r^4)$ drift accumulated crossing
+$\sim$$10^3\,M$ of nearly flat spacetime between the camera (at
+$r=1000\,M$) and the hole systematically mis-classifies rays near the
+critical impact parameter --- in a controlled experiment the
+capture/escape classification of boundary rays flipped wholesale as the
+tolerance was varied. With projection the measured boundary is independent
+of the integrator tolerance. Conservation of $(E, L_z, Q)$ is asserted to
+$10^{-6}$ relative along every test geodesic, and
+$|g_{\mu\nu}u^\mu u^\nu + 1| < 10^{-8}$ along timelike ones
+(both are hard gates in the test suite, Chapter~\ref{ch:devhistory}).
+
+\stub{Projection error analysis; the tolerance-dependence experiment as a
+figure: projection on/off shadow-boundary position vs tolerance (needs
+\texttt{convergence\_tool}).}
+
+\section{Complex-step differentiation}
+\label{sec:complexstep}
+
+Christoffel symbols for arbitrary metrics (needed for the Hartle--Thorne
+integrator) are evaluated by complex-step differentiation with step
+$h = 10^{-100}$ (\texttt{christoffel} in \texttt{metric.cpp}), which is
+exact to machine precision and free of subtractive cancellation.
+
+\stub{The Taylor-expansion proof of machine-precision exactness
+(Squire--Trapp); comparison against central differences; convergence and
+Richardson studies.}

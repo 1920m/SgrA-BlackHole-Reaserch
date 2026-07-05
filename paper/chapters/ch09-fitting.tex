@@ -1,4 +1,202 @@
 \chapter{Orbit Fitting, Statistics, and the S2 Results}
-\label{ch:ch09-fitting}
+\label{ch:fitting}
 
-\stub{the chi-squared objective, least squares, covariance, MCMC posteriors, and the S2 results against GRAVITY.}
+\section{Data}
+\label{sec:data}
+
+The astrometric and spectroscopic record of S2 is taken from the
+monitoring compilation of \citet{Gillessen2017} (VizieR
+J/ApJ/837/30): \FitNAst{} imaging positions (VLT NACO and Keck NIRC,
+1992--2016, typical uncertainties 0.3--3~mas) and \FitNRv{} radial
+velocities (SINFONI and earlier spectrographs, 2000--2016, typical
+uncertainties 15--100~km\,s$^{-1}$). Positions are offsets from the radio
+position of \sgra{}; the residual uncertainty of that frame tie is
+modelled by the fitted offset/drift parameters with the
+\citet{Plewa2015} priors of Section~\ref{sec:fitter}. We apply no error
+rescaling: the reduced $\chi^2$ of \FitChiRed{} below is obtained with
+the published uncertainties as-is.
+
+\section{The objective and its parameterisation}
+\label{sec:fitter}
+
+The objective is
+\begin{align}
+\chi^2 ={}& \sum_i \left[
+  \frac{(\alpha_i^{\rm obs}-\alpha_i^{\rm mod})^2}{\sigma_{\alpha,i}^2}
+ +\frac{(\delta_i^{\rm obs}-\delta_i^{\rm mod})^2}{\sigma_{\delta,i}^2}
+ \right]
+ \nonumber\\
+ &{}+ \sum_j
+  \frac{(v_{r,j}^{\rm obs}-v_{r,j}^{\rm mod})^2}{\sigma_{v,j}^2}
+ + \chi^2_{\rm prior},
+\label{eq:chi2}
+\end{align}
+over the \FitNAst{} astrometric epochs and \FitNRv{} radial velocities,
+with the forward model of Chapter~\ref{ch:sstar} supplying the model
+positions and velocities.
+
+Thirteen parameters are fitted: $(M, R_0)$, six orbital elements, the four
+reference-frame offsets and drifts $(x_0, y_0, v_x, v_y)$ of the mass with
+respect to the radio frame, and $v_{z}$; the no-hair mode adds $\epsq$.
+Weak priors tie the frame to \sgra{} following \citet{Plewa2015}
+($\pm0.2$~mas at epoch 2009.0, $\pm0.1$~mas\,yr$^{-1}$,
+$\pm5$~km\,s$^{-1}$). The $\chi^2$ is minimised with the Ceres solver
+(automatic differentiation; \texttt{OrbitFitter::fit}); parameter
+covariances are obtained as
+$C = (J^{\mathsf T} J)^{-1}$ from an explicit central-difference Jacobian
+$J$ of the weighted residual vector (\texttt{OrbitFitter::covariance}),
+because the solver's truncated-SVD
+covariance annihilates the strongly correlated $M$--$R_0$ direction and
+reports a spuriously zero mass uncertainty
+(Chapter~\ref{ch:devhistory}).
+
+\stub{Fisher information and the Cram\'er--Rao bound; why SVD truncation
+kills the $M$--$R_0$ direction, worked in the singular basis.}
+
+\section{Results: the S2 fit}
+\label{sec:s2fit}
+
+We fit the \FitNAst{} astrometric positions and \FitNRv{} radial
+velocities of S2 tabulated by \citet{Gillessen2017}. The best-fitting model
+(Fig.~\ref{fig:orbit}, Fig.~\ref{fig:rv}) has
+$\chi^2 = \FitChiTwo$ for \FitDof{} degrees of freedom
+($\chi^2_\nu = \FitChiRed$); the residuals (Fig.~\ref{fig:residuals}) show
+no structure. Table~\ref{tab:fit} compares the recovered parameters with
+the published values.
+
+\begin{table}
+\centering
+\caption{S2 fit results (full GR timelike geodesic model) against
+published values \citep{Gillessen2017,Gravity2022}. Uncertainties are
+$1\sigma$ from the explicit-Jacobian covariance.}
+\label{tab:fit}
+\begin{tabular}{lcc}
+\toprule
+Parameter & This work & Published \\
+\midrule
+$M$ [$10^6\,\msun$] & $\FitMass \pm \FitMassErr$ & $4.297\pm0.012$ \\
+$R_0$ [pc]          & $\FitDist \pm \FitDistErr$ & $8277\pm9$ \\
+$a$ [mas]           & $\FitSma \pm \FitSmaErr$   & $125.058\pm0.041$ \\
+$e$                 & $\FitEcc \pm \FitEccErr$   & $0.8839\pm0.0019$ \\
+$i$ [deg]           & $\FitIncl \pm \FitInclErr$ & $134.18\pm0.40$ \\
+$\Omega$ [deg]      & $\FitOmegaBig \pm \FitOmegaBigErr$ & $226.94\pm0.60$ \\
+$\omega$ [deg]      & $\FitOmegaSm \pm \FitOmegaSmErr$   & $65.51\pm0.57$ \\
+$t_{\rm peri}$ [yr] & $\FitTPeri \pm \FitTPeriErr$ & $2002.33\pm0.01$ \\
+$P$ [yr]            & $\FitPeriod \pm \FitPeriodErr$ & $16.0518\pm0.0022$ \\
+$\chi^2_\nu$        & \FitChiRed & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The recovered mass and distance agree with the far more precise GRAVITY
+interferometric determination \citep{Gravity2022} to
+$\FitMassNSigma\sigma$ and $\FitDistNSigma\sigma$ respectively --- a
+non-trivial cross-check, since our fit uses none of the GRAVITY beam
+astrometry, only the VLT/Keck imaging era compiled by
+\citet{Gillessen2017}.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\textwidth]{figures/fig_s2_orbit.pdf}
+\caption{S2 on the sky: fitted GR geodesic model (curve) and the
+\FitNAst{} astrometric measurements of \citet{Gillessen2017} (points).
+\sgra{} sits at the origin.}
+\label{fig:orbit}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\textwidth]{figures/fig_s2_rv.pdf}
+\caption{S2 radial velocity: model and the \FitNRv{} measurements. The
+sharp swing brackets the 2002 and 2018 pericentre passages.}
+\label{fig:rv}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\textwidth]{figures/fig_s2_residuals.pdf}
+\caption{Normalised fit residuals. $\chi^2_\nu = \FitChiRed$ over
+\FitDof{} degrees of freedom.}
+\label{fig:residuals}
+\end{figure}
+
+\stub{New figures: sky-plane residual quiver; observed-minus-computed vs
+time.}
+
+\section{Gravitational redshift at pericentre}
+\label{sec:redshift}
+
+The magnitude of the relativistic signal at pericentre follows from the
+fitted elements alone. Step by step:
+\begin{enumerate}
+\item The pericentre distance is
+$r_{\rm peri} = a(1-e) = 1032\,\mathrm{au}\times(1-\FitEcc)
+ \approx 121$~au, i.e.\ $\approx 1470$ Schwarzschild radii
+($R_S = 2GM/c^2 \approx 0.085$~au).
+\item The vis-viva speed there is
+$v_{\rm peri} = \sqrt{GM(2/r_{\rm peri}-1/a)}
+ \approx 7650\,\mathrm{km\,s^{-1}}$, so $\beta \approx 0.0255$.
+\item The transverse Doppler shift contributes
+$z_{\rm tD} \simeq \beta^2/2 \approx 3.3\times10^{-4}$, i.e.\
+$c\,z_{\rm tD} \approx 98\,\mathrm{km\,s^{-1}}$.
+\item The gravitational redshift contributes
+$z_{\rm grav} \simeq GM/(r_{\rm peri}c^2) = \beta^2_{\rm circ}
+ \approx 3.5\times10^{-4}$, i.e.\ $\approx 105\,\mathrm{km\,s^{-1}}$.
+\end{enumerate}
+The two corrections are nearly equal at pericentre --- not a coincidence:
+vis-viva gives $v_{\rm peri}^2 = (GM/a)(1+e)/(1-e)$ while
+$GM/r_{\rm peri} = (GM/a)/(1-e)$, so
+$z_{\rm grav}/z_{\rm tD} = 2/(1+e) = 1.06$ at the S2 eccentricity --- and
+their sum in the full geodesic model peaks at
+$\GrExcessPeak\,\mathrm{km\,s^{-1}}$ at epoch \GrExcessEpoch{}
+(Fig.~\ref{fig:redshift}), in agreement with the
+$\approx 200\,\mathrm{km\,s^{-1}}$ excess measured around the 2018.38
+pericentre passage by \citet{Gravity2018}, who quantified it as
+$f = 0.90\pm0.17$ on a scale where $f=0$ is Newtonian and $f=1$ is GR.
+Our forward model contains no adjustable redshift amplitude: the excess is
+forced by the fitted mass and geometry. (Like \citet{Gravity2018} we
+neglect the $\sim$5~km\,s$^{-1}$ light-bending correction.)
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\textwidth]{figures/fig_redshift_excess.pdf}
+\caption{Relativistic radial-velocity excess of S2 over a Keplerian orbit
+with identical elements, through the 2018 pericentre passage. The peak is
+$\GrExcessPeak\,\mathrm{km\,s^{-1}}$ at epoch \GrExcessEpoch, matching the
+detection of \citet{Gravity2018}.}
+\label{fig:redshift}
+\end{figure}
+
+\section{Relativistic precession}
+\label{sec:precession}
+
+The fitted orbit advances its pericentre by $\PrecSchw$~arcmin per orbital
+period from the Schwarzschild term. The textbook estimate agrees step by
+step: the semilatus rectum is
+$p = a(1-e^2) = 1032\,\mathrm{au} \times (1-\FitEcc^2) \approx 228$~au,
+so with $R_g \approx 0.0424$~au the ratio is
+$R_g/p = 1.86\times10^{-4}$ and
+\begin{equation}
+\delta\omega = \frac{6\pi GM}{c^2 a (1-e^2)} = 6\pi\,\frac{R_g}{p}
+ \approx 3.5\times10^{-3}\,\mathrm{rad},
+\end{equation}
+i.e.\ $\approx 12.0$~arcmin per 16-yr orbit, matching the full geodesic
+integration ($\PrecSchw$~arcmin) and the GRAVITY detection of the
+Schwarzschild precession, $f_{\rm SP} = 1.10\pm0.19$ \citep{Gravity2020}.
+Frame dragging at $\astar = 0.94$ contributes only $\PrecLT$~arcmin per
+orbit (retrograde for the S2 geometry), two orders of magnitude below
+current sensitivity, consistent with the hierarchy laid out by
+\citet{Will2008}.
+
+\stub{New figure: the precession decomposition (Schwarzschild,
+Lense--Thirring, quadrupole) from \texttt{GRPrecession}'s three analytic
+terms --- a pure formula evaluation, no new tool.}
+
+\section{MCMC posteriors}
+\label{sec:mcmc}
+
+\stub{[CORE, THESIS\_PLAN Part 2] Affine-invariant ensemble sampling
+(Goodman--Weare / emcee) of the 13-parameter posterior via a
+\texttt{--chi2} evaluation mode on \texttt{fit\_s2\_tool}; autocorrelation
+and convergence diagnostics; posterior vs the Jacobian covariance. New
+figure: the S2 corner plot.}

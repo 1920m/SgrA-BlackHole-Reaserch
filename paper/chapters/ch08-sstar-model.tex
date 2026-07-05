@@ -1,4 +1,67 @@
 \chapter{Timelike Orbits and the S-Star Forward Model}
-\label{ch:ch08-sstar-model}
+\label{ch:sstar}
 
-\stub{Darwin elements, sky projection, the Romer delay, and the redshift decomposition.}
+\section{The forward model}
+\label{sec:forwardmodel}
+
+The S2 model integrates the timelike geodesic of
+Chapter~\ref{ch:geodesics} in the fitted spacetime, projects it on the sky
+(east--north offsets relative to the mass), and predicts radial velocities
+including the special-relativistic transverse Doppler shift and the
+gravitational redshift (\texttt{SkyProjection::S2Model} in
+\texttt{science/orbit\_fitter/}).
+
+\section{Orbital elements from radial turning points}
+\label{sec:darwin}
+
+Orbital elements are converted to initial conditions through the exact
+radial turning points: $E$ and $L_z$ follow from the two conditions
+$R(r_{\rm peri}) = R(r_{\rm apo}) = 0$ (Darwin-style elements), a
+$2\times2$ linear system in $(E^2, L_z^2)$ for equatorial motion.
+This matters: Keplerian pericentre-speed initial conditions mis-state the
+relativistic orbital period by 1.6 per cent at the S2 eccentricity ---
+two orders of magnitude above the measurement precision of the period
+(the bug-hunt narrative is told in Chapter~\ref{ch:devhistory}).
+
+\stub{Full derivation of the $(E^2, L_z^2)$ linear system from the
+turning-point conditions; Hermite interpolation of the sampled geodesic
+(\texttt{sample\_at}).}
+
+\section{Sky projection and the R{\o}mer delay}
+\label{sec:romer}
+
+Light travel time across the orbit (the R{\o}mer delay,
+$\Delta t = -z\sin i/c$, $\sim$8 light-days peak-to-peak for S2) is
+solved per epoch by fixed-point iteration on the emission time
+$t_{\rm em} = t_{\rm obs} - \Delta t(t_{\rm em})$, which converges in
+2--3 iterations at S2 velocities.
+
+\stub{Derivation of the delay from the line-of-sight displacement;
+convergence of the fixed-point iteration. New figure: R{\o}mer delay curve
+over one S2 orbit.}
+
+\section{The spectroscopic observable}
+\label{sec:spectro}
+
+The measured quantity for S2 spectroscopy is the centroid of the
+Br$\gamma$ line ($\lambda_{\rm rest} = 2.16612\,\mu$m). The model
+wavelength ratio factorises as
+\begin{equation}
+\frac{\lambda_{\rm obs}}{\lambda_{\rm emit}}
+ = (1 + z_{\rm D})(1 + z_{\rm tD})(1 + z_{\rm grav}),
+\label{eq:zfactor}
+\end{equation}
+where $z_{\rm D}$ is the classical line-of-sight Doppler term,
+$z_{\rm tD}$ the special-relativistic transverse (time-dilation) term and
+$z_{\rm grav}$ the gravitational redshift at the emission point
+(\texttt{redshift\_terms}; the line model is
+\texttt{SpectralLineFitter::predict}). The
+quoted model radial velocity is the apparent
+$v_r = c\,(\lambda_{\rm obs}/\lambda_{\rm rest} - 1)$, the same convention
+the observers use, so the relativistic terms appear as an excess over a
+Keplerian orbit with identical elements
+(Section~\ref{sec:redshift}).
+
+\stub{New figure: the redshift decomposition (gravitational vs transverse
+vs classical) stacked over one orbit --- the artifact
+\texttt{phase4/s2\_redshift\_curve.csv} already carries the columns.}

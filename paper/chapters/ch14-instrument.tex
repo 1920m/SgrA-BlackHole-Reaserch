@@ -1,4 +1,33 @@
 \chapter{The Interactive Instrument}
-\label{ch:ch14-instrument}
+\label{ch:instrument}
 
-\stub{the engine, presets, the cinematic menu, and the display-only turbulence layer - separated from the physics.}
+\section{The simulator as an instrument}
+\label{sec:instrument}
+
+Beyond the batch pipeline, the same physics core drives an interactive
+Vulkan application: a live Kerr disk renderer with runtime control of
+$(\astar, i, r_{\rm cam}, r_{\rm out}$, exposure, disk temperature$)$; a
+Science Mode overlaying the fitted S2 orbit and its data on the fit
+summary; a no-hair panel exposing $\epsq$ with the live analytic
+precession forecast of Chapter~\ref{ch:nohair} beside the fitted
+confidence interval; and a photon-ring scope that reframes the camera at
+$r = 60\,M$ with a narrow field to isolate the $n=1$ ring visually. The
+application boots to a menu whose backdrop is a $3840\times2160$,
+$2\times2$-supersampled frame baked by the CPU reference tracer
+(33 million geodesics) --- the live renderer is deliberately idle behind
+the menu. Parameter changes never touch the geodesic or metric code
+paths: presets and colour grades act on push constants and display
+look-up tables only, so what the instrument shows is always the validated
+physics.
+
+\section{The display-only turbulence layer}
+\label{sec:turbulence}
+
+\stub{[OPTIONAL chapter body, THESIS\_PLAN Ch 13] The hyper-real disk
+look: shear-wound streamline turbulence advected by the real Kerr
+$\Omega(r)$, translucent rim compositing with front-to-back transmittance,
+azimuthally periodic value noise, the 24-stop log display window, and the
+auto-resolution controller --- all explicitly display-only, applied after
+the physical $g^4$-beamed Page--Thorne shading. Engine architecture
+(compute $\to$ present), presets/LUTs, and the cinematic menu.
+Screenshots as figures with their \texttt{sgr\_engine} command lines.}

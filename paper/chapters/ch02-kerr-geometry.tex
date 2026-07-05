@@ -1,4 +1,71 @@
 \chapter{Kerr Geometry from First Principles}
-\label{ch:ch02-kerr-geometry}
+\label{ch:kerr}
 
-\stub{the metric in two forms, Killing structure, characteristic surfaces, photon orbits, the BPT ISCO, and circular-orbit energetics.}
+\section{The Kerr solution in Boyer--Lindquist coordinates}
+\label{sec:kerrmetric}
+
+In Boyer--Lindquist (BL) coordinates with $G=c=1$ and spin parameter
+$a = J/M$, the Kerr line element is
+\begin{align}
+\mathrm{d}s^2 ={}& -\left(1-\frac{2Mr}{\Sigma}\right)\mathrm{d}t^2
+ - \frac{4Mar\sin^2\theta}{\Sigma}\,\mathrm{d}t\,\mathrm{d}\phi
+ + \frac{\Sigma}{\Delta}\,\mathrm{d}r^2 \nonumber\\
+&{}+ \Sigma\,\mathrm{d}\theta^2
+ + \frac{A\sin^2\theta}{\Sigma}\,\mathrm{d}\phi^2,
+\label{eq:kerr}
+\end{align}
+with $\Sigma = r^2+a^2\cos^2\theta$, $\Delta = r^2-2Mr+a^2$ and
+$A = (r^2+a^2)^2 - a^2\Delta\sin^2\theta$. This is the form implemented by
+\texttt{kerr\_components} in \texttt{physics/src/metric.cpp}, and the
+determinant identity $\det g = -\Sigma^2\sin^2\theta$ is asserted by a
+dedicated unit test (Chapter~\ref{ch:devhistory}).
+
+\stub{Kerr--Schild form and the BL$\leftrightarrow$KS transformation;
+inverse metric; Killing vectors $\partial_t, \partial_\phi$; the
+Killing--Yano and Killing tensors as the origin of the Carter constant;
+frame dragging and the ZAMO angular velocity
+$\omega = -g_{t\phi}/g_{\phi\phi}$.}
+
+\section{Horizons, ergosphere, and characteristic radii}
+\label{sec:radii}
+
+The outer horizon lies at
+$r_+ = M+\sqrt{M^2-a^2}$, the ergosphere at
+$r_E(\theta) = M+\sqrt{M^2-a^2\cos^2\theta}$, and the equatorial photon
+orbits at
+$r_{\rm ph}^{\pm} = 2M\{1+\cos[\tfrac{2}{3}\cos^{-1}(\mp a/M)]\}$
+(prograde/retrograde). The innermost stable circular orbit follows the
+closed form of \citet{BardeenPressTeukolsky1972},
+\begin{align}
+Z_1 &= 1 + (1-\astar^2)^{1/3}\left[(1+\astar)^{1/3} +
+      (1-\astar)^{1/3}\right],\nonumber\\
+Z_2 &= \sqrt{3\astar^2 + Z_1^2},\nonumber\\
+r_{\rm ISCO} &= M\left[3 + Z_2 \mp
+      \sqrt{(3-Z_1)(3+Z_1+2Z_2)}\right],
+\label{eq:isco}
+\end{align}
+with the upper sign for prograde orbits. At $\astar \equiv a/M = 0$ these
+reduce to $2M$, $2M$, $3M$ and $6M$ exactly, which the test suite asserts
+to machine precision before any imaging is attempted
+(Chapter~\ref{ch:devhistory}); for $\astar > 0$ it asserts the
+prograde/retrograde split (e.g.\ distinct photon-orbit radii at
+$\astar = 0.5$ and $0.94$) and the monotonic approach
+$r_{\rm ISCO} \to r_+$ as $\astar \to 1$. These radii are implemented by
+\texttt{r\_horizon}, \texttt{r\_ergosphere}, \texttt{r\_photon} and
+\texttt{r\_isco} in \texttt{metric.cpp}.
+
+\stub{Full algebra: equatorial photon orbits from the effective-potential
+cubic and its trigonometric solution; the BPT ISCO derivation from
+$\mathrm{d}^2V/\mathrm{d}r^2 = 0$ through $Z_1, Z_2$; the marginally bound
+radius $r_{mb}$. New figure: characteristic radii vs $\astar$ (needs
+\texttt{physics\_tables}).}
+
+\section{Circular-orbit energetics and accretion efficiency}
+\label{sec:energetics}
+
+\stub{$E(r)$, $L(r)$, $\Omega(r)$ for circular equatorial orbits
+(implemented by \texttt{energy\_circular}, \texttt{angmom\_circular},
+\texttt{omega\_circular}); binding energy at the ISCO and the accretion
+efficiency $\eta = 1 - E_{\rm ISCO}$ (5.7 per cent Schwarzschild $\to$ 42
+per cent extremal). New figures: effective potential $V(r)$ at several
+spins; $E, L, \Omega, \eta$ vs $r$ and vs $\astar$.}

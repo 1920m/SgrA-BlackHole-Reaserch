@@ -1,7 +1,7 @@
-# THESIS EXPANSION PLAN — Sgr A* simulator research report (~215 pp)
+# THESIS EXPANSION PROMPT — Sgr A* simulator research report (~215 pp)
 
-> Durable in-repo copy of the approved build plan. Converts the 11-page MNRAS
-> paper (`paper/main.tex`, kept unchanged) into a single-column, chaptered
+> This section is the hand-back prompt. Give it to me to execute. It converts
+> the 11-page MNRAS paper (`paper/main.tex`) into a single-column, chaptered
 > report/thesis of ~215 pages (band 195–230): a 30-page plain-language physics
 > primer (Part I) up front, then full mathematical derivations of every formula
 > the code implements, a complete account of the tests and validation, the
@@ -17,154 +17,463 @@
 - **Keep both documents:** the 11-page journal paper `paper/main.tex` stays as
   `mnras`; the thesis is a NEW document `paper/thesis.tex` + `paper/chapters/`,
   sharing `numbers.tex`, `figures/`, `refs.bib`.
-- **Build both heavy modules (CORE):** (a) MCMC posteriors (corner plots for
-  S2 + no-hair), (b) multi-star cluster fit (fetch other S-stars, joint mass
-  fit).
-- **Beginner primer:** ~30-page "Part I — Foundations (for the non-specialist)"
-  at the very start, explaining every complex physics term in plain language
-  before any equations. Target ~215 pp, band [195, 230].
-- **Diagrams:** all figures/diagrams are matplotlib, same style/pipeline as
-  `main.pdf` — NO TikZ, NO hand-drawn/AI images. Two figure jobs: (i) UPDATE
-  the 10 existing figures (restyle + regenerate); (ii) CREATE the new
-  matplotlib diagrams (data plots + schematics) for the technical chapters.
-- **Cover + contents:** dedicated cover/title page (page 1), then
-  `\tableofcontents` (chapters + subsections with page numbers, tocdepth=2),
-  `\listoffigures`, `\listoftables`.
-- **User-requested topics + own render images:** spin-morphology comparison
-  (low vs near-extremal spin), spacetime-bending/lensing emphasis, and the
-  axial "jet-like" feature (honestly explained as the lensed polar caustic /
-  higher-order disk-image tower — NOT an astrophysical jet). The user's
-  reference screenshots are regenerated as reproducible offscreen engine
-  renders with the exact `sgr_engine` command recorded in each caption
-  (requires small new CLI flags `--rout`, `--turb`).
+- **Build both heavy modules (now CORE, not optional):** (a) MCMC posteriors
+  (corner plots for S2 + no-hair), (b) multi-star cluster fit (fetch other
+  S-stars, joint mass fit). These push the page count toward the top of the
+  window; trim Ch 13 [OPTIONAL] and appendix algebra to stay ≤200.
+- **Beginner primer (NEW):** add a ~30-page "Part I — Foundations (for the
+  non-specialist)" at the very START, explaining every complex physics term in
+  plain language before any equations. Cap RAISED to accommodate it: new target
+  ~215 pp, acceptable band [195, 230] (supersedes the old 140–200).
+- **Diagrams (NEW, user-clarified):** all figures/diagrams are matplotlib,
+  same style/pipeline as `main.pdf` — NO TikZ, NO hand-drawn/AI images. The new
+  diagrams live in the later technical chapters (not a heavily-illustrated
+  primer). Two figure jobs: (i) UPDATE the 10 existing figures (restyle +
+  regenerate); (ii) CREATE the new matplotlib diagrams (data plots + a few
+  matplotlib-drawn schematics) in the technical chapters.
+- **Cover + contents (NEW):** dedicated cover/title page (page 1), then a
+  `\tableofcontents` (chapters + subsections with page numbers) on the next
+  page. See front-matter spec in Part 1.
+- **User-requested topics + own images (NEW):** spin-morphology comparison
+  ($\astar=0$ vs $0.906$), spacetime-bending/lensing emphasis, and the axial
+  "jet-like" feature (honestly explained as a lensing caustic). Some are
+  illustrated by the user's OWN engine renders, uploaded later in normal chat
+  mode — leave captioned placeholders + the reproducing `sgr_engine` command.
+  Full detail in Part 1c.
+- **Execution step 0:** copy this whole prompt into `paper/THESIS_PLAN.md`
+  (durable in-repo reference) before starting.
+- **BLOCKER before writing Part 1c figures:** the user must upload their render
+  images (needs normal chat mode). The rest of the thesis does not depend on
+  them — build everything else first; slot the user images in when supplied.
+  [STATUS: the user supplied the three reference screenshots in chat on
+  2026-07-05; they are regenerated as reproducible offscreen engine renders
+  with the exact CLI recorded in each caption (needs --rout/--turb flags).]
+
+## Context (why this change)
+
+The current paper compresses each result into a sentence and cites the
+derivation ("the ISCO follows the closed form of Bardeen-Press-Teukolsky").
+The user wants a long, detailed evidence report of the research: derive what
+the code computes, document every test and iteration, and add many more graphs
+to show more data and deeper understanding. 140–200 pages is a monograph, not
+a journal article — so we move off the two-column `mnras` class (which caps
+~30 pp and fights wide display equations) to a single-column `report` class
+with chapters. We are NOT short of material: full derivations + tests + new
+calculations naturally exceed 200 pp, so the task is curation to land in-window,
+never padding.
+
+## Verified inventory notes (from codebase exploration)
+- Current class: `\documentclass[fleqn,usenatbib]{mnras}`; packages graphicx,
+  amsmath, booktabs. 8 sections + 3 appendices, 10 figures, ~55 macros, 19 refs.
+- Figure fns already in `make_figures.py`: fig_s2_orbit, fig_s2_rv,
+  fig_s2_residuals, fig_redshift_excess, fig_shadow_boundary,
+  fig_brightness_profile, fig_nohair_profile, fig_subring_panels,
+  fig_disk_render, fig_shadow_sweep. New figs slot in the same way.
+- Tests: 8 files, ~32 TEST_CASE under `sci-rel` (25 physics + science incl.
+  the S2-model tests); one hidden `[.probe]` shadow-tolerance diagnostic that
+  becomes a Ch-4 convergence figure.
+- FREE new figure: `phase4/s2_redshift_curve.csv` already has columns
+  `v_total/v_newton/v_excess/v_trans/v_grav_kms` → the redshift-decomposition
+  stack needs no new code, only a `fig_*`.
+- Two HEAVY new builds (now CORE per user; they add the most evidence/pages):
+  (a) MCMC — none exists today (Ceres + profile-likelihood only); needs a
+  `--chi2` eval mode on `fit_s2_tool` + `scripts/run_mcmc.py` (emcee) for
+  corner plots. (b) Multi-star cluster fit — `fetch_gillessen_data.py` is
+  S2-only; other S-stars need a VizieR flag-parse refactor + a generalised
+  fitter loop.
 
 ## Target: ~215 pp (band [195, 230])
-Part dividers: Part I Foundations (primer F1–F6), Part II Theory & Methods
-(Ch 1–4), Part III Results (Ch 5–11), Part IV Engineering & Validation
-(Ch 12–17), then appendices A–E. If the draft exceeds 230, trim the
-instrument chapter and condense appendix algebra; if under 195, expand
-appendix derivations / primer worked examples.
+
+Technical body (~185–195 pp with MCMC + multi-star) + the new ~30 pp beginner
+primer (Part I) ≈ ~215–225 pp. Chapters are tagged [CORE] or [OPTIONAL]; if the
+draft exceeds 230, trim Ch 13 [OPTIONAL] and condense appendix algebra; if under
+195, expand appendix derivations / primer worked examples. Land inside [195, 230].
+Use `\part{}` dividers: Part I Foundations (primer), Part II Theory & Methods,
+Part III Results, Part IV Engineering & Validation, then appendices.
 
 ---
 
-## PART 0 — Global setup
-- NEW `paper/thesis.tex` driver: `\documentclass[11pt,a4paper]{report}`,
-  geometry/amsmath/amssymb/mathtools/bm/graphicx/booktabs/natbib/hyperref/
-  caption/subcaption; `\input{numbers.tex}`; the shared shorthand macros;
-  `\setcounter{tocdepth}{2}`.
-- `paper/frontmatter.tex`: cover page (title + hero figure, nothing else),
-  contents, LoF, LoT, ~400-word abstract, notation glossary, reproducibility
-  statement.
-- `paper/chapters/` one `.tex` per chapter (f1–f6, ch01–ch17, appendix-a…e).
-- `paper/Makefile`: add `thesis.pdf` target (pdflatex×3 + bibtex on
-  thesis.tex). Top-level `Makefile`: add `make thesis`; `figures` target runs
-  BOTH `make_figures.py` and NEW `make_diagrams.py`; `reproduce` runs the new
-  data tools (physics_tables, convergence_tool, sweep/subring extensions,
-  MCMC, multi-star) before the figure scripts.
-- Bibliography: expand `refs.bib` toward ~40 refs (MTW, Wald, Chandrasekhar,
-  Kerr 1963, Boyer-Lindquist 1967, Penrose 1969, Cunningham-Bardeen 1973,
-  Rauch-Blandford 1994, Gralla-Lupsasca-Marrone, Shapiro-Teukolsky, Numerical
-  Recipes, Hairer-Nørsett-Wanner, Squire-Trapp 1998, Dormand-Prince 1980,
-  Wyman-Sloan-Shirley 2013, Synge 1966, Foreman-Mackey emcee, Goodman-Weare,
-  Do+2019, Blandford-Znajek 1977).
+## PART 0 — Global setup (build system + document skeleton)
 
-## PART I — Foundations for the non-specialist (~30 pp)
-Plain-language primer defining every complex term before any equations;
-everyday analogies; each chapter ends with a "terms you just met" box and a
-"→ full treatment in Ch N" pointer.
-- F1 Gravity, mass & the idea of a black hole (~5 pp): escape velocity,
-  Schwarzschild radius, horizon, singularity, scales (AU/pc/μas/R_S).
-- F2 Spacetime & Einstein's gravity, gently (~6 pp): curved spacetime,
-  geodesics, light bending (featuring the wide-angle lensed-grid render),
-  time dilation, what a metric/coordinates are.
-- F3 Spinning black holes & the shadow (~6 pp): Kerr vs Schwarzschild, frame
-  dragging, ergosphere, photon sphere, shadow & photon ring formation,
-  prograde/retrograde.
-- F4 Light, heat & colour: reading the disk (~5 pp): blackbody colour,
-  accretion disk, Doppler beaming, the three redshifts.
-- F5 Orbits & weighing a black hole (~5 pp): Kepler's ellipse, S-stars,
-  astrometry vs radial velocity, GR precession rosette, how M and R0 emerge.
-- F6 The toolkit in plain words (~3 pp): geometric units, tensors gently,
-  χ²/error bars/confidence intervals, what MCMC does, no-hair in one picture.
+### 0.1 New thesis document (main.tex untouched)
+- NEW `paper/thesis.tex`: thin driver, `\documentclass[11pt,a4paper]{report}`,
+  `\input{frontmatter.tex}` then `\input{}` each chapter from
+  `paper/chapters/NN-name.tex`. `paper/main.tex` stays the `mnras` journal
+  paper, unchanged.
+- Packages: `geometry` (generous margins, wide equations), `amsmath`,
+  `amssymb`, `mathtools`, `bm`, `graphicx`, `booktabs`, `siunitx`, `natbib`,
+  `hyperref` (with `hidelinks`), `caption`, `subcaption`. Keep
+  `\input{numbers.tex}` and all existing shorthand macros.
+- Bibliography: keep `mnras.bst` (works under `natbib`) OR switch to
+  `plainnat`; keep `refs.bib` and expand it (target ~40 refs — add textbooks:
+  MTW, Wald, Chandrasekhar *Mathematical Theory of Black Holes*, Bardeen 1973,
+  Boyer-Lindquist 1967, Kerr 1963, Penrose 1969, Cunningham-Bardeen 1973,
+  Rauch-Blandford 1994, Gralla-Lupsasca-Marrone, Broderick, Shapiro-Teukolsky,
+  Press-Teukolsky-Vetterling *Numerical Recipes*, Hairer-Nørsett-Wanner,
+  Squire-Trapp complex-step, Foreman-Mackey emcee, Do+2019 S2 relativity).
 
-## PART II–IV — Technical chapters (page budgets)
-Ch1 Introduction & strong-field context ~10 | Ch2 Kerr geometry from first
-principles ~16 (BL+Kerr-Schild, Killing/Killing-Yano, horizons/ergosphere,
-photon-orbit cubic, BPT ISCO Z1/Z2, energetics E,L,Ω, efficiency η) |
-Ch3 Geodesics & Carter constant ~16 (Hamilton-Jacobi separation, R(r),Θ(θ),
-Mino time, second-order form; optional Weierstrass check) | Ch4 Numerical
-methods ~14 (DP54 tableau, PI control, constraint projection + tolerance
-experiment, complex-step proof, convergence studies) | Ch5 Shadow & critical
-curve ~14 (ZAMO camera, Synge, Bardeen ξ,η, spherical photon orbits, Lyapunov
-γ; lensing/spacetime-bending emphasis incl. the lensed-grid figure) |
-Ch6 Novikov-Thorne/Page-Thorne disk ~14 (conservation laws, full f(x), g,
-g⁴/Liouville, Planck→CIE; spin-morphology comparison figs low vs high spin) |
-Ch7 Photon-ring substructure ~10 (+ the axial image-tower/"jet" explanation) |
-Ch8 Timelike orbits & S-star forward model ~12 (Darwin elements, Rømer,
-redshift factorisation) | Ch9 Fitting, statistics & S2 results ~18 (χ²,
-LM/Ceres, Fisher/Cramér-Rao, (JᵀJ)⁻¹ vs SVD, MCMC theory + corner plots) |
-Ch10 Wider S-star cluster joint fit ~10 | Ch11 No-hair/Hartle-Thorne ~14
-(Geroch-Hansen, GB06 h^ab, F1/F2 + 9M switch, δω_Q, ε_q CI + forecast) |
-Ch12 GPU implementation & validation ~10 | Ch13 Sgr A* calibration & sweeps
-~10 | Ch14 The interactive instrument [OPTIONAL] ~8 | Ch15 Development
-history, iterations & the test suite ~14 (12 gates, all ~32 tests with
-tolerances, bug-hunt narratives) | Ch16 Discussion & limitations ~8 |
-Ch17 Conclusions & future work ~6 | Appendices A–E ~20 (extended algebra,
-pseudocode, provenance+gates, reproduction pipeline, glossary) |
-Bibliography ~6.
+### 0.2 File reorganisation
+- New dir `paper/chapters/` with one `.tex` per chapter (list in Part 1).
+- `paper/frontmatter.tex`: title page, abstract, table of contents,
+  list of figures, list of tables, notation/symbol glossary.
+- Front matter also carries a one-page "reproducibility statement".
 
-## Source-function citation map (derivation ↔ code)
-Ch2: metric.cpp kerr_components, r_horizon/r_ergosphere/r_photon/r_isco,
-omega/energy/angmom_circular. Ch3: null_geodesics potentials + rhs +
-make_null_ray; timelike solve_ut, carter_q. Ch4: integrator.hpp
-DormandPrince54::try_step; metric.cpp christoffel (complex-step h=1e-100).
-Ch5: raytrace_cpu zamo_tetrad/camera_ray/shadow_boundary_angle/
-schwarzschild_shadow_angle; projection in trace. Ch6: disk_model flux/
-temperature/blackbody_rgb/bolometric. Ch7: SubRingExtractor analyze/
-scan_widths. Ch8: S2Model (Darwin, Hermite sample_at, redshift_terms, Rømer);
-GRPrecession schwarzschild/lense_thirring/quadrupole (precession-decomposition
-figure = pure formula eval). Ch9: OrbitFitter fit/fit_nohair/covariance;
-SpectralLineFitter predict/peak_excess. Ch11: hartle_thorne F1/F2 + series.
-Ch15: cite tests by name (determinant identity, F1/F2 continuity,
-quadrupole sign, timelike normalisation, conserved quantities…).
+### 0.3 Build changes
+- `paper/Makefile`: keep the `main.pdf` target; ADD a `thesis.pdf` target
+  (pdflatex×3 + bibtex on `thesis.tex`, depends on `numbers.tex`,
+  `chapters/*.tex`, `frontmatter.tex`, `figures/*.pdf`).
+- Top-level `Makefile`: add `make thesis` (figures + `thesis.pdf`); the
+  `figures` target runs BOTH `make_figures.py` (data plots) and the new
+  `make_diagrams.py` (schematics); extend `make reproduce` to run the NEW data
+  tools (Part 2, incl. MCMC + multi-star) before the figure scripts, so all new
+  CSV/JSON exists first.
 
-## New data & figure work
-Tools: validation/physics_tables (radii/energetics/NT profiles CSVs over a*),
-validation/convergence_tool (drift vs tolerance, projection on/off),
-sweep_tool + spherical-orbit/Lyapunov/axis-ratio/displacement fields,
-subring_tool --sweep over a*, fit_s2_tool --chi2 eval mode +
-scripts/run_mcmc.py (emcee; Kerr + no-hair chains), multi-star: refactor
-fetch_gillessen_data.py (VizieR flag parse) + fit_cluster tool →
-validation/phase13/cluster_fit.json.
-Figures: ~20 new fig_* in make_figures.py (radii, potentials, energetics/η,
-NT profiles, g-map, CIE locus, critical curves, Lyapunov, subring-vs-spin,
-convergence, residual quiver, O–C, corner, contours, precession decomposition,
-GPU diff, minimax error, fps scaling, axis-ratio/displacement) + restyle of
-the 10 existing figures (2.2a: shared style, annotations, higher DPI) + NEW
-scripts/make_diagrams.py matplotlib schematics (2.2b: ray diagram, anatomy
-cutaways, frame-drag swirl, Kepler ellipse, rosette, three redshifts,
-astrometry-vs-RV, units, χ² sketch, MCMC cartoon, quadrupole picture, scale
-line, timeline). New numbers.tex macros for η(a*), γ, subring vs spin, MCMC
-medians/CIs, cluster fit.
-User renders (Part 1c): regenerate the three reference shots offscreen with
-recorded CLI (needs --rout/--turb flags) → writeup/user_images/ or
-paper/figures/.
+---
 
-## Preserved invariants
-Every number a numbers.tex macro; every figure from make figures (matplotlib
-only; sole exception: engine renders with reproducing CLI in caption);
-make reproduce clean end-to-end; S62 contested at every mention; physics core
-untouched (ctest stays green).
+## PART 1 — Chapter structure (what goes in each; source + figures + numbers)
 
-## Verification
-1. ctest sci-rel passes. 2. make reproduce regenerates everything, exit 0.
-3. make thesis → 0 errors/0 undefined refs, pages ∈ [195,230], cover page 1 +
-   TOC with subsections; make paper still builds the journal PDF.
-4. pypdf probe: no ??, no raw macros, headline numbers present, S62 caveat.
-5. Commit per-chapter; push.
+Front matter (~9 pp):
+- **Cover page (page 1):** standalone title page — engraved title, subtitle,
+  author, date, a single hero figure; nothing else on the page.
+- **Contents (page 2+):** `\tableofcontents` immediately after the cover —
+  lists every chapter AND its subsections with the page number each starts on
+  (report class does this; ensure `\setcounter{tocdepth}{2}` so subsections
+  show). Follow with `\listoffigures` and `\listoftables`.
+- Abstract (expand to ~400 words), notation/symbol glossary (every symbol:
+  $M,a,\astar,\Sigma,\Delta,A,E,L_z,Q,\mu,\lambda,\tau,\epsq$…),
+  reproducibility statement.
 
-## Execution order
-0. This file. 1. Skeleton (thesis.tex, parts, chapter stubs, Makefiles,
-make_diagrams.py stub) — compiles near-empty. 2. Seed chapters from main.tex
-content. 3. Data tools + figures + numbers. 4. Primer F1–F6. 5. Derivation
-chapters + tests chapter + appendices. 6. Land in [195,230]; verify; push.
+### PART I — Foundations for the non-specialist [NEW, ~30 pp]
+Plain-language primer that defines every complex term used later, before any
+equations. Written for a reader with no GR/physics background: everyday
+analogies, minimal maths, each short chapter ends with a "terms you just met"
+box and a "→ full treatment in Ch N" forward-reference. Illustrations are
+matplotlib (same pipeline as `main.pdf`); a few simple matplotlib schematics
+(shadow-formation ray diagram, Kerr anatomy cutaway, Kepler ellipse, the three
+redshifts, χ² error-bar sketch) are reused by the technical chapters too.
+- **F1 — Gravity, mass & the idea of a black hole (~5 pp):** escape velocity,
+  the Schwarzschild radius, event horizon, singularity; "why not even light
+  escapes"; sense of scale (AU, parsec, μas, $R_S$).
+- **F2 — Spacetime & Einstein's gravity, gently (~6 pp):** what "curved
+  spacetime" means; geodesics as straightest paths; light bending; time
+  dilation; what a metric / coordinates are without tensor calculus.
+- **F3 — Spinning black holes & the shadow (~6 pp):** Kerr vs Schwarzschild;
+  frame dragging; ergosphere; photon sphere; how the shadow & photon ring
+  form (the key ray-diagram); prograde vs retrograde.
+- **F4 — Light, heat & colour: reading the disk (~5 pp):** blackbody
+  temperature → colour; the accretion disk; Doppler beaming (why one side is
+  brighter); the three redshifts (gravitational, transverse, classical).
+- **F5 — Orbits & weighing a black hole (~5 pp):** Kepler's ellipse
+  (foci, eccentricity, pericentre); the S-stars; astrometry vs radial
+  velocity; GR precession (rosette); how M and distance fall out.
+- **F6 — The toolkit in plain words (~3 pp):** geometric units ($G=c=1$);
+  vectors/tensors gently; what $\chi^2$, error bars & confidence intervals
+  mean; what MCMC does; the no-hair theorem in one picture (quadrupole).
+
+### PART II — Theory & Methods
+**Ch 1 — Introduction & strong-field context [CORE] ~10 pp.** Sgr A* as the
+unique dual laboratory (S-stars + EHT); the no-hair theorem; history from
+Kerr 1963 → Bardeen → Cunningham-Bardeen → Luminet → James/Interstellar →
+GRAVITY → EHT; the contribution list; reader's guide. Reuse current §1.
+
+**Ch 2 — Kerr geometry from first principles [CORE] ~16 pp.** Metric in
+Boyer-Lindquist and Kerr-Schild forms + the transformation; determinant,
+inverse metric; Killing vectors $\partial_t,\partial_\phi$; the Killing-Yano
+& Killing tensors (origin of $Q$); frame dragging and ZAMO angular velocity
+$\omega=-g_{t\phi}/g_{\phi\phi}$; horizons from $\Delta=0$, ergosphere from
+$g_{tt}=0$, static limit; FULL algebra for equatorial photon orbits (cubic →
+trig solution) and the BPT ISCO ($Z_1,Z_2$ from $\mathrm{d}^2V/\mathrm{d}r^2=0$),
+marginally bound $r_{mb}$; circular-orbit energetics $E(r),L(r),\Omega(r)$ and
+binding energy → accretion efficiency $\eta=1-E_{\rm ISCO}$ (5.7% Schw → 42%
+extremal). Cites `metric.hpp/.cpp` (`r_horizon`, `r_isco`, photon-orbit fns).
+NEW figs: characteristic radii vs $\astar$; effective potential $V(r)$ at
+several spins; $E,L,\Omega,\eta$ vs $r$ and vs $\astar$.
+
+**Ch 3 — Geodesics & the Carter constant [CORE] ~16 pp.** Hamilton-Jacobi in
+Kerr; separation of variables → the separation constant; $Q$ from Killing-Yano;
+full $R(r),\Theta(\theta)$ for null ($\mu=0$) and timelike ($\mu=1$); turning
+points & orbit classification by roots of $R$; the Mino-time transform
+$\mathrm{d}\lambda=\Sigma\,\mathrm{d}\tau$ decoupling $r,\theta$; the
+second-order form $\ddot r=\tfrac12 R'$, $\ddot\theta=\tfrac12\Theta'$ derived;
+[OPTIONAL] the exact closed-form solution in elliptic integrals / Weierstrass
+$\wp$ (Rauch-Blandford, Gralla-Lupsasca) used as an analytic integrator check.
+Cites `null_geodesics`, `timelike_geodesics`. NEW figs: sample photon &
+timelike trajectories; turning-point structure of $R(r)$; Mino-time vs affine
+parameter.
+
+**Ch 4 — Numerical methods & error analysis [CORE] ~14 pp.** Dormand-Prince
+5(4) full Butcher tableau; embedded 4th-order error estimate; PI step control
+& stability; constraint projection ($p_r=\pm\sqrt R$, $p_\theta=\pm\sqrt\Theta$)
+with error analysis and the tolerance-dependence experiment; complex-step
+differentiation with the Taylor-expansion proof of machine-precision exactness;
+convergence & Richardson studies. Cites `integrator.hpp`. NEW figs (need new
+`convergence_tool`, Part 2): conserved-quantity drift vs step size (log-log);
+projection on/off shadow-boundary vs tolerance; step-size adaptation $h(\lambda)$.
+
+### PART III — Results
+**Ch 5 — CPU reference renderer, shadow & critical curve [CORE] ~14 pp.** ZAMO
+tetrad & camera ray construction; backward ray tracing; Synge shadow formula
+derived; Bardeen critical curve $\xi(r),\eta(r)$ derived; the full family of
+unstable spherical photon orbits at all inclinations; Lyapunov exponents $\gamma$
+of bound photon orbits and the sub-ring demagnification $e^{-\gamma}$. Cites
+`raytrace_cpu`, `render_reference`, `sweep_tool`. Reuse fig_shadow_boundary.
+NEW figs: critical-curve overlays for $\astar=0,0.5,0.94,0.998$; spherical
+photon-orbit radii & Lyapunov $\gamma$ vs $\astar$.
+
+**Ch 6 — Accretion disk: Novikov-Thorne / Page-Thorne [CORE] ~14 pp.** Thin-disk
+conservation laws (mass, energy, angular momentum) → the radial structure;
+full Page-Thorne $f(x)$ derivation with the $x_1,x_2,x_3$ roots and the log
+terms; the far-field expansion ($x-c+3/x$, $c\simeq3.976$, NOT the Newtonian
+form); redshift $g$-factor derived; the $g^4$ beaming law from
+$I_\nu/\nu^3$ invariance (Liouville); Planck spectrum → CIE 1931 colour.
+Cites `disk_model.cpp`. Reuse fig_disk_render. NEW figs: $F(r)$ and $T(r)$
+profiles at several $\astar$; the $g$-factor image map; blackbody/CIE locus.
+
+**Ch 7 — Photon-ring substructure [CORE] ~10 pp.** Sub-ring order $n$ by
+equatorial-crossing count; the Johnson et al. universal parameters; measured
+flux ratios $F_0/F_1,F_1/F_2$ and widths; ngEHT detectability forecast. Cites
+`SubRingExtractor`, `subring_tool`. Reuse fig_subrings, fig_brightness_profile.
+NEW figs (extend subring_tool over spin, Part 2): sub-ring flux ratio & width
+vs $\astar$.
+
+**Ch 8 — Timelike orbits & the S-star forward model [CORE] ~12 pp.** Bound
+timelike geodesics; 4-velocity normalisation; Darwin turning-point elements
+($E^2,L_z^2$ from $R(r_{\rm peri})=R(r_{\rm apo})=0$) vs Keplerian ICs (the
+1.6% period error); sky projection BL→(RA,Dec); Rømer delay derived + fixed-point
+solve; gravitational + transverse-Doppler + classical redshift factorisation.
+Cites `SkyProjection`, `GRPrecession`, `SpectralLineFitter`. NEW figs: Rømer
+delay curve; redshift decomposition (grav vs transverse vs classical) stacked.
+
+**Ch 9 — Orbit fitting, statistics & S2 results [CORE] ~18 pp.** The $\chi^2$
+objective; Ceres Gauss-Newton/LM; Fisher information & Cramér-Rao; the
+explicit-Jacobian covariance $(J^TJ)^{-1}$ and WHY SVD truncation kills the
+$M$–$R_0$ direction; the MCMC ensemble posterior (Part 2) — sampler theory
+(affine-invariant, Goodman-Weare/emcee), autocorrelation & convergence,
+posterior vs Jacobian covariance; the S2 fit table, residuals, redshift excess
+(GRAVITY 2018), Schwarzschild precession (GRAVITY 2020). Cites `OrbitFitter`,
+`fit_s2_tool`, `run_mcmc.py`. Reuse fig_s2_orbit, fig_s2_rv, fig_s2_residuals,
+fig_redshift_excess. NEW figs: sky-plane residual quiver; O–C vs time; MCMC
+corner plot (S2); precession decomposition (from GRPrecession's 3 fns).
+
+**Ch 9.5 — The wider S-star cluster (joint mass fit) [CORE] ~10 pp.** Extend
+the data pipeline to S1, S8, S12, S29 (etc.) from VizieR; the shared-potential
+model (one $M,R_0$, per-star elements); the joint likelihood; the combined mass
+posterior vs the S2-only result and GRAVITY 2022's multi-orbit value. Cites
+the refactored `fetch_gillessen_data.py`, a generalised multi-star fit tool.
+NEW figs: all fitted S-star orbits on the sky; per-star + joint mass posterior;
+mass-vs-number-of-stars convergence.
+
+**Ch 10 — No-hair test: Hartle-Thorne / quasi-Kerr [CORE] ~14 pp.** Geroch-Hansen
+multipoles; no-hair statement; Hartle-Thorne slow-rotation metric to
+$O(a^2)$; Kerr $M_2=-Ma^2$; Glampedakis-Babak quasi-Kerr $h^{ab}$ (perturbation
+of the INVERSE metric), $F_1,F_2$ structure functions & their large-$r$
+cancellation (switch at $r=9M$); the quadrupole precession
+$\delta\omega_Q=-3\pi\epsq(M/p)^2$ & its sign; the profile-likelihood $\epsq$
+CI and the +10-orbit forecast. Cites `hartle_thorne.cpp`. Reuse
+fig_nohair_profile. NEW figs: $(M,\epsq)$ and $(\epsq,\astar)$ confidence
+contours; $\Delta\chi^2$ profile with CI marks.
+
+### PART IV — Engineering, validation & closing
+**Ch 11 — GPU implementation & validation [CORE] ~10 pp.** Vulkan bindless
+compute pipeline; fp64 geodesics; the minimax (Remez) $\sin/\cos$ polynomial
+derivation; TDR-safe banded dispatch; pixel-level CPU/GPU validation; perf.
+Cites `compare_shadow`, engine shaders. NEW figs: CPU/GPU diff map; minimax
+sin/cos error curve; fps vs resolution & rays/s scaling.
+
+**Ch 12 — Sgr A* calibration & parameter sweeps [CORE] ~10 pp.** The
+$\theta_g=GM/c^2D$ conversion worked stepwise; ring diameter $=\CalDiamUas\muas$;
+the $20\times20$ $(\astar,i)$ sweep; axis-ratio & displacement maps; the
+spin-inclination degeneracy. Cites `sweep_tool`. Reuse fig_shadow_sweep. NEW
+figs: axis-ratio map; shadow-displacement map; ring-diameter contour vs EHT band.
+
+**Ch 13 — Software architecture & the interactive instrument [OPTIONAL] ~8 pp.**
+The engine (compute→present), presets/LUTs, cinematic menu, and the display-only
+hyper-real disk layer (shear-wound turbulence advected by real $\Omega(r)$,
+translucent rim compositing) — explicitly separated from physics. Screenshots
+as figures.
+
+**Ch 14 — Development history, iterations & the test suite [CORE] ~14 pp.** The
+12 validation gates with criteria & measured results; the full Catch2 suite
+(all 32 tests grouped by what they guard, with exact tolerances); the bug-hunt
+narratives as methods lessons: constraint-projection discovery, quadrupole sign
+error (two-test pin), Keplerian→Darwin period fix, SVD covariance failure, the
+"brick" LUT / log-window, turbulence seam. Cites `physics/tests/*`. NEW figs:
+the convergence-study evidence plots (from Ch 4 tool); a gate-timeline table.
+
+**Ch 15 — Discussion & limitations [CORE] ~8 pp.** Thin-disk idealisation;
+spin-inclination degeneracy; single-star quadrupole reach; fp32 live vs fp64
+science; comparison to ngEHT/future GRAVITY. Reuse current §Discussion.
+
+**Ch 16 — Conclusions & future work [CORE] ~6 pp.** Verified findings list;
+roadmap (multi-star fits, MCMC, slim disk, ray-traced sub-ring interferometry).
+
+**Appendices ~20 pp:** A) extended algebra (full BPT, full Page-Thorne, HT
+expansions); B) complete algorithm pseudocode (integrator, projection, fitter);
+C) number-provenance table + gate table (expand current appendices); D) the
+reproduction pipeline (`make reproduce` step list); E) notation glossary
+(duplicate of front matter for reference).
+
+Bibliography ~6 pp (expanded refs.bib).
+
+---
+
+## PART 1b — Source-function citation map (derivation ↔ real code)
+Each derivation chapter must cite the actual function it documents:
+- Ch2: `metric.cpp` `kerr_components` (BL metric), `r_horizon`, `r_ergosphere`,
+  `r_photon`, `r_isco` (BPT Z1/Z2), `omega_circular`, `energy_circular`,
+  `angmom_circular` (→ efficiency $\eta$). Determinant identity
+  $\det g=-\Sigma^2\sin^2\theta$ (already a unit test).
+- Ch3: `null_geodesics` `radial_potential[_deriv]`, `polar_potential[_deriv]`,
+  `null_geodesic_rhs`, `make_null_ray`; `timelike_geodesics` `solve_ut`
+  (normalisation quadratic), `carter_q`.
+- Ch4: `integrator.hpp` `DormandPrince54::try_step`; `metric.cpp` `christoffel`
+  (complex-step, $h=10^{-100}$; add Squire & Trapp 1998 ref).
+- Ch5: `raytrace_cpu` `zamo_tetrad`, `camera_ray`, `shadow_boundary_angle`,
+  `schwarzschild_shadow_angle` (Synge 1966); constraint projection in `trace`.
+- Ch6: `disk_model` `flux` (Page-Thorne roots $x_1,x_2,x_3$), `temperature`,
+  `blackbody_rgb` (CIE, Wyman-Sloan-Shirley 2013), `bolometric` ($g^4$).
+- Ch7: `SubRingExtractor` `analyze`, `scan_widths`.
+- Ch8: `SkyProjection::S2Model` (Darwin elements, `sample_at` Hermite,
+  `redshift_terms`, Rømer fixed-point); `GRPrecession` `schwarzschild`,
+  `lense_thirring`, `quadrupole` → the precession-decomposition figure is a
+  pure formula eval (NO new tool).
+- Ch9: `OrbitFitter` `fit`, `fit_nohair`, `covariance` ($(J^TJ)^{-1}$
+  Gauss-Jordan); `SpectralLineFitter` `predict`, `peak_excess`.
+- Ch10: `hartle_thorne` `F1`,`F2` + large-$r$ series (switch at $9M$);
+  `GRPrecession::quadrupole`.
+- Ch14 (tests): cite determinant-identity, F1/F2 branch-continuity,
+  quadrupole-sign, timelike-normalisation, conserved-quantities tests by name.
+New refs to add: Boyer-Lindquist 1967, Squire-Trapp 1998, Dormand-Prince 1980,
+Wyman-Sloan-Shirley 2013, Synge 1966, Do+2019.
+
+## PART 1c — User-requested topics & their own render images
+
+These come from the user; several are illustrated with images the user will
+upload later (in normal chat mode). Handling for user images: store under
+`writeup/user_images/`, reference as figures, and — to keep the reproducibility
+ethos — annotate each with the exact `sgr_engine` command (spin, inclination,
+flags) that regenerates it, since they are engine screenshots.
+
+- **Spin morphology of the disk streamlines [Ch 6 + Ch 12].** Document the
+  observed spin dependence: at $\astar=0$ (non-spinning / "stationary") the
+  wound streamlines form smooth, continuous, near-concentric lines around the
+  whole disk; at high spin ($\astar\approx0.906$) the coherent bright
+  streamlines collapse to a small patch on the approaching side. Explain the
+  physics: the ISCO moves inward with spin (Ch 2 energetics), frame dragging
+  and $g^4$ Doppler beaming intensify and asymmetrise (Ch 6), so the
+  strongly-beamed coherent region shrinks and brightens on the prograde limb.
+  Figures: user's two comparison renders ($\astar=0$ vs $0.906$) + the existing
+  spin sweep. CLI to reproduce each render recorded in the caption.
+- **How spacetime is bent around the hole [primer F2 + Ch 5].** Give gravitational
+  lensing real prominence: the primer explains bending of light in plain terms;
+  Ch 5 adds the technical deflection/geodesic-lensing treatment (why the far
+  side of the disk appears above/below the shadow, the Einstein-ring limit).
+  Illustrate with a matplotlib ray-bending schematic (2.2b) + the traced
+  lensed-disk render.
+- **The axial "jet-like" feature [Ch 6 discussion + Ch 15 limitations].** The
+  user sees small bright columns along the poles ("gravitational jets") in the
+  renders and will upload an image. Document it HONESTLY: this vertical axial
+  brightening is the gravitationally-lensed polar caustic — the strongly
+  magnified image of the far/underside of the disk funnelled along the spin
+  axis — NOT an astrophysical jet. Contrast with real relativistic jets
+  (Blandford–Znajek, MHD-driven), which require plasma physics OUTSIDE this
+  thin-disk + geodesic model and which Sgr A* does not strongly exhibit. This
+  becomes both a striking figure and an honest limitations note.
+
+## PART 2 — New data & figures (the "more graphs" the user wants)
+
+Every new figure must be generated by `make figures` from a reproducible
+artifact; every new number a `numbers.tex` macro. Work items:
+
+### 2.1 New/extended data tools (C++ or Python)
+- `validation/physics_tables` (NEW small C++ tool, links `sgr_physics`): dumps
+  CSVs over an $\astar$ grid — key radii ($r_\pm,r_{ph}^\pm,r_{ISCO}^\pm,r_{mb}$,
+  ergosphere), circular-orbit energetics ($E,L,\Omega,\eta$), Novikov-Thorne
+  $F(r),T(r)$ profiles. Reuses `metric.hpp`, `disk_model.hpp`.
+- `validation/convergence_tool` (NEW C++): integrates a fixed geodesic at a
+  ladder of tolerances/step sizes, dumps conserved-quantity drift and the
+  projection-on/off shadow-boundary-vs-tolerance CSV. Reuses `integrator.hpp`,
+  `raytrace_cpu.hpp` (the existing `[.probe]` diagnostic logic).
+- Extend `sweep_tool`: add spherical-photon-orbit + Lyapunov output, and
+  axis-ratio/displacement columns (already computes boundary — add fields).
+- Extend `subring_tool`: an `--sweep` mode over $\astar$ → flux-ratio/width CSV.
+- [CORE] MCMC: add a `--chi2`/`--residuals` evaluation mode to `fit_s2_tool`,
+  then `scripts/run_mcmc.py` (emcee) sampling the 13-param posterior → chain +
+  corner data (JSON/NPZ). Run for both the Kerr and no-hair models. (Python
+  emcee over the C++ forward model; lower-risk than a C++ sampler.)
+- [CORE] Multi-star: refactor `fetch_gillessen_data.py` to parse the VizieR
+  J/ApJ/837/30 tables for additional S-stars (flag-based) into
+  `data/gillessen_2017/<star>_{astrometry,rv}.csv`; add a `fit_cluster` tool
+  (generalise `OrbitFitter`/`S2Model` to a shared $M,R_0$ over N stars) →
+  `validation/phase13/cluster_fit.json` + per-star tracks.
+
+### 2.2 `scripts/make_figures.py` — add ~20 `fig_*` functions
+Characteristic-radii, effective-potential, energetics/efficiency, NT profiles,
+$g$-factor map, CIE locus, critical-curve overlays, spherical-orbit/Lyapunov,
+sub-ring-vs-spin, convergence/projection studies, sky residual quiver, O–C,
+corner plot, confidence contours, precession decomposition, CPU/GPU diff map,
+minimax error, fps scaling, axis-ratio/displacement maps. Each reads a CSV/JSON
+from 2.1 and writes a PDF into `paper/figures/`.
+
+### 2.2a UPDATE the 10 existing figures (restyle + regenerate)
+Refresh all current `fig_*` for the single-column report: a shared matplotlib
+style (colourblind-safe palette, larger fonts sized for full-width report,
+consistent axis/label conventions), pedagogical annotations (mark pericentre &
+the 2018 passage on the S2 orbit/RV; label the photon ring on the boundary plot;
+mark the EHT band on the sweep), and regenerate the raster figures
+(fig_subrings, fig_disk_render) at higher DPI. Physics/data unchanged — styling
+and annotation only; still driven by the same JSON/CSV artifacts.
+
+### 2.2b `scripts/make_diagrams.py` — matplotlib schematics (NO TikZ)
+NEW sibling script, same matplotlib toolchain and style as `main.pdf`, invoked
+by `make figures`. Draws the code-based explanatory diagrams reused by the
+primer and technical chapters: shadow-formation ray diagram, Schwarzschild &
+Kerr anatomy cutaways (horizon/ergosphere/photon-sphere/ISCO labels), frame-
+dragging swirl, Kepler-ellipse geometry, rosette precession, the three
+redshifts, astrometry-vs-RV, geometric-units explainer, χ²/error-bar sketch,
+MCMC-walkers cartoon, no-hair/quadrupole picture, scale number-line, observation
+timeline. Deterministic (fixed seeds) → reproducible; writes PDFs to
+`paper/figures/`. Explicitly NOT TikZ and NOT AI-generated.
+
+### 2.3 `scripts/make_numbers.py` — add macros
+Efficiency $\eta(\astar)$ values, Lyapunov $\gamma$, sub-ring width/flux vs
+spin, MCMC medians/CI (if built), extra calibration fields. Same `macro()`
+contract; digits-in-key rule already handled.
+
+---
+
+## PART 3 — Preserved invariants (do not break)
+- Every quoted number is a `numbers.tex` macro from a JSON/CSV artifact.
+- Every figure/diagram is generated by `make figures` (matplotlib: data plots
+  from `make_figures.py`, schematics from `make_diagrams.py`); none hand-drawn,
+  none AI-generated, no TikZ. The ONLY exception: a few user-supplied engine
+  renders (Part 1c) — still reproducible, each caption carries the exact
+  `sgr_engine` command that regenerates it.
+- `make reproduce` runs tests → all data tools → figures → numbers, clean.
+- S62 labelled contested at every mention; abstract keeps the caveat.
+- Physics code is untouched by paper work (new tools are additive, read-only
+  w.r.t. the validated core). `ctest` stays 32/32.
+
+## PART 4 — Verification (end-to-end)
+1. `ctest --preset sci-rel` → still passes (core untouched; new tools additive).
+2. Build new tools; run `make reproduce` → all new CSV/JSON/figures regenerate
+   (incl. MCMC chains + multi-star fit), exit 0.
+3. `make thesis` → `report`-class `thesis.pdf` compiles: 0 LaTeX errors, 0
+   undefined refs, page count in [195, 230] (check the `\lastpage` / log);
+   cover page is page 1, `\tableofcontents` (chapters + subsections + page
+   numbers) follows, Part I primer present and readable. `make paper` still
+   builds the unchanged journal `main.pdf`.
+4. pypdf text-probe on `thesis.pdf`: no `??`, no raw `\Macro`; every headline
+   number present; "contested" appears wherever S62 does; all refs cited.
+5. Commit per-chapter; push to `1920m/Black-Hole-Research`.
+
+## PART 5 — Execution order (so the doc always compiles)
+1. Part 0 skeleton (`thesis.tex`, `\part{}`s, empty chapter files, build
+   wiring, `make_diagrams.py` stub) → compiles near-empty.
+2. Move current §content into the matching chapters (Ch1,5,6,9,10,12,15,16 seed
+   from existing text) → compiles ~40 pp.
+3. Part 2 data tools + figures (incl. 2.2a restyle of the 10 old figures + 2.2b
+   schematics) + numbers → all graphs/diagrams exist.
+4. Write Part I primer (F1–F6) using the schematics from 2.2b.
+5. Fill derivation chapters (2,3,4,8,11) + tests chapter (14) + appendices.
+6. Trim/expand to land in [195, 230]; final verify (Part 4); push.

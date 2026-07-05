@@ -1,4 +1,64 @@
 \chapter{GPU Implementation and Validation}
-\label{ch:ch12-gpu}
+\label{ch:gpu}
 
-\stub{the bindless compute pipeline, double precision on GPU, banded dispatch, and pixel-level validation.}
+\section{Port architecture}
+\label{sec:gpuport}
+
+The null-geodesic core is ported to a GLSL compute shader (Vulkan,
+double precision) using the same second-order Mino-time formulation, with
+all per-frame parameters delivered through a bindless
+(update-after-bind) descriptor table. GLSL exposes \texttt{double}
+arithmetic (\texttt{shaderFloat64}) but no double-precision
+transcendentals, so $\sin/\cos$ are evaluated by argument reduction to
+$[-\pi/4,\pi/4]$ and a minimax polynomial pair, validated term-by-term
+against the CPU implementation.
+
+\stub{Derivation of the minimax (Remez) $\sin/\cos$ polynomials; the
+error curve figure.}
+
+\section{Validation against the CPU reference}
+\label{sec:gpuvalidation}
+
+A $64\times64$ shadow rendering is
+compared pixel-by-pixel against the CPU reference
+(\texttt{validation/compare\_shadow.cpp}): the mean absolute
+difference is \GpuMeanDiff{} (gate threshold 0.01), with \GpuOutliers{}
+pixels differing by more than 0.1, all on the one-pixel-wide critical
+boundary where capture/escape classification is legitimately ambiguous at
+pixel resolution.
+
+\stub{New figure: the CPU/GPU per-pixel difference map.}
+
+\section{Watchdog-safe dispatch and the precision split}
+\label{sec:watchdog}
+
+Two practical constraints shaped the port. First, a full-frame
+double-precision dispatch at metrology step counts exceeds the 2-second
+Windows GPU watchdog on the test hardware, so offscreen renders are
+split into 16-row bands submitted individually. Second, the interactive
+path (Chapter~\ref{ch:instrument}) runs the same equations in single
+precision from a nearby camera ($r_{\rm cam} = 60\,M$), where the
+shortened optical path keeps single-precision drift visually negligible;
+all quantitative results in this report come from the double-precision or
+CPU paths. All configurations run with zero Vulkan validation-layer
+errors.
+
+\section{Performance}
+\label{sec:performance}
+
+The CPU baseline integrates \BenchCpuNullStepsPerS{} adaptive null-geodesic
+steps per second per core (\BenchCpuTimelikeStepsPerS{} timelike;
+\BenchCpuChristoffelPerS{} complex-step Christoffel evaluations). The
+double-precision GPU port traces the validated $64\times64$ shadow tile
+within the Windows watchdog budget in row-banded dispatches, and the
+single-precision interactive path sustains
+\BenchGpuFpsHd~fps at $1280\times720$
+(\BenchGpuFpsFullhd~fps at $1920\times1080$;
+$\approx$\BenchGpuMegaraysPerSHd{} million ray--geodesics per second) on a
+GeForce GTX~1050 --- a 2016 notebook-class GPU --- with zero
+validation-layer errors. (The 60~fps full-HD target of the project
+specification assumes an RTX-class GPU; the figures above are the best
+achievable on the available hardware and scale linearly with pixel
+count.)
+
+\stub{New figure: fps vs resolution and rays-per-second scaling.}

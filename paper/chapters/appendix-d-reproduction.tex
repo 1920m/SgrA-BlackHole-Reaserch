@@ -1,4 +1,35 @@
 \chapter{The Reproduction Pipeline}
-\label{ch:appendix-d-reproduction}
+\label{app:repro}
 
-\stub{what make reproduce runs, step by step.}
+The top-level \texttt{Makefile} exposes the automation targets.
+\texttt{make figures} regenerates every figure in this report from the
+current artefacts with Matplotlib (data plots from
+\texttt{scripts/make\_figures.py}, schematics from
+\texttt{scripts/make\_diagrams.py}). \texttt{make thesis} runs
+\texttt{figures} and compiles this document
+(\texttt{pdflatex}$\times3$ + \texttt{bibtex}); \texttt{make paper} does
+the same for the companion journal paper. \texttt{make reproduce}
+re-runs the science chain end-to-end in gate order:
+\begin{enumerate}
+\item \texttt{ctest} --- the full physics and science unit-test suite
+(every gate-0 tolerance of Chapter~\ref{ch:devhistory});
+\item \texttt{render\_reference} --- Schwarzschild and Kerr reference
+renders with 32-direction boundary metrology (JSON);
+\item \texttt{subring\_tool} --- disk render, beaming asymmetry, sub-ring
+isolation and flux ratios;
+\item \texttt{fit\_s2\_tool} in \texttt{kerr} and \texttt{nohair} modes ---
+the fits of Chapters~\ref{ch:fitting} and \ref{ch:nohair};
+\item \texttt{sweep\_tool} --- the \sgra{} calibration point and the
+$20\times20$ $(\astar,i)$ sweep;
+\item \texttt{make\_figures.py} --- figure regeneration from the
+artefacts.
+\end{enumerate}
+\texttt{scripts/make\_numbers.py} then rewrites \texttt{numbers.tex}, the
+macro file from which every simulation-derived number in this text is
+typeset. A stale or hand-edited number cannot survive a
+\texttt{make reproduce} cycle.
+
+\stub{This list grows as the new thesis data tools land:
+\texttt{physics\_tables}, \texttt{convergence\_tool}, the extended
+\texttt{sweep\_tool} and \texttt{subring\_tool} modes,
+\texttt{scripts/run\_mcmc.py}, and \texttt{fit\_cluster}.}
