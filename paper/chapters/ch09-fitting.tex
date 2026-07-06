@@ -50,8 +50,50 @@ covariance annihilates the strongly correlated $M$--$R_0$ direction and
 reports a spuriously zero mass uncertainty
 (Chapter~\ref{ch:devhistory}).
 
-\stub{Fisher information and the Cram\'er--Rao bound; why SVD truncation
-kills the $M$--$R_0$ direction, worked in the singular basis.}
+\subsection{Fisher information and the Cram\'er--Rao floor}
+\label{sec:fisher}
+
+For a model with Gaussian errors, write the $\sigma$-normalised residual
+vector $r(\theta)$ and its Jacobian $J_{ik} = \partial r_i/\partial
+\theta_k$. Near the optimum, $\chi^2(\theta) \approx \chi^2_{\min} +
+\delta\theta^{\mathsf T}(J^{\mathsf T}J)\,\delta\theta$, so
+$F = J^{\mathsf T}J$ is the Fisher information matrix, and the
+Cram\'er--Rao bound states that \emph{no} unbiased estimator can beat
+\begin{equation}
+\mathrm{Cov}(\theta) \succeq F^{-1} = (J^{\mathsf T} J)^{-1}.
+\label{eq:cramerrao}
+\end{equation}
+For a least-squares estimator at a well-conditioned optimum the bound is
+attained to linear order, which is why $C = (J^{\mathsf T}J)^{-1}$ is
+the standard parameter covariance; every ``$\pm$'' in
+Table~\ref{tab:fit} is the square root of a diagonal element of exactly
+this matrix, built from an explicit central-difference $J$ with
+physically scaled steps and inverted by Gauss--Jordan elimination with
+partial pivoting (\texttt{OrbitFitter::covariance}).
+
+\subsection{Why the solver's SVD covariance fails here}
+\label{sec:svdfail}
+
+The subtlety is the spectrum of $F$. Astrometry alone constrains the
+\emph{angular} orbit — approximately the combination
+$M/R_0^3$ through Kepler's law with the angular semi-major axis and the
+period — while the radial velocities pin the \emph{physical} velocity
+scale $\propto \sqrt{M/R_0}$. The two constraints intersect at a sharp
+angle in the $(M, R_0)$ plane: the fit is superbly conditioned along
+one combination and weakly conditioned along the near-degenerate one,
+so $F$ carries one singular value several orders below the rest —
+small, but genuinely finite and \emph{information-bearing}. A
+covariance routine that regularises by \emph{truncating} small singular
+values treats that direction as exact rank deficiency: the truncated
+pseudo-inverse assigns it \emph{zero} variance, and the reported mass
+uncertainty collapses to machine noise. That is precisely the failure
+observed with the library covariance during Phase 4 (a fitted mass
+``known'' to nine digits was the giveaway; Chapter~\ref{ch:devhistory})
+and the reason the project computes \eqref{eq:cramerrao} explicitly:
+the small singular value is \emph{inverted}, not discarded, and the
+$M$--$R_0$ error ellipse comes out with its true, elongated shape —
+subsequently confirmed end-to-end by the MCMC posterior of
+Section~\ref{sec:mcmc}.
 
 \section{Results: the S2 fit}
 \label{sec:s2fit}
@@ -120,8 +162,32 @@ sharp swing brackets the 2002 and 2018 pericentre passages.}
 \label{fig:residuals}
 \end{figure}
 
-\stub{New figures: sky-plane residual quiver; observed-minus-computed vs
-time.}
+Two complementary views probe the residual structure.
+Fig.~\ref{fig:ominc} shows observed-minus-computed values in physical
+units — no secular trend, no pericentre-phase feature, the early
+low-weight epochs visibly noisier as their published uncertainties say
+they should be. Fig.~\ref{fig:quiver} maps the astrometric residual
+\emph{vectors} on the sky plane, magnified $50\times$: no coherent
+rotation or dipole (which would indicate a frame drift beyond the
+fitted terms), no alignment with the orbit track (which would indicate
+a timing bias).
+
+\begin{figure}
+\centering
+\includegraphics[width=0.78\textwidth]{figures/fig_o_minus_c.pdf}
+\caption{Observed minus computed, in measurement units, for the three
+data channels of the S2 fit.}
+\label{fig:ominc}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.62\textwidth]{figures/fig_residual_quiver.pdf}
+\caption{Astrometric residual vectors along the fitted S2 orbit
+(arrows magnified $50\times$, coloured by epoch). No coherent pattern
+survives the fit.}
+\label{fig:quiver}
+\end{figure}
 
 \section{Gravitational redshift at pericentre}
 \label{sec:redshift}
@@ -188,15 +254,92 @@ orbit (retrograde for the S2 geometry), two orders of magnitude below
 current sensitivity, consistent with the hierarchy laid out by
 \citet{Will2008}.
 
-\stub{New figure: the precession decomposition (Schwarzschild,
-Lense--Thirring, quadrupole) from \texttt{GRPrecession}'s three analytic
-terms --- a pure formula evaluation, no new tool.}
+Fig.~\ref{fig:precdecomp} places the three analytic precession terms of
+\texttt{GRPrecession} side by side for the fitted S2 elements as a
+function of hypothetical spin: the Schwarzschild advance dominates by
+two orders of magnitude over Lense--Thirring frame dragging, itself two
+orders above the Kerr quadrupole term — the hierarchy of
+\citet{Will2008} that dictates what each observing generation can
+reach, and the reason the no-hair constraint of
+Chapter~\ref{ch:nohair} is bounded by the quadrupole rung of this
+ladder.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{figures/fig_precession_decomposition.pdf}
+\caption{The relativistic precession hierarchy for the fitted S2
+elements: Schwarzschild, Lense--Thirring, and quadrupole pericentre
+advances per orbit versus spin (analytic terms of
+\texttt{GRPrecession}; the quadrupole curve uses the Kerr value
+$\tilde q = -\astar^2$).}
+\label{fig:precdecomp}
+\end{figure}
 
 \section{MCMC posteriors}
 \label{sec:mcmc}
 
-\stub{[CORE, THESIS\_PLAN Part 2] Affine-invariant ensemble sampling
-(Goodman--Weare / emcee) of the 13-parameter posterior via a
-\texttt{--chi2} evaluation mode on \texttt{fit\_s2\_tool}; autocorrelation
-and convergence diagnostics; posterior vs the Jacobian covariance. New
-figure: the S2 corner plot.}
+The covariance of Section~\ref{sec:fisher} is a \emph{local, Gaussian}
+statement. To validate it globally — and to expose any non-Gaussian
+tails or multi-modality the linearisation would hide — the same forward
+model is sampled with Markov chain Monte Carlo
+(\texttt{scripts/run\_mcmc.py}).
+
+\subsection{Sampler}
+
+We use the affine-invariant ensemble sampler of
+\citet{GoodmanWeare2010} as implemented in \texttt{emcee}
+\citep{ForemanMackey2013}: an ensemble of walkers in which each is
+updated by a ``stretch move'' along the line toward a randomly chosen
+partner, with a step-size distribution that makes the algorithm
+invariant under all affine reparameterisations. Affine invariance is
+exactly the property this problem wants — the posterior's dominant
+feature is the elongated, tilted $M$--$R_0$ ellipse of
+Section~\ref{sec:svdfail}, which a naive Metropolis sampler with
+axis-aligned proposals would traverse painfully slowly, but which a
+stretch move handles as easily as a sphere.
+
+The log-probability is $-\tfrac12\chi^2$ evaluated by the \emph{same
+production code path} as the least-squares fit: a persistent
+\texttt{fit\_s2\_tool --chi2} server process receives parameter vectors
+on standard input and returns $\chi^2$ per line, so the posterior and
+the Ceres optimum are directly comparable with no re-implementation
+risk. Eight server processes evaluate a whole ensemble batch in
+parallel (3.7~ms per evaluation; a full production run takes seconds).
+Priors are flat within generous physical bounds; the
+\citet{Plewa2015} reference-frame priors are already inside $\chi^2$.
+
+\subsection{Convergence and results}
+
+The production chain runs \McmcNWalkers{} walkers for \McmcNSteps{}
+steps from a small ball around the least-squares optimum. The mean
+acceptance fraction is $0.72$ and the longest integrated
+autocorrelation time across parameters is
+$\tau_{\max} \approx \McmcTauMax{}$ steps — the chain is
+$\sim$$10^2\,\tau$ long, comfortably beyond the
+$50\,\tau$ convergence rule of thumb \citep{ForemanMackey2013}.
+Discarding $4\tau_{\max}$ as burn-in and thinning by $\tau_{\max}/2$
+leaves $6\,336$ effectively independent posterior samples.
+
+The marginal posteriors give
+$M = \McmcMassMed^{+\McmcMassHi}_{-\McmcMassLo}\times10^{6}\,\msun$ and
+$R_0 = \McmcDistMed^{+\McmcDistHi}_{-\McmcDistLo}$~pc (16th/50th/84th
+percentiles) — in agreement with the least-squares values and the
+explicit-Jacobian uncertainties of Table~\ref{tab:fit}, which is the
+cross-validation this section exists to provide: the local Gaussian
+covariance and the global sampled posterior tell the same story, so
+neither the truncated-SVD pathology nor any hidden non-Gaussianity
+survives in the quoted errors. The full corner plot
+(Fig.~\ref{fig:corner}) shows every pairwise marginal: the $M$--$R_0$
+and $M$--$a_{\rm mas}$ panels carry the expected strong, near-linear
+correlations; all distributions are single-moded and near-Gaussian.
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_corner_s2.pdf}
+\caption{MCMC posterior of the S2 fit (\McmcNWalkers{} walkers
+$\times$ \McmcNSteps{} steps, thinned; the eight physically interesting
+of the 13 parameters). Diagonal: marginal distributions with
+16/50/84th-percentile marks. The elongated $M$--$R_0$ panel is the
+degeneracy analysed in Section~\ref{sec:svdfail}.}
+\label{fig:corner}
+\end{figure}

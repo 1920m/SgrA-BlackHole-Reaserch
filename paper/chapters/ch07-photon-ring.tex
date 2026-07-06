@@ -1,34 +1,36 @@
 \chapter{Photon-Ring Substructure}
 \label{ch:ring}
 
+Light that grazes the photon shell can complete extra half-orbits before
+reaching the camera, stacking exponentially demagnified images of the
+disk onto the shadow's rim. This chapter measures that structure
+(\texttt{SubRingExtractor::analyze} and \texttt{scan\_widths} in
+\texttt{science/photon\_ring/}), connects the measured flux ratios to
+the Lyapunov exponents of Chapter~\ref{ch:shadow}, extends the
+measurements across the spin range, and closes with the axial caustic —
+a lensing feature often mistaken for a jet — and the detectability
+outlook.
+
 \section{Sub-ring decomposition by crossing count}
 \label{sec:subrings}
 
-Binning image pixels by the number of prior equatorial crossings isolates
-the photon sub-rings \citep{Johnson2020}: the direct image ($n=0$), the
-first lensed ring ($n=1$), and the second ring ($n=2$)
-(\texttt{SubRingExtractor::analyze} in
-\texttt{science/photon\_ring/}). The bolometric
-flux ratios are $F_0/F_1 = \FluxRatioZeroOne$ and
-$F_1/F_2 = \FluxRatioOneTwo$ (Fig.~\ref{fig:subrings}), the steep
-$n=1 \to n=2$ demagnification reflecting the exponential suppression
-$e^{-\gamma}$ per half-orbit near the critical curve, with $\gamma$ the
-Lyapunov exponent of the bound photon orbits. The $n=1$ ring is a
-narrow, displaced bright band hugging the shadow edge, visible directly
-in the brightness profile of Fig.~\ref{fig:profile}; its measured radial
-width at this geometry is a few per cent of the shadow diameter
-(\texttt{scan\_widths}), qualitatively the regime in which
-\citet{Johnson2020} project that space--ground interferometry could detect
-the $n=1$ signature in the visibility-domain power-law tail. Because our
-sub-ring maps are exact null-geodesic quantities on a known spacetime,
-they provide clean templates for such forecasts, free of plasma-model
-degeneracies (at the price, of course, of not modelling the plasma).
+The tracer counts each ray's equatorial-plane crossings \emph{before}
+the crossing that terminates on the opaque disk; that count $n$ is the
+ray's sub-ring order \citep{Johnson2020}: $n = 0$ is the direct image,
+$n = 1$ the first lensed image (light that passed over or under the
+hole once), $n = 2$ the second. Binning image pixels by $n$
+(\texttt{analyze}) isolates the orders cleanly
+(Fig.~\ref{fig:subrings}): the $n = 1$ ring is a narrow, displaced
+band hugging the shadow edge — visible directly as the sharp shoulder
+in the major-axis brightness profile of Fig.~\ref{fig:profile} — and
+the $n = 2$ ring is a hair-thin trace on the critical curve itself.
 
 \begin{figure}
 \centering
 \includegraphics[width=\textwidth]{figures/fig_subrings.pdf}
-\caption{Bolometric maps of the photon sub-rings $n=0,1,2$ (log stretch).
-Flux ratios: $F_0/F_1=\FluxRatioZeroOne$, $F_1/F_2=\FluxRatioOneTwo$.}
+\caption{Bolometric maps of the photon sub-rings $n=0,1,2$ (log
+stretch) at $\astar = 0.94$, $i = 80\degr$. Flux ratios:
+$F_0/F_1=\FluxRatioZeroOne$, $F_1/F_2=\FluxRatioOneTwo$.}
 \label{fig:subrings}
 \end{figure}
 
@@ -41,28 +43,108 @@ shadow edge.}
 \label{fig:profile}
 \end{figure}
 
+The measured bolometric ratios in the reference geometry are
+$F_0/F_1 = \FluxRatioZeroOne$ and $F_1/F_2 = \FluxRatioOneTwo$. The
+steep $n = 1 \to 2$ demagnification is the $e^{-\gamma}$ suppression per
+half-orbit derived in Section~\ref{sec:spherical}: with
+$\gamma \in [\GammaPolarSgrA, \pi]$ around the ring at this spin, the
+naive expectation $F_1/F_2 \sim e^{\bar\gamma} \sim 15$--$23$ applies to
+matched image annuli; the much larger \emph{total}-flux ratio also folds
+in the shrinking solid angle of the thinner band and the disk's radial
+emission profile, which is why total-flux ratios always overshoot the
+bare exponential. The $F_0/F_1$ ratio, by contrast, is dominated by how
+much of the direct disk image lies far from the critical curve — it
+measures the emission model as much as the spacetime.
+
 \section{Sub-ring metrics across the spin range}
 \label{sec:subringsweep}
 
-\stub{Sub-ring flux ratio and width vs $\astar$ (needs the
-\texttt{subring\_tool --sweep} extension); the Johnson et al.\ universal
-parameters; connection to the Lyapunov exponents of
-Chapter~\ref{ch:shadow}.}
+The \texttt{--sweep} mode of \texttt{subring\_tool} repeats the full
+decomposition at six spins (fixed $i = 80\degr$, $560^2$ rays;
+Fig.~\ref{fig:subringsweep}). Two trends carry physical signatures:
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_subring_sweep.pdf}
+\caption{Sub-ring metrics versus spin at $i = 80\degr$
+(\texttt{subring\_tool --sweep}). Left: bolometric flux ratios; the
+$F_1/F_2$ point at $\astar = 0.998$ is omitted (the $n=2$ ring is
+unresolved at this image scale). Right: measured $n = 1$ band widths
+along three image directions; zero-width entries (band occluded by the
+opaque direct image) are omitted.}
+\label{fig:subringsweep}
+\end{figure}
+
+\begin{itemize}
+\item $F_0/F_1$ rises from $\SubringRatioZeroOneLo$ at $\astar = 0$ to
+$\SubringRatioZeroOneHi$ at $\astar = 0.998$: with the ISCO plunging
+inward, an ever-larger fraction of the direct emission comes from deep,
+strongly beamed radii, outcompeting the lensed band.
+\item The $n = 1$ band width below the shadow ($\psi = 270\degr$, the
+direction where the band is never occluded) grows monotonically with
+spin — the lensed image of the far-side underside widens as the
+emitting annulus deepens. Along the other directions the band is
+progressively \emph{occluded by the opaque direct image} at high spin:
+a real geometric effect of an optically thick disk at high inclination,
+recorded honestly as missing measurements rather than zeros.
+\end{itemize}
+
+Both behaviours are properties of the exact null geodesics plus a known
+emission profile — free of plasma-model degeneracy, at the price of the
+thin-disk idealisation discussed in Chapter~\ref{ch:discussion}.
 
 \section{The axial image tower}
 \label{sec:axialtower}
 
-\stub{User-requested topic (THESIS\_PLAN Part 1c): the bright vertical
-columns along the spin axis seen in near-edge-on renders are the
-gravitationally-lensed polar caustic --- stacked higher-order images of the
-far/underside of the disk funnelled along the axis --- NOT an
-astrophysical jet. Contrast with real relativistic jets
-(Blandford--Znajek, MHD-driven), which require plasma physics outside this
-thin-disk + geodesic model. Awaiting the user's engine render; the caption
-will carry the exact \texttt{sgr\_engine} reproduction command.}
+Near-edge-on renders at high spin show slim, bright columns of light
+along the spin axis, above and below the hole — easily mistaken for the
+relativistic jets of radio-galaxy imagery. They are nothing of the
+kind, and this section documents what they actually are, because the
+distinction is a clean illustration of what a geodesic-plus-thin-disk
+model does and does not contain.
+
+The columns are the \emph{polar lensing caustic}. Consider camera rays
+launched almost exactly along the spin axis toward the hole: by
+axisymmetry, a ray displaced slightly from the axis in \emph{any}
+azimuth is bent through the polar region and lands on the far/under
+side of the disk. A whole annulus of sky directions therefore maps onto
+nearly the same disk material — the Jacobian of the lens map degenerates
+on the axis (a caustic of the axisymmetric lens), and magnification
+formally diverges there, tamed only by the finite resolution. Stacked
+within the column are the $n = 1, 2, \dots$ images of
+Section~\ref{sec:subrings} converging toward the polar critical point;
+the column is, in effect, the Einstein-ring limit of
+Section~\ref{sec:lensing} seen edge-on.
+
+Real astrophysical jets are a different object entirely: magnetically
+launched, plasma-loaded outflows powered by mechanisms such as
+\citet{BlandfordZnajek1977} energy extraction, requiring
+magnetohydrodynamics far outside this model's physics — and \sgra{}
+itself shows at most weak evidence for such a jet. The honest statement
+is that our columns are pure lensing: they carry no matter, no energy
+outflow, and would appear for \emph{any} bright equatorial source around
+\emph{any} black hole viewed near the equatorial plane. The
+corresponding limitation note appears in Chapter~\ref{ch:discussion}.
+
+\stub{User render placeholder (THESIS\_PLAN Part 1c): the engine render
+showing the axial columns, with the exact \texttt{sgr\_engine}
+reproduction command in the caption.}
 
 \section{Detectability forecast}
 \label{sec:ngeht}
 
-\stub{ngEHT-class detectability of the $n=1$ signature; visibility-domain
-power-law tail; what the exact-geodesic templates provide.}
+The $n = 1$ ring is a target of the next interferometer generation. In
+the visibility domain, a thin ring of angular width $w$ contributes a
+slowly decaying tail beyond baselines $\sim 1/w$; \citet{Johnson2020}
+project that space--ground baselines could isolate the $n = 1$
+signature for M87* and \sgra{}. Our measured widths put numbers on the
+requirement: at $\astar = 0.94$, $i = 80\degr$ the unoccluded $n = 1$
+band spans $\sim 4.5$~mrad of camera angle at $r_{\rm cam} = 10^3\,M$,
+i.e.\ $\sim 4.5\,M$ radially — a few $\muas$ at the \sgra{} calibration
+of Chapter~\ref{ch:calib}, comfortably inside proposed ngEHT-class
+resolution but demanding of dynamic range (the band sits
+$\sim\FluxRatioZeroOne\times$ below the direct image in total flux).
+Because these maps are exact geodesic quantities on a known spacetime,
+they are clean templates for such forecasts; what they deliberately
+omit — plasma variability, optical depth, scattering — is the subject
+of the limitations chapter.

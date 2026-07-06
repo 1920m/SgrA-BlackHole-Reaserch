@@ -1,97 +1,251 @@
 \chapter{The Reference Ray Tracer, Shadow, and Critical Curve}
 \label{ch:shadow}
 
+The CPU reference tracer is the project's ground truth: every downstream
+artefact — disk images, sub-ring metrology, the GPU port — is validated
+against it, and it in turn is validated against closed-form theory. This
+chapter constructs the camera (\texttt{zamo\_tetrad},
+\texttt{camera\_ray} in \texttt{physics/src/raytrace\_cpu.cpp}), derives
+the two analytic anchors (Synge's shadow angle and Bardeen's critical
+curve), presents the boundary metrology
+(\texttt{shadow\_boundary\_angle}), and develops the spherical photon
+orbits and their Lyapunov exponents, which quantify the photon-ring
+substructure of Chapter~\ref{ch:ring}.
+
 \section{The ZAMO camera and ray launching}
 \label{sec:camera}
 
-The virtual camera is a pinhole at BL radius $r_{\rm cam} = 1000\,M$
-carrying the orthonormal tetrad of a zero-angular-momentum observer
-(ZAMO): the observer with $u_\phi = 0$, four-velocity
-$u^\mu = (u^t, 0, 0, \omega u^t)$ where
-$\omega = -g_{t\phi}/g_{\phi\phi}$ is the frame-dragging rate and
-$u^t = 1/\sqrt{-(g_{tt} + 2\omega g_{t\phi} + \omega^2 g_{\phi\phi})}$.
-This tetrad reduces to the static observer at $a=0$ and remains well
-defined inside the ergosphere (\texttt{zamo\_tetrad} in
-\texttt{physics/src/raytrace\_cpu.cpp}). A local photon direction
-$(n^{\hat r}, n^{\hat\theta}, n^{\hat\phi})$ on the unit sphere is
-contracted with the tetrad legs to give the BL four-momentum, from which
-$(E, L_z, Q)$ follow algebraically (\texttt{camera\_ray}); rays are
-launched forward (null geodesics are reversible, so where a ray lands is
-what the pixel sees).
+A camera in curved spacetime needs a local orthonormal frame — a tetrad
+— to translate ``pixel direction'' into a four-momentum. The natural
+choice at BL position $(r_{\rm cam}, \theta_{\rm cam})$ is the
+zero-angular-momentum observer of Section~\ref{sec:zamo}: four-velocity
+\begin{equation}
+u^\mu = u^t\,(1,\ 0,\ 0,\ \omega), \qquad
+\omega = -\frac{g_{t\phi}}{g_{\phi\phi}}, \qquad
+u^t = \bigl[-(g_{tt} + 2\omega g_{t\phi} +
+\omega^2 g_{\phi\phi})\bigr]^{-1/2},
+\label{eq:zamofourvel}
+\end{equation}
+completed to an orthonormal basis by the unit vectors along $r$,
+$\theta$, and the remaining direction in the $t$--$\phi$ plane
+(\texttt{zamo\_tetrad}). This observer exists everywhere outside the
+horizon — including inside the ergosphere, where a static camera would
+be impossible — and reduces to the static observer at $a = 0$, so a
+single camera implementation serves every spin.
+
+A pixel at normalised image-plane position $(x, y)$ defines a unit
+direction $(n^{\hat r}, n^{\hat\theta}, n^{\hat\phi})$ on the local sky;
+contracting with the tetrad legs and fixing the local photon energy to
+unity gives the BL four-momentum $k^\mu$, from which
+\texttt{make\_null\_ray} extracts $(E, L_z, Q)$ algebraically
+(Section~\ref{sec:makenullray}). Rays are launched \emph{forward}: null
+geodesics are time-reversible, so where a launched ray lands is what the
+pixel sees, and integrating outward avoids sampling subtleties at the
+camera. The production camera sits at $r_{\rm cam} = 1000\,M$ — far
+enough that the residual bending between camera and infinity is a
+correction below $10^{-3}$, applied analytically in
+Section~\ref{sec:metrology}.
 
 \section{Grid-free boundary metrology}
 \label{sec:metrology}
 
-The shadow boundary is measured without any pixel grid: along each
-image-plane direction $\psi$ the captured/escaped transition is bracketed
-and bisected in camera angle, giving the critical angle $\alpha(\psi)$ to
-$\sim$$10^{-9}$~rad (\texttt{shadow\_boundary\_angle}). Angular radii are
-converted to impact parameters via
-$b = r\sin\alpha/\sqrt{1-2M/r}$ --- the flat-space relation corrected for
-the gravitational bending of the reference `straight line' at finite
-camera radius --- and quoted as diameters in units of $M$; the conversion
-to sky angle uses the GRAVITY mass and distance
-(Chapter~\ref{ch:calib}).
+Measuring a shadow from a rendered image is limited by the pixel pitch.
+The tracer instead measures the boundary directly in camera-angle space:
+along each image-plane direction $\psi$, the capture/escape transition
+is bracketed and bisected (\texttt{shadow\_boundary\_angle}), each probe
+being a full geodesic integration with the projection of
+Chapter~\ref{ch:numerics}. Sixty bisection steps localise the critical
+angle $\alpha(\psi)$ to $\sim$$10^{-12}$~rad — no pixel grid is involved
+anywhere, and thanks to the tolerance-independence established in
+Fig.~\ref{fig:projboundary}, the result is a property of the spacetime,
+not of the integrator.
+
+Angular radii convert to impact parameters through
+\begin{equation}
+b = \frac{r_{\rm cam}\,\sin\alpha}{\sqrt{1 - 2M/r_{\rm cam}}},
+\label{eq:btoalpha}
+\end{equation}
+the flat-space relation corrected for the gravitational bending of the
+reference ``straight line'' at finite camera radius (the correction is
+the $1/\sqrt{1-2M/r}$ factor; at $r_{\rm cam} = 10^3\,M$ it shifts $b$
+by one part in $10^3$ and is exact for Schwarzschild). Diameters are
+quoted in units of $M$; the conversion to microarcseconds on the real
+sky is the calibration step of Chapter~\ref{ch:calib}.
 
 \section{Schwarzschild validation: the Synge formula}
 \label{sec:synge}
 
-For $\astar = 0$ the critical impact parameter follows in three lines:
-the photon sphere sits where the effective potential
-$V(r) = (1-2M/r)/r^2$ peaks, $V'(r) = 0 \Rightarrow r_{\rm ph} = 3M$;
-the impact parameter of a circular photon orbit there is
-$b = 1/\sqrt{V(r_{\rm ph})} = 3M/\sqrt{1/3} = \sqrt{27}\,M$; and for an
-observer at finite radius the shadow angular radius is
-$\sin\alpha_{\rm sh} = \sqrt{27}\,M\sqrt{1-2M/r_{\rm obs}}/r_{\rm obs}$
-\citep[Synge's formula; see also][]{Luminet1979}
-(\texttt{schwarzschild\_shadow\_angle}). The traced boundary
-agrees with this to a relative deviation of $5\times10^{-16}$ --- machine
-precision --- and is circular to \SchwSpreadPct{} per cent over 32
-directions, with an equivalent diameter of $\SchwDiamM\,M$
-(the analytic value is $2\sqrt{27}\,M \simeq 10.3923\,M$). The same
-$2\sqrt{27}\,M$ anchor reappears independently in the
-$(\astar, i)$ sweep of Chapter~\ref{ch:calib}: every $\astar = 0$ grid
-row returns it identically at all inclinations, as it must by spherical
-symmetry.
+For $\astar = 0$ the whole boundary follows in three lines, first given
+by \citet{Synge1966}. Equatorial photons experience the effective
+potential $V(r) = (1 - 2M/r)/r^2$ (the $b$-independent factor of the
+radial potential \eqref{eq:Req} at $a=0$): $V'(r) = 0$ gives the photon
+sphere $r_{\rm ph} = 3M$; the critical impact parameter is
+$b_c = 1/\sqrt{V(3M)} = \sqrt{27}\,M$; and an observer at finite
+$r_{\rm obs}$ sees the shadow at angular radius
+\begin{equation}
+\sin\alpha_{\rm sh} = \frac{\sqrt{27}\,M\,\sqrt{1 - 2M/r_{\rm obs}}}
+{r_{\rm obs}}
+\label{eq:synge}
+\end{equation}
+(\texttt{schwarzschild\_shadow\_angle}). The traced boundary agrees with
+\eqref{eq:synge} to a relative deviation of $5\times10^{-16}$ — machine
+precision — and is circular to \SchwSpreadPct{} per cent over 32
+directions, with an equivalent diameter of $\SchwDiamM\,M$ against the
+analytic $2\sqrt{27}\,M \simeq 10.3923\,M$. The same anchor reappears
+independently in the $(\astar, i)$ sweep of Chapter~\ref{ch:calib}:
+every $\astar = 0$ grid row returns it identically at all inclinations,
+as spherical symmetry demands.
 
-\section{The Kerr shadow and the Bardeen critical curve}
+\section{The Bardeen critical curve}
 \label{sec:bardeen}
 
-At $\astar = 0.94$ the shadow is displaced and flattened on the prograde
-side, in quantitative agreement with the analytic critical curve of
-\citet{Bardeen1973}: the traced boundary reproduces
-$\xi(r) = [r^2(3M-r)-a^2(r+M)]/[a(r-M)]$,
-$\eta(r) = r^3[4a^2M - r(r-3M)^2]/[a^2(r-M)^2]$ point-by-point
-(Fig.~\ref{fig:boundary}). Viewed edge-on the mean diameter is
-$\KerrDiamM\,M$.
+For $a \neq 0$ the shadow boundary is the image of the \emph{photon
+shell} — the family of unstable spherical photon orbits of
+Section~\ref{sec:turningpoints}. On the shell the radial potential has a
+double root, $R(\tilde r) = R'(\tilde r) = 0$; solving the pair for the
+two conserved ratios $\xi = L_z/E$ and $\eta = Q/E^2$ as functions of
+the shell radius $\tilde r$ gives, after the reduction of
+\citet{Bardeen1973},
+\begin{align}
+\xi(\tilde r) &= \frac{\tilde r^2(3M-\tilde r) - a^2(\tilde r+M)}
+{a(\tilde r-M)},
+&
+\eta(\tilde r) &= \frac{\tilde r^3\bigl[4a^2M -
+\tilde r(\tilde r-3M)^2\bigr]}{a^2(\tilde r-M)^2}.
+\label{eq:bardeen}
+\end{align}
+For an observer at inclination $\theta_o$ the shell maps to the image
+plane as
+\begin{equation}
+\alpha = -\frac{\xi}{\sin\theta_o}, \qquad
+\beta = \pm\sqrt{\eta + a^2\cos^2\theta_o - \xi^2\cot^2\theta_o},
+\label{eq:criticalimage}
+\end{equation}
+tracing the closed \emph{critical curve} as $\tilde r$ runs over the
+interval where $\beta^2 \geq 0$ — from near $r_{\rm ph}^+$ (prograde
+edge) to near $r_{\rm ph}^-$ (retrograde edge). Fig.~\ref{fig:critcurves}
+overlays the curves for four spins: growing spin flattens and displaces
+the prograde side, exactly as frame dragging predicts, while the overall
+scale barely changes — the geometric root of the spin--inclination
+degeneracy quantified in Chapter~\ref{ch:calib}.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.62\textwidth]{figures/fig_critical_curves.pdf}
+\caption{Analytic critical curves \eqref{eq:bardeen}--%
+\eqref{eq:criticalimage} for an edge-on observer at four spins. The
+prograde (right) side flattens and the curve displaces as spin grows;
+the mean diameter changes by only a few per cent.}
+\label{fig:critcurves}
+\end{figure}
+
+The traced boundary at $\astar = 0.94$ reproduces this curve
+point-by-point (Fig.~\ref{fig:boundary}); this is Gate 2 of the
+validation ladder. The agreement is the spinning-spacetime counterpart
+of the Synge check: together they validate the tetrad, the launcher, the
+integrator, and the bisection logic end to end.
 
 \begin{figure}
 \centering
 \includegraphics[width=0.62\textwidth]{figures/fig_shadow_boundary.pdf}
-\caption{Traced Kerr shadow boundary at $\astar=0.94$, edge-on, against the
-analytic \citet{Bardeen1973} critical curve. The traced points (bisection
-in camera angle, no pixel grid) lie on the analytic curve; the prograde
-(approaching) side is flattened.}
+\caption{Traced Kerr shadow boundary at $\astar=0.94$, edge-on, against
+the analytic \citet{Bardeen1973} critical curve. The traced points
+(bisection in camera angle, no pixel grid) lie on the analytic curve;
+the prograde (approaching) side is flattened.}
 \label{fig:boundary}
 \end{figure}
-
-\stub{Derivation of the Bardeen $\xi(r), \eta(r)$ curve from the
-double-root condition on $R(r)$; critical-curve overlays for
-$\astar = 0, 0.5, 0.94, 0.998$ (needs the \texttt{sweep\_tool}
-extension).}
 
 \section{Spherical photon orbits and Lyapunov exponents}
 \label{sec:spherical}
 
-\stub{The full family of unstable spherical photon orbits at all
-inclinations; the Lyapunov exponent $\gamma$ of bound photon orbits and
-the sub-ring demagnification $e^{-\gamma}$. New figure: spherical
-photon-orbit radii and $\gamma$ vs $\astar$.}
+Each point of the critical curve corresponds to a spherical photon orbit
+at some shell radius $\tilde r$, and each such orbit is unstable: a
+photon displaced by $\delta r$ obeys, in Mino time,
+$\delta\ddot r = \tfrac12 R''(\tilde r)\,\delta r$, growing as
+$\exp\bigl[\sqrt{\tfrac12 R''}\,\tau\bigr]$. The observationally
+meaningful rate is the growth per \emph{polar half-oscillation} — the
+interval between successive equatorial crossings, which is what
+separates one photon sub-ring from the next
+(Chapter~\ref{ch:ring}):
+\begin{equation}
+\gamma(\tilde r) = \sqrt{\tfrac{1}{2}R''(\tilde r)}\;
+\Delta\tau_\theta,
+\qquad
+\Delta\tau_\theta = \int_{\theta_-}^{\theta_+}
+\frac{\mathrm{d}\theta}{\sqrt{\Theta(\theta)}},
+\label{eq:lyapunov}
+\end{equation}
+with $R'' = 8E^2\tilde r^2 + 4EP - 2K$ from
+differentiating~\eqref{eq:rpotgen} twice and the polar period evaluated
+by the substitution $u = \cos\theta$ (the integral reduces to a smooth
+quadrature over one quadrant; \texttt{sweep\_tool photonorbits}). Each
+extra half-orbit demagnifies the corresponding sub-ring image by
+$e^{-\gamma}$ \citep{Johnson2020}.
+
+Two exact properties emerge from the computed family
+(Fig.~\ref{fig:sphericalorbits}). For Schwarzschild,
+$\tfrac12 R''(3M) = 27E^2 = (\xi^2)E^2$ and
+$\Delta\tau_\theta = \pi/\sqrt{\xi^2}$, so $\gamma = \pi$ for
+\emph{every} orbit — the universal Schwarzschild value. More
+surprisingly, the computed $\gamma$ returns to $\pi$ at the
+\emph{equatorial edges} of the shell for every spin — the identity
+$\tfrac12 R'' = (\xi^2 - a^2)E^2$ holds exactly at $\eta = 0$ — while
+dipping in between: at $\astar = 0.94$ the polar orbit
+($\xi = 0$) has $\gamma = \GammaPolarSgrA$, an $18$ per cent weaker
+demagnification than $\pi$. This azimuth-dependence of the sub-ring
+demagnification, spanning $[\GammaPolarSgrA, \pi]$ at the \sgra{} spin,
+matches the range reported by \citet{Johnson2020} for M87*-like spins
+and is the quantitative bridge between the shadow geometry of this
+chapter and the flux ratios measured in Chapter~\ref{ch:ring}.
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_spherical_orbits.pdf}
+\caption{The spherical photon-orbit family
+(\texttt{sweep\_tool photonorbits}). Left: the critical impact parameter
+$\xi(\tilde r)$ across the shell at four spins; the zero crossing is the
+polar orbit. Right: the Lyapunov exponent \eqref{eq:lyapunov} per polar
+half-orbit — exactly $\pi$ at the equatorial edges for every spin,
+dipping toward the polar orbit as spin grows.}
+\label{fig:sphericalorbits}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.72\textwidth]{figures/fig_lyapunov_vs_spin.pdf}
+\caption{Lyapunov exponent of the polar and equatorial-limit orbits
+versus spin. The equatorial-limit values pin to $\pi$ identically (the
+$\eta \to 0$ identity in the text); the polar orbit softens to
+$\GammaPolarSgrA$ at $\astar = 0.94$.}
+\label{fig:lyapunovspin}
+\end{figure}
 
 \section{Gravitational lensing of the disk and sky}
 \label{sec:lensing}
 
-\stub{User-requested topic (THESIS\_PLAN Part 1c): why the far side of
-the disk appears above and below the shadow; the Einstein-ring limit; the
-ray-bending schematic (from \texttt{make\_diagrams.py}) plus the traced
-lensed-disk render.}
+The same machinery explains the signature look of every black-hole
+image. Consider the disk of Chapter~\ref{ch:disk} viewed nearly edge-on.
+Rays leaving the camera slightly \emph{above} the shadow pass over the
+pole and are bent down onto the \emph{far side} of the disk, behind the
+hole: the far side therefore appears \emph{above} the shadow, as a
+luminous arch. Rays passing slightly below the shadow reach the far
+side's \emph{underside}, painting a second, fainter arch below. Nothing
+is behind anything at a black hole: the entire disk is visible at once,
+wrapped around the silhouette — the geometry made famous by
+\emph{Interstellar} \citep{James2015} and computed here by the same
+backward tracing (Fig.~\ref{fig:trajectories} shows the ray families
+responsible).
+
+In the exactly-aligned limit the arches close into rings: a source
+point diametrically behind the hole images to a full \emph{Einstein
+ring}, and each additional winding number contributes a further ring
+converging on the critical curve — the $n = 1, 2, \dots$ sub-rings of
+Chapter~\ref{ch:ring}. On the spin axis this convergence produces a
+bright polar caustic that appears in near-edge-on renders as a slim
+vertical column of light above and below the hole; it is a
+\emph{lensing} feature, not a jet, and is examined honestly in
+Section~\ref{sec:axialtower}.
+
+\stub{User render placeholder (THESIS\_PLAN Part 1c): the traced
+lensed-disk engine render illustrating the double-arch geometry, with
+the exact \texttt{sgr\_engine} reproduction command in the caption.}

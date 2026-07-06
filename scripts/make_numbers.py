@@ -188,6 +188,18 @@ def main() -> None:
         macro("ClusterDist", f"{cl['R0_pc']:.0f}")
         macro("ClusterDistErr", f"{cl['sigma_R0_pc']:.0f}")
         macro("ClusterChiRed", f"{cl['chi2_red']:.3f}")
+        sub = cl.get("subsets", [])
+        if sub:
+            macro("ClusterMassErrSTwoOnly",
+                  f"{sub[0]['sigma_M_msun'] / 1e6:.3f}")
+            macro("ClusterDistErrSTwoOnly", f"{sub[0]['sigma_R0_pc']:.0f}")
+            impM = 100 * (1 - cl["sigma_M_msun"] / sub[0]["sigma_M_msun"])
+            impR = 100 * (1 - cl["sigma_R0_pc"] / sub[0]["sigma_R0_pc"])
+            macro("ClusterMassImprovePct", f"{impM:.0f}")
+            macro("ClusterDistImprovePct", f"{impR:.0f}")
+        nsig = abs(cl["M_msun"] - 4.297e6) / (
+            cl["sigma_M_msun"] ** 2 + 0.012e6 ** 2) ** 0.5
+        macro("ClusterMassNSigma", f"{nsig:.1f}")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")

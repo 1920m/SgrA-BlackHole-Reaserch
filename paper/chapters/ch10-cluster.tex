@@ -1,12 +1,117 @@
 \chapter{The Wider S-Star Cluster: A Joint Mass Fit}
 \label{ch:cluster}
 
-\stub{[CORE, THESIS\_PLAN Part 2] Extend the data pipeline to further
-S-stars from the VizieR J/ApJ/837/30 tables (flag-parse refactor of
-\texttt{fetch\_gillessen\_data.py}); the shared-potential model (one
-$M, R_0$, per-star orbital elements); the joint likelihood
-(\texttt{fit\_cluster} tool); the combined mass posterior against the
-S2-only result and the GRAVITY 2022 multi-orbit value. Any use of S62
-will be labelled contested. New figures: all fitted S-star orbits on the
-sky; per-star and joint mass posteriors; mass vs number-of-stars
-convergence.}
+Every star orbiting \sgra{} orbits the \emph{same} black hole at the
+\emph{same} distance. A fit that shares one $(M, R_0)$ and one
+reference frame across many stars therefore multiplies the constraint —
+and, as this chapter shows concretely, rescues stars whose individual
+arcs are too short to weigh the hole at all. This is the multi-star
+programme of \citet{Gillessen2017} and \citet{Gravity2022} reproduced
+inside our own machinery (\texttt{fit\_cluster} in
+\texttt{science/orbit\_fitter/}, over the data fetched star-by-star by
+the refactored \texttt{fetch\_gillessen\_data.py}).
+
+\section{Data and model}
+\label{sec:clusterdata}
+
+The VizieR machine-readable Table~5 of \citet{Gillessen2017} carries
+per-epoch astrometry and radial velocities for seventeen S-stars in
+per-star columns; the fetch script extracts any requested star into the
+same CSV format the S2 pipeline uses. The joint fit uses five:
+\textbf{S2} (145 astrometric epochs + 44 RVs, $P = 16$~yr — the anchor,
+observed through more than a full orbit), \textbf{S1} (161 + 29,
+$P \approx 166$~yr), \textbf{S8} (166 + 29, $P \approx 93$~yr),
+\textbf{S12} (158 + 27, $P \approx 59$~yr) and \textbf{S13} (127 + 22,
+$P \approx 49$~yr) — all with published uncertainties used as-is. The
+four companions contribute \emph{partial arcs}: between 1992 and 2016
+they cover from a sixth to half of an orbit.
+
+The shared-potential model has $7 + 6N$ parameters for $N$ stars: one
+global block — $M$, $R_0$, and the five reference-frame parameters
+$(x_0, y_0, v_x, v_y, v_z)$ with the \citet{Plewa2015} priors applied
+once — plus six osculating elements per star. Each star's residuals go
+through the identical full-GR forward model of Chapter~\ref{ch:sstar}
+(Darwin elements, geodesic integration, R{\o}mer delay, relativistic
+redshift), assembled into one Ceres problem with per-star parameter
+blocks so the solver exploits the sparsity (star $k$'s elements touch
+only star $k$'s residuals). Starting elements are the Table~3 values of
+\citet{Gillessen2017}, refined per star before the joint solve; a
+starting-$\chi^2$ probe over the four $(\Omega, \omega) \pm 180\degr$
+orientation conventions guards against convention mismatches.
+
+\section{Why partial arcs need a shared potential}
+\label{sec:partialarc}
+
+The single-star column of Fig.~\ref{fig:clusterfig} is the
+demonstration. Fitted alone with the full 13-parameter model, S2
+recovers $M = \FitMass \pm \ClusterMassErrSTwoOnly \times10^6\,\msun$ —
+the Phase-4 result. S1, with a $\sim$15 per cent arc of a 166-year
+orbit, still manages a mass because its arc includes strong curvature.
+But S8's single fit \emph{fails to converge} (the optimiser runs into
+the parameter bounds), and S12's ``converges'' to a mass three sigma
+below everyone else's with an uncertainty half the value itself: with a
+short arc, mass, distance, period and eccentricity trade against each
+other almost freely — the fit is happy, the parameters are meaningless.
+This is not a defect of the optimiser; it is genuine degeneracy of the
+truncated data, and it is the concrete, reproducible illustration of why
+single-short-arc ``measurements'' of \sgra's mass should never be taken
+at face value.
+
+The joint fit changes the game: $M$ and $R_0$ are pinned by S2's
+complete orbit, and each partial-arc star then only needs its six
+elements — for which even a short arc with RVs suffices. In exchange,
+every additional star's data sharpens the \emph{global} block.
+
+\section{Results}
+\label{sec:clusterresults}
+
+The five-star joint fit converges with
+$\chi^2_\nu = \ClusterChiRed$ over all
+$2\times757$ astrometric + 151 RV residuals and gives
+\begin{equation}
+M = \ClusterMass \pm \ClusterMassErr \times 10^{6}\,\msun,
+\qquad
+R_0 = \ClusterDist \pm \ClusterDistErr~\mathrm{pc}.
+\end{equation}
+Against the S2-only fit the mass uncertainty shrinks by
+\ClusterMassImprovePct{} per cent and the distance uncertainty by
+\ClusterDistImprovePct{} per cent — with \emph{no new instrument},
+purely by demanding that five stars share one potential. The joint mass
+sits $\ClusterMassNSigma\sigma$ from the GRAVITY multi-orbit
+determination of $4.297\pm0.012\times10^6\,\msun$ \citep{Gravity2022};
+given that our input is the 1992--2016 imaging-era compilation only —
+none of the GRAVITY beam astrometry — the agreement is a genuine
+cross-check, not a tautology. The middle rungs of the convergence
+ladder (Fig.~\ref{fig:clusterfig}, right; \texttt{cluster\_fit.json}
+\texttt{subsets}) show the expected pattern: the biggest single gain
+comes from adding the first independent star (S1), with diminishing —
+but monotonic — returns thereafter.
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_cluster_orbits.pdf}
+\caption{The joint cluster fit (\texttt{fit\_cluster}). Left: the five
+fitted orbits on the sky at the joint solution, with the
+\citet{Gillessen2017} astrometry. Right: per-star single-fit masses
+(points; S8's non-convergent fit and S12's degenerate one carry the
+enormous error bars discussed in the text) against the joint-fit band
+(orange) and the GRAVITY 2022 value (dashed).}
+\label{fig:clusterfig}
+\end{figure}
+
+Two honest caveats bound the result. First, our error model is the
+published per-epoch uncertainties with the \citet{Plewa2015} frame
+priors — no error rescaling and no systematic-floor terms, whereas the
+professional multi-star fits marginalise over per-instrument offsets;
+our smaller formal uncertainty should be read in that light. Second,
+the companion stars are treated, like S2, as test particles in a clean
+Kerr-limit potential; extended mass inside their apocentres, which the
+professional fits constrain simultaneously, is not modelled — its
+absence is part of the residual budget, not the quoted errors.
+
+We note for completeness that the contested star S62 — claimed at a
+9.9-yr period well inside S2's orbit, but plausibly a misidentification
+of S29 or a blend artefact — is \emph{not} included and would be the
+single most valuable addition if its orbit were ever confirmed
+(Chapter~\ref{ch:nohair} quantifies why); any future use of S62 in this
+pipeline must carry the same contested-orbit caveat.

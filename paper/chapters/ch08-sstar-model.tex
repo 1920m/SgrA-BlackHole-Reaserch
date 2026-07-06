@@ -1,67 +1,165 @@
 \chapter{Timelike Orbits and the S-Star Forward Model}
 \label{ch:sstar}
 
-\section{The forward model}
+The S2 fit of Chapter~\ref{ch:fitting} stands on a forward model: given
+thirteen parameters, predict every measured position and velocity. This
+chapter derives that model layer by layer
+(\texttt{SkyProjection::S2Model} in \texttt{science/orbit\_fitter/}):
+initial conditions from exact turning points, integration and sampling,
+sky projection, the R{\o}mer delay, and the relativistic redshift
+factorisation (\texttt{redshift\_terms},
+\texttt{SpectralLineFitter::predict}).
+
+\section{The forward model at a glance}
 \label{sec:forwardmodel}
 
-The S2 model integrates the timelike geodesic of
-Chapter~\ref{ch:geodesics} in the fitted spacetime, projects it on the sky
-(east--north offsets relative to the mass), and predicts radial velocities
-including the special-relativistic transverse Doppler shift and the
-gravitational redshift (\texttt{SkyProjection::S2Model} in
-\texttt{science/orbit\_fitter/}).
+One model evaluation proceeds: (i) convert the osculating elements
+$(a, e, i, \Omega, \omega, t_{\rm peri})$ plus $(M, R_0)$ into exact
+initial conditions (Section~\ref{sec:darwin}); (ii) integrate the
+timelike geodesic through the observation window with the generic
+Christoffel integrator of Chapter~\ref{ch:geodesics} (this path works
+for Kerr \emph{and} Hartle--Thorne, which the no-hair fit requires);
+(iii) interpolate the cached trajectory at each requested emission time
+(cubic Hermite on position and velocity, \texttt{sample\_at});
+(iv) project onto the sky and apply the reference-frame offsets
+$(x_0, y_0, v_x, v_y)$; (v) solve the R{\o}mer delay per epoch
+(Section~\ref{sec:romer}); (vi) evaluate the observed radial velocity
+including all relativistic terms (Section~\ref{sec:spectro}). Steps
+(i)--(iii) run once per parameter vector; steps (iv)--(vi) per data
+epoch. One full evaluation against the S2 dataset costs 3.7~ms — the
+number that made the MCMC of Chapter~\ref{ch:fitting} practical.
 
 \section{Orbital elements from radial turning points}
 \label{sec:darwin}
 
-Orbital elements are converted to initial conditions through the exact
-radial turning points: $E$ and $L_z$ follow from the two conditions
-$R(r_{\rm peri}) = R(r_{\rm apo}) = 0$ (Darwin-style elements), a
-$2\times2$ linear system in $(E^2, L_z^2)$ for equatorial motion.
-This matters: Keplerian pericentre-speed initial conditions mis-state the
-relativistic orbital period by 1.6 per cent at the S2 eccentricity ---
-two orders of magnitude above the measurement precision of the period
-(the bug-hunt narrative is told in Chapter~\ref{ch:devhistory}).
+The osculating elements define the pericentre and apocentre radii
+$r_p = \tilde a(1-e)$, $r_a = \tilde a(1+e)$ (with $\tilde a$ the
+physical semi-major axis from $a_{\rm mas}$ and $R_0$). The exact
+relativistic orbit with these turning points has $E$ and $L_z$ fixed by
+the two conditions
+\begin{equation}
+R(r_p) = 0, \qquad R(r_a) = 0,
+\label{eq:turningconds}
+\end{equation}
+with $R$ the timelike radial potential \eqref{eq:rpotgen} — the
+construction of \citet{Darwin1959}. For the equatorial-plane
+integration frame the code uses ($Q = 0$; the orbit is subsequently
+rotated to the sky by $(i, \Omega, \omega)$), at $a = 0$ the potential
+is $R = E^2r^4 - \Delta(r^2 + L_z^2)$ and \eqref{eq:turningconds} is a
+$2\times2$ \emph{linear} system in $(E^2, L_z^2)$:
+\begin{equation}
+\begin{pmatrix} r_p^4 & -\Delta_p \\ r_a^4 & -\Delta_a \end{pmatrix}
+\begin{pmatrix} E^2 \\ L_z^2 \end{pmatrix}
+=
+\begin{pmatrix} \Delta_p r_p^2 \\ \Delta_a r_a^2 \end{pmatrix}
+\;\Longrightarrow\;
+E^2 = \frac{\Delta_p\Delta_a\,(r_a^2 - r_p^2)}
+           {\Delta_p r_a^4 - \Delta_a r_p^4},
+\qquad
+L_z^2 = \frac{r_p^4\,\Delta_a r_a^2 - \Delta_p r_p^2\, r_a^4}
+             {\Delta_p r_a^4 - \Delta_a r_p^4}
+\label{eq:darwinsystem}
+\end{equation}
+(Cramer's rule, $\Delta_{p,a} = \Delta(r_{p,a})$). The implementation
+writes the same system in the equivalent form
+$E^2 = (1 - 2M/r)(1 + L^2/r^2)$ at both radii and solves for $L^2$
+first — algebraically identical, but numerically better conditioned at
+S2-like radii ($r \sim 10^3$--$10^4\,M$) because it avoids
+differencing the large $r^4$ terms. The rosette integration of
+Fig.~\ref{fig:rosettefig}
+validated exactly this construction: the integrated orbit's conserved
+$(E, L)$ match \eqref{eq:darwinsystem} to eleven decimal places.
 
-\stub{Full derivation of the $(E^2, L_z^2)$ linear system from the
-turning-point conditions; Hermite interpolation of the sampled geodesic
-(\texttt{sample\_at}).}
+\emph{Why not Keplerian initial conditions?} The obvious shortcut —
+start at pericentre with the Newtonian vis-viva speed — mis-states the
+\emph{relativistic} orbit: with the same $(r_p, v_p)$ the GR orbit has a
+different apocentre and, at S2's eccentricity, an orbital period wrong
+by 1.6 per cent. The measured S2 period is known to $0.014$ per cent,
+so the shortcut is two orders of magnitude too crude — a bug found by
+exactly this discrepancy during Phase 4 and pinned by a regression test
+since (the narrative is told in Chapter~\ref{ch:devhistory}). The
+turning-point construction, by contrast, reproduces the requested
+geometry exactly by definition.
 
 \section{Sky projection and the R{\o}mer delay}
 \label{sec:romer}
 
-Light travel time across the orbit (the R{\o}mer delay,
-$\Delta t = -z\sin i/c$, $\sim$8 light-days peak-to-peak for S2) is
-solved per epoch by fixed-point iteration on the emission time
-$t_{\rm em} = t_{\rm obs} - \Delta t(t_{\rm em})$, which converges in
-2--3 iterations at S2 velocities.
+The integrated orbit lives in BH-centred coordinates; the observables
+live on the sky. The rotation by $(i, \Omega, \omega)$ maps the orbital
+plane to East--North offsets and a line-of-sight coordinate $z$
+(positive away from us), scaled by $R_0$ into angles; the fitted frame
+parameters $(x_0, y_0, v_x, v_y)$ absorb the residual tie between the
+infrared frame and the radio position of \sgra{}, and $v_z$ the
+line-of-sight zero point.
 
-\stub{Derivation of the delay from the line-of-sight displacement;
-convergence of the fixed-point iteration. New figure: R{\o}mer delay curve
-over one S2 orbit.}
+Light from different orbit phases travels different distances: an epoch
+observed at $t_{\rm obs}$ was \emph{emitted} at $t_{\rm em}$ satisfying
+\begin{equation}
+t_{\rm em} = t_{\rm obs} - \frac{z(t_{\rm em})}{c},
+\label{eq:romer}
+\end{equation}
+the classical R{\o}mer delay (first used by R{\o}mer in 1676 to measure
+$c$ from Jupiter's moons; here it is $c$ that is known and the geometry
+that matters). Equation \eqref{eq:romer} is an implicit equation for
+$t_{\rm em}$; the code solves it by fixed-point iteration
+$t^{(k+1)} = t_{\rm obs} - z(t^{(k)})/c$, which contracts with rate
+$|\dot z/c| = |\beta_z| \lesssim 0.026$ for S2 — guaranteeing
+convergence in 2--3 iterations to sub-second accuracy. For S2 the delay
+spans about $\pm 4$ light-days across the orbit
+(Fig.~\ref{fig:romer}); ignoring it would shift pericentre-passage
+timing by days against astrometry measured to weeks — a measurable
+model error, which is why the delay is applied to every epoch of every
+star.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.72\textwidth]{figures/fig_romer_delay.pdf}
+\caption{The R{\o}mer delay $-z\sin i/c$ over one S2 orbit, evaluated
+from the fitted elements (Keplerian geometry evaluation; the production
+model solves \eqref{eq:romer} on the exact geodesic). Peak-to-peak the
+delay is $\sim 8$ light-days.}
+\label{fig:romer}
+\end{figure}
 
 \section{The spectroscopic observable}
 \label{sec:spectro}
 
 The measured quantity for S2 spectroscopy is the centroid of the
 Br$\gamma$ line ($\lambda_{\rm rest} = 2.16612\,\mu$m). The model
-wavelength ratio factorises as
+wavelength ratio factorises exactly as
 \begin{equation}
 \frac{\lambda_{\rm obs}}{\lambda_{\rm emit}}
  = (1 + z_{\rm D})(1 + z_{\rm tD})(1 + z_{\rm grav}),
 \label{eq:zfactor}
 \end{equation}
-where $z_{\rm D}$ is the classical line-of-sight Doppler term,
-$z_{\rm tD}$ the special-relativistic transverse (time-dilation) term and
-$z_{\rm grav}$ the gravitational redshift at the emission point
-(\texttt{redshift\_terms}; the line model is
-\texttt{SpectralLineFitter::predict}). The
-quoted model radial velocity is the apparent
-$v_r = c\,(\lambda_{\rm obs}/\lambda_{\rm rest} - 1)$, the same convention
-the observers use, so the relativistic terms appear as an excess over a
-Keplerian orbit with identical elements
+where the three factors isolate the classical line-of-sight Doppler
+term $z_{\rm D}$, the special-relativistic transverse (time-dilation)
+term $z_{\rm tD} = \gamma - 1$, and the gravitational redshift
+$z_{\rm grav}$ at the emission point (\texttt{redshift\_terms}
+evaluates each along the cached trajectory). The quoted model radial
+velocity is the \emph{apparent}
+$v_r = c\,(\lambda_{\rm obs}/\lambda_{\rm rest} - 1)$ — the same
+convention the observers use — so the relativistic terms appear as an
+excess over a Keplerian orbit with identical elements, which is
+precisely the quantity GRAVITY measured in 2018
 (Section~\ref{sec:redshift}).
 
-\stub{New figure: the redshift decomposition (gravitational vs transverse
-vs classical) stacked over one orbit --- the artifact
-\texttt{phase4/s2\_redshift\_curve.csv} already carries the columns.}
+Fig.~\ref{fig:redshiftdecomp} stacks the two relativistic terms through
+the 2018 pericentre passage: they are comparable in size (the
+$2/(1+e)$ near-equality worked out in Chapter~\ref{ch:fitting}), sum to
+the $\sim 200$~km/s excess, and each is evaluated with no adjustable
+amplitude — the fitted mass and geometry force both.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.78\textwidth]{figures/fig_redshift_decomposition.pdf}
+\caption{Decomposition of S2's relativistic radial-velocity excess
+through the 2018 pericentre (\texttt{phase4/s2\_redshift\_curve.csv}):
+transverse Doppler (blue) and gravitational (red) stack to the total
+model excess (black line).}
+\label{fig:redshiftdecomp}
+\end{figure}
+
+\stub{Remaining for this chapter: Hermite-interpolation error bound for
+\texttt{sample\_at} (half-step position error $< 10^{-9}$ of the orbit
+scale at the production sampling density).}
