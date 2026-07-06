@@ -1,11 +1,25 @@
 \chapter{Kerr Geometry from First Principles}
 \label{ch:kerr}
 
+This chapter derives every closed-form Kerr quantity the simulator
+implements: the metric and its algebraic structure
+(\texttt{kerr\_components} in \texttt{physics/src/metric.cpp}), the
+characteristic radii (\texttt{r\_horizon}, \texttt{r\_ergosphere},
+\texttt{r\_photon}, \texttt{r\_isco}), and the circular-orbit energetics
+(\texttt{omega\_circular}, \texttt{energy\_circular},
+\texttt{angmom\_circular}) that feed both the disk model of
+Chapter~\ref{ch:disk} and the accretion-efficiency discussion. Everything
+here is exact; nothing is expanded in powers of the spin.
+
 \section{The Kerr solution in Boyer--Lindquist coordinates}
 \label{sec:kerrmetric}
 
-In Boyer--Lindquist (BL) coordinates with $G=c=1$ and spin parameter
-$a = J/M$, the Kerr line element is
+The unique stationary, axisymmetric, asymptotically flat vacuum black-hole
+solution of Einstein's equations is the two-parameter family found by
+\citet{Kerr1963}, characterised by mass $M$ and specific angular momentum
+$a = J/M$ with $|a| \leq M$. In the coordinates of
+\citet{BoyerLindquist1967} $(t, r, \theta, \phi)$, with $G = c = 1$, the
+line element is
 \begin{align}
 \mathrm{d}s^2 ={}& -\left(1-\frac{2Mr}{\Sigma}\right)\mathrm{d}t^2
  - \frac{4Mar\sin^2\theta}{\Sigma}\,\mathrm{d}t\,\mathrm{d}\phi
@@ -14,28 +28,270 @@ $a = J/M$, the Kerr line element is
  + \frac{A\sin^2\theta}{\Sigma}\,\mathrm{d}\phi^2,
 \label{eq:kerr}
 \end{align}
-with $\Sigma = r^2+a^2\cos^2\theta$, $\Delta = r^2-2Mr+a^2$ and
-$A = (r^2+a^2)^2 - a^2\Delta\sin^2\theta$. This is the form implemented by
-\texttt{kerr\_components} in \texttt{physics/src/metric.cpp}, and the
-determinant identity $\det g = -\Sigma^2\sin^2\theta$ is asserted by a
-dedicated unit test (Chapter~\ref{ch:devhistory}).
+built from the three auxiliary functions used throughout this report,
+\begin{equation}
+\Sigma = r^2+a^2\cos^2\theta, \qquad
+\Delta = r^2-2Mr+a^2, \qquad
+A = (r^2+a^2)^2 - a^2\Delta\sin^2\theta.
+\label{eq:auxfns}
+\end{equation}
+This is precisely the form implemented by \texttt{kerr\_components}. Two
+limits anchor it: $a \to 0$ recovers the Schwarzschild solution in its
+standard coordinates, and $M \to 0$ recovers flat spacetime in oblate
+spheroidal coordinates — the residual $a$ then only labels a coordinate
+choice, which is why all curvature effects below always enter through
+products $Ma$ or $M/r$.
 
-\stub{Kerr--Schild form and the BL$\leftrightarrow$KS transformation;
-inverse metric; Killing vectors $\partial_t, \partial_\phi$; the
-Killing--Yano and Killing tensors as the origin of the Carter constant;
-frame dragging and the ZAMO angular velocity
-$\omega = -g_{t\phi}/g_{\phi\phi}$.}
+\subsection{Metric determinant and inverse}
 
-\section{Horizons, ergosphere, and characteristic radii}
+The $t$--$\phi$ sector of \eqref{eq:kerr} is a $2\times2$ block; its
+determinant collapses through the identity
+\begin{equation}
+g_{tt}\,g_{\phi\phi} - g_{t\phi}^2 = -\Delta \sin^2\theta,
+\label{eq:blockdet}
+\end{equation}
+which the reader can verify by direct substitution of \eqref{eq:auxfns}
+(the $A$-terms cancel against the cross term). Multiplying by
+$g_{rr}g_{\theta\theta} = \Sigma^2/\Delta$ gives the full determinant
+\begin{equation}
+\det g = -\Sigma^2 \sin^2\theta .
+\label{eq:detg}
+\end{equation}
+Equation~\eqref{eq:detg} is asserted for random $(r, \theta, a)$ samples
+by a dedicated unit test (Chapter~\ref{ch:devhistory}); it is a sensitive
+canary because any sign or factor slip in $g_{t\phi}$ breaks it
+immediately. The same block structure yields the inverse metric in closed
+form — the $t$--$\phi$ block inverts as a $2\times2$ matrix and the
+diagonal $r, \theta$ entries invert trivially
+(\texttt{invert\_bl\_block} in \texttt{metric.hpp}):
+\begin{equation}
+g^{tt} = \frac{g_{\phi\phi}}{-\Delta\sin^2\theta}, \quad
+g^{t\phi} = \frac{-g_{t\phi}}{-\Delta\sin^2\theta}, \quad
+g^{\phi\phi} = \frac{g_{tt}}{-\Delta\sin^2\theta}, \quad
+g^{rr} = \frac{\Delta}{\Sigma}, \quad
+g^{\theta\theta} = \frac{1}{\Sigma}.
+\label{eq:ginv}
+\end{equation}
+
+\subsection{Kerr--Schild form}
+
+The Boyer--Lindquist chart is singular at $\Delta = 0$; that surface is a
+coordinate artefact, not a curvature singularity. The cleanest way to see
+this is the Kerr--Schild form: there exist coordinates
+$(\tilde t, x, y, z)$ in which
+\begin{equation}
+g_{\mu\nu} = \eta_{\mu\nu} + \frac{2Mr^3}{r^4 + a^2 z^2}\, l_\mu l_\nu,
+\qquad
+l_\mu = \left(1,\ \frac{rx + ay}{r^2+a^2},\ \frac{ry - ax}{r^2+a^2},\
+\frac{z}{r}\right),
+\label{eq:kerrschild}
+\end{equation}
+where $\eta$ is the flat metric, $l_\mu$ is null with respect to both
+$\eta$ and $g$, and $r(x,y,z)$ is defined implicitly by
+$\frac{x^2+y^2}{r^2+a^2} + \frac{z^2}{r^2} = 1$. Every metric component
+in \eqref{eq:kerrschild} is manifestly regular at the horizon. The
+simulator works in Boyer--Lindquist coordinates throughout — the Carter
+separation of Chapter~\ref{ch:geodesics} lives there — and simply stops
+rays at $r = 1.001\,r_+$; the Kerr--Schild form is recorded here as the
+proof that nothing physical happens at the chart boundary. The true
+curvature singularity sits at $\Sigma = 0$, i.e.\ $r = 0$,
+$\theta = \pi/2$: a ring of coordinate radius $a$ in the equatorial
+plane, safely behind the horizon for all $|a| \le M$.
+
+\section{Killing structure}
+\label{sec:killing}
+
+The metric \eqref{eq:kerr} depends on neither $t$ nor $\phi$, so
+$\partial_t$ and $\partial_\phi$ are Killing vectors: along any geodesic
+with four-momentum $p^\mu$,
+\begin{equation}
+E \equiv -p_t \quad\text{and}\quad L_z \equiv p_\phi
+\label{eq:elz}
+\end{equation}
+are conserved. Remarkably, Kerr also possesses a \emph{hidden} symmetry
+with no coordinate expression: an antisymmetric Killing--Yano tensor
+$f_{\mu\nu}$ whose square $K_{\mu\nu} = f_{\mu\lambda}f^{\lambda}{}_{\nu}$
+is a rank-2 Killing tensor, $\nabla_{(\lambda}K_{\mu\nu)} = 0$. The
+associated quadratic invariant $K_{\mu\nu}p^\mu p^\nu$ furnishes the
+fourth constant of motion — Carter's $Q$
+\citep{Carter1968} — which is derived from the Hamilton--Jacobi side in
+Chapter~\ref{ch:geodesics}. Four constants
+$(E, L_z, Q, p_\mu p^\mu)$ for four momentum components is what makes
+Kerr geodesics integrable, and hence what makes a machine-precision
+ray tracer possible at all.
+
+\section{Frame dragging and the ZAMO}
+\label{sec:zamo}
+
+The off-diagonal $g_{t\phi}$ has a direct physical reading. Consider an
+observer with zero angular momentum, $u_\phi = 0$ (a ``ZAMO''). Raising
+the index,
+\begin{equation}
+\frac{u^\phi}{u^t} = \frac{g^{\phi t}u_t}{g^{tt}u_t}
+= -\frac{g_{t\phi}}{g_{\phi\phi}} \equiv \omega(r, \theta)
+= \frac{2Mar}{A},
+\label{eq:omega-drag}
+\end{equation}
+so an observer who \emph{has} no angular momentum nevertheless
+\emph{moves}: local inertial frames are dragged around the hole at the
+rate $\omega$, falling off as $2Ma/r^3$ far away. The ZAMO is the natural
+camera carrier for ray tracing — it exists everywhere outside the
+horizon, including inside the ergosphere, and reduces to the static
+observer at $a = 0$; its orthonormal tetrad is constructed explicitly in
+Chapter~\ref{ch:shadow} (\texttt{zamo\_tetrad}).
+
+\section{Horizons, ergosphere, and the static limit}
 \label{sec:radii}
 
-The outer horizon lies at
-$r_+ = M+\sqrt{M^2-a^2}$, the ergosphere at
-$r_E(\theta) = M+\sqrt{M^2-a^2\cos^2\theta}$, and the equatorial photon
-orbits at
-$r_{\rm ph}^{\pm} = 2M\{1+\cos[\tfrac{2}{3}\cos^{-1}(\mp a/M)]\}$
-(prograde/retrograde). The innermost stable circular orbit follows the
-closed form of \citet{BardeenPressTeukolsky1972},
+Three characteristic surfaces follow from the metric functions alone.
+
+\emph{Horizons.} The BL chart degenerates where $\Delta = 0$:
+\begin{equation}
+r_\pm = M \pm \sqrt{M^2 - a^2}.
+\label{eq:horizon}
+\end{equation}
+The outer root $r_+$ is the event horizon (\texttt{r\_horizon}); it
+shrinks from $2M$ at $a = 0$ to $M$ at extremality, where the square root
+vanishes. For $|a| > M$ there is no horizon at all — a naked
+singularity — and the \texttt{KerrMetric} constructor refuses such spins
+by design.
+
+\emph{Static limit and ergosphere.} A static observer (fixed $r, \theta,
+\phi$) has $u^\mu \propto \partial_t$, which requires $g_{tt} < 0$.
+From \eqref{eq:kerr}, $g_{tt} = 0$ where $\Sigma = 2Mr$, i.e.
+\begin{equation}
+r_E(\theta) = M + \sqrt{M^2 - a^2\cos^2\theta}
+\label{eq:ergo}
+\end{equation}
+(\texttt{r\_ergosphere}). Between $r_+$ and $r_E$ — the ergosphere —
+$\partial_t$ is spacelike: no observer can stand still, though escape
+remains possible. The surface touches the horizon at the poles and
+stands off farthest at the equator ($r_E = 2M$ for every spin), as drawn
+in the primer's Fig.~\ref{fig:dganatomy}. Penrose's observation that
+orbits of negative energy exist inside this region — allowing rotational
+energy extraction — is not exploited by the simulator, but the ZAMO
+tetrad's good behaviour there is essential for close-in cameras.
+
+\section{Equatorial photon orbits: the cubic and its trigonometric
+solution}
+\label{sec:photonorbit}
+
+In the equatorial plane ($\theta = \pi/2$, $Q = 0$) the radial potential
+of Chapter~\ref{ch:geodesics} for a photon of impact parameter
+$b = L_z/E$ reduces to
+\begin{equation}
+\frac{R(r)}{E^2} = \left(r^2 + a^2 - a b\right)^2
+ - \Delta\,(b - a)^2 .
+\label{eq:Req}
+\end{equation}
+A circular photon orbit requires a double root: $R(r) = R'(r) = 0$.
+Dividing the two conditions eliminates $b$; after simplification
+(worked in full in Appendix~\ref{app:algebra}) the radius of the
+circular orbit satisfies
+\begin{equation}
+r^{3/2} - 3M r^{1/2} \pm 2a\sqrt{M} = 0,
+\label{eq:photoncubic}
+\end{equation}
+a cubic in $\sqrt{r}$ (upper sign prograde). Depressed cubics of the
+form $x^3 - 3px + q = 0$ with three real roots are solved by the
+trigonometric substitution $x = 2\sqrt{p}\cos\vartheta$, which turns the
+equation into $\cos 3\vartheta = -q/(2p^{3/2})$. Applying it with
+$x = \sqrt{r/M}$, $p = 1$, $q = \pm 2a/M$ gives the closed form
+implemented in \texttt{r\_photon}:
+\begin{equation}
+r_{\rm ph}^{\pm} = 2M\left\{1 +
+\cos\!\left[\tfrac{2}{3}\cos^{-1}\!\left(\mp\frac{a}{M}\right)\right]
+\right\}.
+\label{eq:rph}
+\end{equation}
+At $a = 0$ both signs give $\cos^{-1}(0) = \pi/2$ and
+$r_{\rm ph} = 2M(1 + \cos 60^\circ) = 3M$, the Schwarzschild photon
+sphere. At extremality the prograde orbit reaches $r_{\rm ph}^+ = M$
+(coincident in coordinate radius with the horizon) while the retrograde
+orbit retreats to $4M$: frame dragging assists co-rotating light and
+punishes counter-rotating light, the asymmetry visible in the traced
+trajectories of Fig.~\ref{fig:trajschw} and, ultimately, in the
+displaced shadow of Chapter~\ref{ch:shadow}. The corresponding critical
+impact parameters follow from back-substituting \eqref{eq:rph} into the
+double-root conditions; they reappear as the Bardeen critical curve in
+Chapter~\ref{ch:shadow}.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{figures/fig_radii_vs_spin.pdf}
+\caption{Every characteristic radius of the Kerr geometry as a function
+of spin, from the closed forms of this chapter
+(\texttt{physics\_tables} dump; grey region is inside the horizon).
+Solid: prograde; dashed: retrograde. The prograde ISCO's plunge toward
+the horizon is the single most consequential feature for disk
+appearance.}
+\label{fig:radiispin}
+\end{figure}
+
+\section{Circular timelike orbits: $\Omega$, $E$, $L$}
+\label{sec:energetics}
+
+For massive particles on circular equatorial orbits, the geodesic
+equation reduces to one algebraic condition. Writing the orbital angular
+velocity $\Omega = u^\phi/u^t$ and demanding
+$\mathrm{d}^2r/\mathrm{d}\tau^2 = 0$ yields (equivalently: extremising
+the effective potential of Fig.~\ref{fig:timelikepot})
+\begin{equation}
+\Omega_\pm = \frac{\pm\sqrt{M}}{r^{3/2} \pm a\sqrt{M}},
+\label{eq:omegacirc}
+\end{equation}
+the relativistic generalisation of Kepler's third law
+(\texttt{omega\_circular}); the $a$-term in the denominator is pure
+frame dragging. The four-velocity normalisation then fixes $u^t$, and
+lowering indices gives the specific energy and angular momentum
+\citep{BardeenPressTeukolsky1972}:
+\begin{align}
+E(r) &= \frac{1 - 2M/r \pm a\sqrt{M/r^3}}
+            {\sqrt{1 - 3M/r \pm 2a\sqrt{M/r^3}}},
+\label{eq:ecirc}\\[2pt]
+L(r) &= \frac{\pm\sqrt{Mr}\,\bigl(1 + a^2/r^2 \mp 2a\sqrt{M/r^3}\bigr)}
+            {\sqrt{1 - 3M/r \pm 2a\sqrt{M/r^3}}}
+\label{eq:lcirc}
+\end{align}
+(\texttt{energy\_circular}, \texttt{angmom\_circular}; upper signs
+prograde). Fig.~\ref{fig:energetics} plots all three across the spin
+range. Two structural features matter downstream. First, the common
+denominator vanishes at the \emph{photon orbit} — circular orbits become
+null there, and between the photon orbit and the ISCO they exist but are
+unstable. Second, $E(r)$ has a minimum exactly at the ISCO, which is the
+cleanest way to locate it.
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_energetics.pdf}
+\caption{Specific energy, angular momentum, and angular velocity of
+prograde circular orbits, from \eqref{eq:omegacirc}--\eqref{eq:lcirc}
+evaluated by \texttt{physics\_tables}. Curves start at each spin's ISCO.}
+\label{fig:energetics}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_timelike_potential.pdf}
+\caption{The effective potential for equatorial timelike motion,
+$V_{\rm eff}(r) = E_+(r)$ (the energy at which $r$ is a turning point),
+at four angular momenta around $L_{\rm ISCO}$. Circular orbits live at
+the extrema; the inflection where minimum and maximum merge is the ISCO.
+Left: Schwarzschild; right: $\astar = 0.94$ prograde — the whole
+structure moves inward and downward (deeper binding).}
+\label{fig:timelikepot}
+\end{figure}
+
+\section{The ISCO and the marginally bound orbit}
+\label{sec:isco}
+
+Stability of a circular orbit requires the effective potential's
+extremum to be a minimum; the innermost stable circular orbit (ISCO) is
+the inflection point where $\partial^2 V/\partial r^2 = 0$ joins the
+circular-orbit conditions. Carrying out the algebra (the full reduction
+is in Appendix~\ref{app:algebra}) collapses the triple condition to a
+quartic in $\sqrt{r}$ whose relevant root is expressed through the
+celebrated auxiliary quantities of \citet{BardeenPressTeukolsky1972}:
 \begin{align}
 Z_1 &= 1 + (1-\astar^2)^{1/3}\left[(1+\astar)^{1/3} +
       (1-\astar)^{1/3}\right],\nonumber\\
@@ -44,28 +300,52 @@ r_{\rm ISCO} &= M\left[3 + Z_2 \mp
       \sqrt{(3-Z_1)(3+Z_1+2Z_2)}\right],
 \label{eq:isco}
 \end{align}
-with the upper sign for prograde orbits. At $\astar \equiv a/M = 0$ these
-reduce to $2M$, $2M$, $3M$ and $6M$ exactly, which the test suite asserts
-to machine precision before any imaging is attempted
-(Chapter~\ref{ch:devhistory}); for $\astar > 0$ it asserts the
-prograde/retrograde split (e.g.\ distinct photon-orbit radii at
-$\astar = 0.5$ and $0.94$) and the monotonic approach
-$r_{\rm ISCO} \to r_+$ as $\astar \to 1$. These radii are implemented by
-\texttt{r\_horizon}, \texttt{r\_ergosphere}, \texttt{r\_photon} and
-\texttt{r\_isco} in \texttt{metric.cpp}.
+with the upper sign prograde (\texttt{r\_isco}). The checks the test
+suite pins (Chapter~\ref{ch:devhistory}): at $\astar = 0$,
+$Z_1 = 3$, $Z_2 = 3$ and $r_{\rm ISCO} = 6M$ exactly; as
+$\astar \to 1$ the prograde ISCO slides to $M$ while the retrograde one
+recedes to $9M$; and the prograde radius decreases monotonically with
+spin (Fig.~\ref{fig:radiispin}).
 
-\stub{Full algebra: equatorial photon orbits from the effective-potential
-cubic and its trigonometric solution; the BPT ISCO derivation from
-$\mathrm{d}^2V/\mathrm{d}r^2 = 0$ through $Z_1, Z_2$; the marginally bound
-radius $r_{mb}$. New figure: characteristic radii vs $\astar$ (needs
-\texttt{physics\_tables}).}
+A second marginal radius appears in accretion theory: the
+\emph{marginally bound} orbit, where $E = 1$ — a particle dropped from
+rest at infinity can just circularise. Setting $E = 1$ in
+\eqref{eq:ecirc} gives
+\begin{equation}
+r_{\rm mb}^{\pm} = 2M \mp a + 2\sqrt{M(M \mp a)},
+\label{eq:rmb}
+\end{equation}
+lying between the photon orbit and the ISCO for every spin
+(Fig.~\ref{fig:radiispin}).
 
-\section{Circular-orbit energetics and accretion efficiency}
-\label{sec:energetics}
+\section{Binding energy and accretion efficiency}
+\label{sec:efficiency}
 
-\stub{$E(r)$, $L(r)$, $\Omega(r)$ for circular equatorial orbits
-(implemented by \texttt{energy\_circular}, \texttt{angmom\_circular},
-\texttt{omega\_circular}); binding energy at the ISCO and the accretion
-efficiency $\eta = 1 - E_{\rm ISCO}$ (5.7 per cent Schwarzschild $\to$ 42
-per cent extremal). New figures: effective potential $V(r)$ at several
-spins; $E, L, \Omega, \eta$ vs $r$ and vs $\astar$.}
+Equation~\eqref{eq:ecirc} carries a direct astrophysical payload. Gas
+spiralling quasi-circularly through a disk arrives at the ISCO with
+specific energy $E_{\rm ISCO}$, having radiated the binding energy
+\begin{equation}
+\eta = 1 - E_{\rm ISCO}
+\label{eq:eta}
+\end{equation}
+per unit rest mass. For Schwarzschild,
+$E_{\rm ISCO} = \sqrt{8/9}$ and $\eta = 1 - 2\sqrt{2}/3 =
+\EtaSchw\,\%$. At the \sgra{} working spin $\astar = 0.94$ the
+efficiency is $\EtaSgrA\,\%$, and at $\astar = 0.998$ it reaches
+$\EtaNearExtremal\,\%$ (Fig.~\ref{fig:efficiency}; values generated by
+\texttt{physics\_tables} from \eqref{eq:ecirc} and \eqref{eq:isco}) —
+an order of magnitude beyond nuclear fusion's $0.7\%$, which is why
+accreting black holes are the most efficient steady engines known. The
+same $E$ and $L$ profiles drive the Page--Thorne dissipation integral of
+Chapter~\ref{ch:disk}: the disk's radial brightness profile is nothing
+but the gradient of this binding-energy release, corrected for the
+torque bookkeeping.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.72\textwidth]{figures/fig_efficiency_vs_spin.pdf}
+\caption{Accretion efficiency $\eta = 1 - E_{\rm ISCO}$ against spin,
+prograde and retrograde, from \texttt{physics\_tables}. The Schwarzschild
+value $1-\sqrt{8/9} = 5.72\%$ is marked.}
+\label{fig:efficiency}
+\end{figure}

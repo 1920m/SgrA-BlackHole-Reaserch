@@ -1,82 +1,310 @@
 \chapter{Geodesics and the Carter Constant}
 \label{ch:geodesics}
 
-\section{Constants of motion and the Carter separation}
-\label{sec:carter}
+The simulator never integrates the raw geodesic equation
+$\ddot x^\mu = -\Gamma^\mu_{\alpha\beta}\dot x^\alpha \dot x^\beta$ for
+photons; it integrates Carter's separated form, which is both faster and
+— through its first integrals — self-diagnosing. This chapter derives
+that form from the Hamilton--Jacobi equation, classifies the radial
+motion by the roots of the resulting quartic, and develops the
+second-order Mino-time formulation that the integrator of
+Chapter~\ref{ch:numerics} actually solves. The implementing functions are
+\texttt{radial\_potential[\_deriv]}, \texttt{polar\_potential[\_deriv]},
+\texttt{null\_geodesic\_rhs} and \texttt{make\_null\_ray} in
+\texttt{physics/src/null\_geodesics.cpp}, and \texttt{solve\_ut},
+\texttt{carter\_q} in \texttt{timelike\_geodesics.cpp}.
 
-Geodesics in Kerr admit four constants of motion: the energy $E$, the axial
-angular momentum $L_z$, the Carter constant $Q$ \citep{Carter1968}, and the
-norm $\mu^2$ of the four-momentum. With
-$P(r) = E(r^2+a^2)-aL_z$ the Carter-separated equations for a photon
-($\mu=0$) read
+\section{Hamilton--Jacobi separation}
+\label{sec:hj}
+
+Geodesics extremise proper length; equivalently they solve the
+Hamilton--Jacobi equation for the action $S(x^\mu)$,
+\begin{equation}
+g^{\mu\nu}\,\partial_\mu S\,\partial_\nu S = -\mu^2,
+\label{eq:hje}
+\end{equation}
+with $\mu$ the rest mass ($\mu = 0$ for photons, and we normalise
+$\mu = 1$ for stars). Stationarity and axisymmetry
+(Section~\ref{sec:killing}) let us peel off the cyclic coordinates,
+\begin{equation}
+S = -E\,t + L_z\,\phi + S_r(r) + S_\theta(\theta),
+\label{eq:ansatz}
+\end{equation}
+and \citet{Carter1968} discovered that with the inverse metric
+\eqref{eq:ginv} the remainder separates completely. Substituting
+\eqref{eq:ansatz} into \eqref{eq:hje} and multiplying through by
+$\Sigma$, the mixed terms assemble into
+\begin{equation}
+-\frac{1}{\Delta}\bigl[E(r^2+a^2) - a L_z\bigr]^2
++ \Delta\left(\frac{\mathrm{d}S_r}{\mathrm{d}r}\right)^2
++ \mu^2 r^2
+= -\left(\frac{\mathrm{d}S_\theta}{\mathrm{d}\theta}\right)^2
+- \left(aE\sin\theta - \frac{L_z}{\sin\theta}\right)^2
+- \mu^2 a^2\cos^2\theta .
+\label{eq:separated}
+\end{equation}
+The left side depends only on $r$, the right only on $\theta$; both must
+equal a constant. Writing that constant as
+$-\bigl[Q + (L_z - aE)^2\bigr]$ — the shift by $(L_z-aE)^2$ is a
+convention that makes $Q$ vanish for equatorial orbits — and defining
+\begin{equation}
+P(r) = E(r^2+a^2) - a L_z,
+\label{eq:pofr}
+\end{equation}
+the two sides become
 \begin{align}
-\Sigma\,\frac{\mathrm{d}r}{\mathrm{d}\lambda} &= \pm\sqrt{R(r)},\nonumber\\
-\Sigma\,\frac{\mathrm{d}\theta}{\mathrm{d}\lambda} &=
-  \pm\sqrt{\Theta(\theta)},\nonumber\\
-\Sigma\,\frac{\mathrm{d}\phi}{\mathrm{d}\lambda} &=
-  -\Big(aE - \frac{L_z}{\sin^2\theta}\Big) + \frac{a}{\Delta}P(r),
-  \nonumber\\
-\Sigma\,\frac{\mathrm{d}t}{\mathrm{d}\lambda} &=
-  -a(aE\sin^2\theta - L_z) + \frac{(r^2+a^2)}{\Delta}P(r),
-\label{eq:carter}
-\end{align}
-with the potentials
-\begin{align}
-R(r) &= P(r)^2 - \Delta\left[(L_z-aE)^2 + Q\right],
-\label{eq:rpot}\\
-\Theta(\theta) &= Q - \cos^2\theta\left[a^2(-E^2) +
+\Delta^2\left(\frac{\mathrm{d}S_r}{\mathrm{d}r}\right)^2
+&= R(r) \equiv P(r)^2
+- \Delta\bigl[\mu^2 r^2 + (L_z-aE)^2 + Q\bigr],
+\label{eq:rpotgen}\\
+\left(\frac{\mathrm{d}S_\theta}{\mathrm{d}\theta}\right)^2
+&= \Theta(\theta) \equiv Q - \cos^2\theta\left[a^2(\mu^2 - E^2) +
 \frac{L_z^2}{\sin^2\theta}\right].
-\label{eq:thetapot}
+\label{eq:thetapotgen}
 \end{align}
-The potentials and their derivatives are implemented by
-\texttt{radial\_potential}, \texttt{polar\_potential} and their
-\texttt{\_deriv} companions in \texttt{physics/src/null\_geodesics.cpp}.
+$Q$ is the \emph{Carter constant}, the invariant associated with the
+hidden Killing tensor of Section~\ref{sec:killing}; loosely, it measures
+how far the orbit ranges in latitude ($\Theta \geq 0$ requires
+$Q \geq 0$ for any orbit crossing the equator, with $Q = 0$ exactly for
+equatorial motion). With four constants $(E, L_z, Q, \mu)$ for four
+momentum components the system is Liouville-integrable: no chaos, every
+photon path reducible to quadratures — the property that underwrites
+both the machine-precision metrology of Chapter~\ref{ch:shadow} and the
+closed-form checks used throughout the test suite.
 
-\stub{The Hamilton--Jacobi derivation of the separation; $Q$ from the
-Killing--Yano tensor; turning points and orbit classification by the roots
-of $R(r)$. New figures: sample photon and timelike trajectories;
-turning-point structure of $R(r)$.}
+Since $p_\mu = \partial_\mu S$, equations
+\eqref{eq:rpotgen}--\eqref{eq:thetapotgen} are first-order equations of
+motion,
+\begin{equation}
+\Sigma\,\frac{\mathrm{d}r}{\mathrm{d}\lambda} = \pm\sqrt{R(r)},
+\qquad
+\Sigma\,\frac{\mathrm{d}\theta}{\mathrm{d}\lambda} =
+\pm\sqrt{\Theta(\theta)},
+\label{eq:firstorder}
+\end{equation}
+while raising $p_t$ and $p_\phi$ with \eqref{eq:ginv} gives the
+longitudinal equations
+\begin{align}
+\Sigma\,\frac{\mathrm{d}\phi}{\mathrm{d}\lambda} &=
+  -\Bigl(aE - \frac{L_z}{\sin^2\theta}\Bigr) + \frac{a}{\Delta}P(r),
+&\Sigma\,\frac{\mathrm{d}t}{\mathrm{d}\lambda} &=
+  -a(aE\sin^2\theta - L_z) + \frac{(r^2+a^2)}{\Delta}P(r).
+\label{eq:tphi}
+\end{align}
+For photons ($\mu = 0$) these are the four equations implemented in
+\texttt{null\_geodesic\_rhs}; the potentials and their radial/polar
+derivatives are \texttt{radial\_potential[\_deriv]} and
+\texttt{polar\_potential[\_deriv]}.
+
+\section{Turning points and orbit classification}
+\label{sec:turningpoints}
+
+$R(r)$ is a quartic in $r$ (for photons: leading term $E^2 r^4$), and
+motion is allowed only where $R \geq 0$; the roots of $R$ are the radial
+turning points, and their pattern classifies every orbit
+(Fig.~\ref{fig:photonpot}):
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_photon_potential.pdf}
+\caption{The radial potential $R(r)/E^2$ for equatorial photons at
+impact parameters below, at, and above the critical value
+(\texttt{physics\_tables} dump of \texttt{radial\_potential}). Left,
+Schwarzschild: at $b = \sqrt{27}\,M$ the potential develops its double
+root at $r = 3M$. Right, Kerr $\astar = 0.94$: the prograde
+(low-$|b|$) and retrograde branches behave asymmetrically, and the
+retrograde critical curve sits much farther out.}
+\label{fig:photonpot}
+\end{figure}
+
+\begin{itemize}
+\item \emph{No positive root along the path} — the ray plunges from
+infinity to the horizon: \emph{capture}. These pixels form the shadow.
+\item \emph{A simple root at $r_{\rm turn}$} — the ray comes in, turns,
+and returns to infinity: \emph{deflection}, from the gentle bending of
+starlight up to arbitrarily many windings as the root is approached.
+\item \emph{A double root at $\tilde r$} ($R = R' = 0$) — the marginal
+case: an unstable circular (or, off the equator, spherical) photon
+orbit. The set of $(E, L_z, Q)$ with double roots is a one-parameter
+family — the \emph{photon shell} — whose image on the observer's sky is
+the critical curve of Chapter~\ref{ch:shadow}.
+\item For timelike orbits the $\mu^2 r^2$ term turns the far field
+around ($R \to (E^2 - 1)r^4/r^2\dots$): bound orbits have \emph{two}
+simple roots $r_{\rm peri} \le r \le r_{\rm apo}$, the case exploited by
+the Darwin-element construction of Chapter~\ref{ch:sstar}.
+\end{itemize}
+
+The instability of the double-root orbits is quantified by the curvature
+of the potential there, $\tfrac12 R''(\tilde r)$; this single number
+propagates all the way to the observable demagnification of the photon
+sub-rings, via the Lyapunov exponents computed in
+Chapter~\ref{ch:shadow}.
 
 \section{Mino time and the second-order formulation}
 \label{sec:mino}
 
-Rather than integrating the first-order radial and polar equations with
-explicit sign bookkeeping at turning points, we adopt Mino time
-$\tau$ \citep{Mino2003}, defined by
-$\mathrm{d}\lambda = \Sigma\,\mathrm{d}\tau$, which decouples the $(r)$ and
-$(\theta)$ sectors, and evolve the \emph{second-order} equations obtained
-by differentiating $\dot r^2 = R(r)$ once:
+Two features make the first-order system \eqref{eq:firstorder} hostile
+to naive numerics. The $\pm$ signs flip at every turning point, requiring
+explicit bookkeeping; worse, at a turning point the right-hand side
+$\sqrt{R}$ has infinite slope in $r$ ($\mathrm{d}\sqrt R/\mathrm{d}r \to
+\infty$ as $R \to 0$), and an integrator stepping the truncated system
+sees $\dot r = 0$ as a fixed point and stalls.
+
+Both problems dissolve under two transformations. First, adopt the time
+parameter of \citet{Mino2003}: define $\tau$ by
 \begin{equation}
-\frac{\mathrm{d}^2 r}{\mathrm{d}\tau^2} = \tfrac{1}{2}R'(r), \qquad
-\frac{\mathrm{d}^2 \theta}{\mathrm{d}\tau^2} = \tfrac{1}{2}\Theta'(\theta),
+\mathrm{d}\lambda = \Sigma\,\mathrm{d}\tau,
+\label{eq:minotime}
+\end{equation}
+which strips the common $\Sigma$ factor from all four equations — the
+radial and polar sectors then evolve \emph{independently} of each other,
+$(\mathrm{d}r/\mathrm{d}\tau)^2 = R(r)$,
+$(\mathrm{d}\theta/\mathrm{d}\tau)^2 = \Theta(\theta)$. Second,
+differentiate once more with respect to $\tau$:
+\begin{equation}
+2\,\frac{\mathrm{d}r}{\mathrm{d}\tau}
+   \frac{\mathrm{d}^2r}{\mathrm{d}\tau^2}
+ = R'(r)\,\frac{\mathrm{d}r}{\mathrm{d}\tau}
+\qquad\Longrightarrow\qquad
+\frac{\mathrm{d}^2 r}{\mathrm{d}\tau^2} = \tfrac{1}{2}R'(r),
+\qquad
+\frac{\mathrm{d}^2 \theta}{\mathrm{d}\tau^2} =
+\tfrac{1}{2}\Theta'(\theta).
 \label{eq:secondorder}
 \end{equation}
-in which turning points are ordinary smooth extrema and no square root of a
-near-zero quantity is ever taken. The first integrals
-$\dot r^2 = R(r)$ and $\dot\theta^2 = \Theta(\theta)$ then serve as exact
-algebraic constraints on the numerical solution, which we re-impose after
-every accepted step (Chapter~\ref{ch:numerics}). The coordinate
-singularities at $\theta = 0,\pi$ are regularised with a $10^{-8}$ clamp;
-they are properties of the BL chart, not of the spacetime.
+(The division by $\mathrm{d}r/\mathrm{d}\tau$ is legitimate except at
+isolated turning points, where \eqref{eq:secondorder} holds by
+continuity.) In this form a turning point is an ordinary smooth
+extremum: the ``acceleration'' $\tfrac12 R'$ simply reverses the motion,
+no square root of a near-zero quantity is ever taken, and no sign flag
+exists to mis-set. The state vector the integrator carries is
+$y = (t, r, \theta, \phi, p_r, p_\theta)$ with
+$p_r = \mathrm{d}r/\mathrm{d}\tau$,
+$p_\theta = \mathrm{d}\theta/\mathrm{d}\tau$.
+
+The price of differentiating is that \eqref{eq:secondorder} admits
+solutions that drift off the true energy shell — precisely the first
+integrals
+\begin{equation}
+p_r^2 = R(r), \qquad p_\theta^2 = \Theta(\theta)
+\label{eq:constraints}
+\end{equation}
+are no longer enforced identically but become \emph{checkable} (and, as
+Chapter~\ref{ch:numerics} shows, \emph{re-imposable}) invariants. This
+trade — turning-point-free dynamics in exchange for explicit constraint
+maintenance — is the central numerical design decision of the project,
+and its quantitative payoff is measured in
+Figs.~\ref{fig:projboundary}--\ref{fig:drifttol}.
+
+The coordinate singularities of the BL chart at $\theta = 0, \pi$
+(where $L_z \neq 0$ makes $\Theta \to -\infty$) are regularised with a
+$10^{-8}$ clamp (\texttt{kThetaClamp}); polar-crossing orbits with
+$L_z = 0$ pass smoothly.
+
+\section{Launching rays: from four-momentum to constants}
+\label{sec:makenullray}
+
+The ray tracer builds initial conditions from a physical four-momentum
+$k^\mu$ at the camera (constructed in the ZAMO tetrad,
+Chapter~\ref{ch:shadow}). The map to the Carter description
+(\texttt{make\_null\_ray}) is purely algebraic: lower the index with the
+metric, read off
+\begin{equation}
+E = -k_t, \qquad L_z = k_\phi,
+\end{equation}
+and evaluate the Carter constant from the polar momentum,
+\begin{equation}
+Q = (\Sigma k^\theta)^2
++ \cos^2\theta\left[\frac{L_z^2}{\sin^2\theta} - a^2E^2\right],
+\label{eq:qfromk}
+\end{equation}
+which is \eqref{eq:thetapotgen} solved for $Q$ with
+$p_\theta = \Sigma k^\theta$. The Mino momenta are then
+$p_r = \Sigma k^r$, $p_\theta = \Sigma k^\theta$ — with \emph{no} sign
+ambiguity, since they inherit the sign of the physical launch direction.
+The identical reconstruction run in reverse
+(\texttt{null\_conserved\_errors}) recomputes $(E, L_z, Q)$ from the
+evolving state at every step and compares them with the launch values:
+the primary health check of the whole physics core (tolerance $10^{-6}$
+relative; Chapter~\ref{ch:devhistory}).
 
 \section{Timelike geodesics}
 \label{sec:timelike}
 
-For timelike geodesics ($\mu=1$, stellar orbits) the radial potential gains
-the mass term, $R(r) = P^2 - \Delta[r^2 + (L_z-aE)^2 + Q]$, the polar
-potential becomes $\Theta = Q - \cos^2\theta[a^2(1-E^2)+L_z^2/\sin^2\theta]$,
-and the four-velocity normalisation $g_{\mu\nu}u^\mu u^\nu = -1$ provides an
-independent per-step health check (\texttt{solve\_ut} in
-\texttt{timelike\_geodesics.cpp} solves the normalisation quadratic;
-\texttt{carter\_q} recovers $Q$ from the state). We integrate stellar
-orbits in the full geodesic equations rather than any post-Newtonian
-expansion: at the S2 pericentre ($\sim$1470 Schwarzschild radii, orbital
-speed 2.6 per cent of $c$) the leading PN corrections are individually at
-the $10^{-4}$ level --- the same order as the measured redshift excess
-itself --- so the expansion error budget would have to be argued term by
-term, whereas the geodesic integrator's error budget is simply its
-conservation diagnostics.
+For stars, $\mu = 1$ in
+\eqref{eq:rpotgen}--\eqref{eq:thetapotgen}: the radial potential gains
+the $-\Delta r^2$ mass term and the polar potential's spin term becomes
+$a^2(1 - E^2)$. Two independent code paths use this case.
 
-\stub{[OPTIONAL] The exact closed-form solution in elliptic integrals /
-Weierstrass $\wp$ (Rauch--Blandford, Gralla--Lupsasca) as an analytic
-integrator check; Mino-time vs affine-parameter figure.}
+For \emph{Kerr} orbits, the Carter form above applies unchanged and
+\texttt{carter\_q} evaluates \eqref{eq:qfromk} (with the $\mu^2$ term)
+as a conserved diagnostic. For the \emph{Hartle--Thorne} spacetime of
+Chapter~\ref{ch:nohair}, however, no Carter constant exists — the metric
+is not separable — so the S-star integrator deliberately uses the
+generic second-order geodesic equation
+$\mathrm{d}u^\lambda/\mathrm{d}\tau =
+-\Gamma^\lambda_{\mu\nu}u^\mu u^\nu$ with Christoffel symbols from
+complex-step differentiation (Chapter~\ref{ch:numerics}), for \emph{any}
+metric behind the \texttt{IMetric} interface. The initial $u^t$ is
+completed from the spatial velocity by solving the normalisation
+quadratic $g_{\mu\nu}u^\mu u^\nu = -1$ for the future-directed root
+(\texttt{solve\_ut}), and the same normalisation is the per-step health
+check ($|g_{\mu\nu}u^\mu u^\nu + 1| < 10^{-8}$, Gate 0).
+
+We integrate stellar orbits in the full geodesic equations rather than
+any post-Newtonian expansion: at the S2 pericentre ($\sim$1470
+Schwarzschild radii, orbital speed 2.6 per cent of $c$) the leading PN
+corrections are individually at the $10^{-4}$ level — the same order as
+the measured redshift excess itself — so the expansion error budget
+would have to be argued term by term, whereas the geodesic integrator's
+error budget is simply its conservation diagnostics.
+
+Fig.~\ref{fig:rosettefig} shows the machinery end-to-end: a bound
+equatorial orbit with turning points at $8M$ and $25M$, initialised by
+the same two-condition Darwin construction the S2 model uses
+(Chapter~\ref{ch:sstar}), integrated for six radial periods. The orbit
+precesses visibly — this is the same rosette drawn schematically in the
+primer — while the four-velocity normalisation drifts at the $10^{-13}$
+level, far inside the $10^{-8}$ gate, and the conserved $(E, L)$
+reproduce their Darwin target values to eleven decimal places.
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_rosette.pdf}
+\caption{Left: a bound timelike geodesic with $r \in [8, 25]\,M$
+(Schwarzschild), integrated by the generic Christoffel path for six
+radial periods (\texttt{physics\_tables}); the apsidal advance per orbit
+is visible directly. Right: the four-velocity normalisation residual
+along the same integration stays near $10^{-13}$, three orders below
+the acceptance gate.}
+\label{fig:rosettefig}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_photon_trajectories.pdf}
+\caption{Equatorial photon geodesics traced by the production integrator
+(\texttt{physics\_tables} dump). Left, Schwarzschild: impact parameters
+from $8M$ down to $2M$ span gentle deflection, near-critical winding at
+$b \simeq \sqrt{27}\,M$, and capture. Right, Kerr $\astar = 0.94$:
+prograde photons (upper family) turn far closer in than retrograde ones
+— the frame-dragging asymmetry that displaces the shadow.}
+\label{fig:trajectories}
+\end{figure}
+
+\section{Closed-form solutions as an independent check}
+\label{sec:closedform}
+
+Because \eqref{eq:firstorder} separates, Kerr geodesics can also be
+written in closed form as elliptic integrals
+\citep{Darwin1959,RauchBlandford1994,GrallaLupsasca2020}. This project
+deliberately does \emph{not} use those solutions in production — the
+numerical path generalises to the non-separable Hartle--Thorne metric
+where the no-hair test lives, and one code path for all metrics is worth
+more than per-metric special cases. The closed forms serve instead as
+external anchors: the Schwarzschild critical impact parameter
+$\sqrt{27}\,M$, the Bardeen critical curve, and the analytic Lyapunov
+exponents of Chapter~\ref{ch:shadow} are all evaluated from them and
+compared against traced results — agreement at the $10^{-9}$--$10^{-16}$
+level depending on the observable (Chapters~\ref{ch:shadow},
+\ref{ch:devhistory}).
