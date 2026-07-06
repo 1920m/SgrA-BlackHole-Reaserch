@@ -1,4 +1,160 @@
 \chapter{Spinning Black Holes and the Shadow}
-\label{ch:f3-spin-shadow}
+\label{ch:f3}
 
-\stub{Kerr vs Schwarzschild, frame dragging, the ergosphere, the photon sphere, and how the shadow forms.}
+\section{Black holes spin}
+
+Almost everything in the universe rotates — planets, stars, whole
+galaxies — and when a rotating object collapses, its spin is not lost. It
+concentrates, the way a figure skater speeds up when she pulls her arms
+in. Black holes born from collapsing, swirling matter are therefore
+expected to spin, often ferociously.
+
+A non-spinning black hole is described exactly by Schwarzschild's 1915
+solution of Chapter~\ref{ch:f1}. The spinning case resisted for another
+half-century, until Roy Kerr found the exact solution in 1963. The
+\emph{Kerr metric} — the rulebook of Chapter~\ref{ch:f2} for a spinning
+hole — is the mathematical foundation of this entire report, and it says
+that a black hole is completely described by just two numbers: its mass
+and its spin. The spin is usually quoted as a dimensionless number
+$\astar$ between 0 (not spinning) and 1 (the theoretical maximum, spinning
+so fast the horizon would tear open). For \sgra{} the working estimate
+used throughout this report is $\astar = 0.94$ — a rapid spinner.
+
+\section{Frame dragging: spacetime as a whirlpool}
+
+A spinning mass does something Newton never imagined: it drags spacetime
+around with it. Close to a spinning black hole, ``standing still'' is
+simply not on the menu — space itself circulates like water around a
+drain, and everything in it, light included, is carried along. This
+\emph{frame dragging} has been measured in Earth orbit (by the Gravity
+Probe~B gyroscopes and the LAGEOS satellites) at the level of fractions of
+a degree per century; near \sgra{} it becomes a dominant feature of the
+landscape (Fig.~\ref{fig:dgframedrag}).
+
+\begin{figure}
+\centering
+\includegraphics[width=0.62\textwidth]{figures/dg_frame_drag.pdf}
+\caption{Frame dragging around a black hole with $\astar=0.94$, computed
+from the Kerr rulebook. Each arrow shows how far a ``stationary'' marker
+at that radius is swept around per unit time; inside the orange boundary
+(the ergosphere) refusing to rotate is impossible.}
+\label{fig:dgframedrag}
+\end{figure}
+
+There is a region, outside the horizon but close to it, where the dragging
+is so strong that \emph{nothing} can hold still — to hover without
+circulating you would need to move faster than light. This region is the
+\emph{ergosphere}, a flattened shell thickest over the equator
+(Fig.~\ref{fig:dganatomy}). Objects inside it can still escape — it is
+not a point of no return — but they cannot avoid being swept around.
+
+\section{The anatomy of a spinning hole}
+
+Fig.~\ref{fig:dganatomy} labels the landmarks that Part~II computes
+exactly, for a non-spinning and a rapidly spinning hole side by side.
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/dg_kerr_anatomy.pdf}
+\caption{Cross-sections through a non-spinning ($\astar=0$) and a rapidly
+spinning ($\astar=0.94$) black hole, drawn to scale from the exact
+formulas of Chapter~\ref{ch:kerr}. Spin shrinks the horizon, opens up an
+ergosphere, splits the photon orbit into prograde/retrograde pairs, and
+pulls the innermost stable orbit (ISCO) dramatically inward.}
+\label{fig:dganatomy}
+\end{figure}
+
+\begin{itemize}
+\item The \emph{event horizon} (black): the point of no return. Spin
+shrinks it, from $2\,M$ at $\astar=0$ toward $1\,M$ at the extreme.
+\item The \emph{ergosphere} (orange): the no-standing-still zone,
+touching the horizon at the poles and bulging at the equator.
+\item The \emph{photon orbits} (blue): radii where light can circle the
+hole. For a spinning hole there are two equatorial ones — a closer orbit
+for light moving \emph{with} the rotation (\emph{prograde}) and a farther
+one for light moving \emph{against} it (\emph{retrograde}). Spacetime's
+whirlpool helps the co-rotating light hold a tighter circle.
+\item The \emph{ISCO} (green), the innermost stable circular orbit: the
+closest circle on which matter can orbit steadily. Any closer and the
+slightest nudge sends it spiralling in. The ISCO is the inner edge of the
+glowing disk of Chapter~\ref{ch:f4}, and it moves inward spectacularly
+with spin — from $6\,M$ for $\astar=0$ to about $2\,M$ at
+$\astar=0.94$. Much of what changes visually with spin in our renders
+traces back to this single fact.
+\end{itemize}
+
+\section{The shadow and the photon ring}
+
+Now surround the hole with light — a glowing disk, or simply the stars
+behind it — and ask what a distant camera sees. Chapter~\ref{ch:f2}
+showed that rays aimed too close are captured. Point the camera at the
+hole, and there is a patch of sky, for every pixel of which the answer is
+``that line of sight ends on the horizon''. That dark patch is the
+\emph{shadow} (Fig.~\ref{fig:dgshadow}).
+
+\begin{figure}
+\centering
+\includegraphics[width=0.85\textwidth]{figures/dg_shadow_formation.pdf}
+\caption{How the shadow forms, computed from the exact bending equation.
+Green rays escape (bent); the orange critical ray circles on the photon
+sphere; red rays are captured. The shadow is the set of camera directions
+whose rays end on the horizon — its edge is light that grazed the photon
+sphere.}
+\label{fig:dgshadow}
+\end{figure}
+
+Three facts about the shadow do a great deal of work in this report.
+
+First, \emph{the shadow is bigger than the horizon}. Light does not have
+to hit the horizon to be lost — anything aimed within the critical
+distance spirals in. For a non-spinning hole the shadow's radius is
+$\sqrt{27}\approx 5.2\,M$, about 2.6 times the horizon radius. Our
+simulator reproduces this number to sixteen digits
+(Chapter~\ref{ch:shadow}), which is the sort of check that separates a
+scientific instrument from a pretty picture.
+
+Second, \emph{the shadow's edge is made of light that almost stayed}.
+Rays that graze the critical boundary can circle the hole once, twice,
+three times before escaping to the camera. Each extra half-turn stacks
+another, exponentially thinner and fainter image of the whole sky (and of
+the disk) right at the shadow's rim. This onion of nested images is the
+\emph{photon ring}, and its sub-rings are analysed quantitatively in
+Chapter~\ref{ch:ring}. The Event Horizon Telescope's measurement of this
+ring for \sgra{} — $51.8\pm2.3\,\muas$ across — is one of the two
+observational anchors of this whole project.
+
+Third, \emph{spin distorts the shadow}. Frame dragging lets prograde
+light survive closer in, so the shadow's edge on the side rotating toward
+you pulls inward: the silhouette flattens on one side and shifts
+sideways, by an amount our simulator measures precisely
+(Chapters~\ref{ch:shadow}, \ref{ch:calib}). Viewed nearly pole-on — our
+actual view of \sgra{} — the distortion is frustratingly small, a few
+per cent, which is why the ring's \emph{size} alone cannot pin down the
+spin (the ``spin--inclination degeneracy'' that
+Chapter~\ref{ch:calib} maps out).
+
+\begin{termsbox}
+\item[Kerr metric] The exact spacetime of a spinning black hole (Kerr
+1963); fully specified by mass and spin.
+\item[Spin parameter $\astar$] Dimensionless spin from 0 to 1; \sgra{}
+is modelled at $\astar = 0.94$.
+\item[Frame dragging] The whirlpool-like circulation of spacetime around
+a spinning mass.
+\item[Ergosphere] The region where standing still is impossible; escape
+is still possible from inside it.
+\item[Prograde / retrograde] Moving with / against the black hole's
+rotation; prograde orbits survive closer in.
+\item[Photon sphere / photon orbits] Radii at which light circles the
+hole; unstable, so grazing light eventually escapes or falls.
+\item[ISCO] Innermost stable circular orbit — the inner edge of the
+disk; moves from $6\,M$ (no spin) toward the horizon as spin grows.
+\item[Shadow] The dark patch of captured lines of sight; radius
+$\sqrt{27}\,M$ for no spin, subtly reshaped by spin.
+\item[Photon ring] The stack of exponentially fainter images of the
+scene hugging the shadow's edge.
+\end{termsbox}
+
+\noindent$\rightarrow$ \emph{Full treatment: Kerr geometry and all
+characteristic radii in Chapter~\ref{ch:kerr}; the traced shadow and
+critical curve in Chapter~\ref{ch:shadow}; sub-ring measurements in
+Chapter~\ref{ch:ring}.}

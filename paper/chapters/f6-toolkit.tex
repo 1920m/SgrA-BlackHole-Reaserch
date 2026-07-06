@@ -1,4 +1,148 @@
 \chapter{The Toolkit in Plain Words}
-\label{ch:f6-toolkit}
+\label{ch:f6}
 
-\stub{geometric units, tensors gently, chi-squared and confidence intervals, MCMC, and the no-hair theorem in one picture.}
+\noindent This last primer chapter collects the working tools — units,
+statistics, and one big theorem — that the technical chapters use
+constantly.
+
+\section{Natural units: setting $G = c = 1$}
+
+Physicists working with black holes almost always set the gravitational
+constant $G$ and the speed of light $c$ equal to~1. This is not a trick
+or an approximation; it is a choice of units, exactly like measuring
+road distances in hours of driving. Once you do it, mass, length, and
+time all become interchangeable, and a single symbol $M$ can serve as
+the yardstick for everything: lengths are quoted in units of the
+gravitational radius (``the ISCO is at $6\,M$''), times in units of the
+light-crossing time of that radius. For \sgra{}, one $M$ of length is
+about 0.042~au and one $M$ of time is about 21 seconds. The huge
+practical benefit is universality: every formula and every rendered
+image in Parts~II--III applies to \emph{any} black hole; only the final
+conversion to kilometres, seconds, or microarcseconds depends on the
+actual mass (that conversion is Chapter~\ref{ch:calib}).
+
+A related habit: Part~II speaks of \emph{vectors} (arrows with direction
+and length — a velocity is one) and occasionally \emph{tensors}. For
+reading this report it is enough to know that a tensor is a
+machine that eats vectors and returns numbers, in a way that all
+observers agree on. The metric of Chapter~\ref{ch:f2} is the only tensor
+we ever really need: it eats two little coordinate steps and returns
+their true separation.
+
+\section{Error bars, and the meaning of $\chi^2$}
+
+Every real measurement comes with an uncertainty — an \emph{error bar} —
+and the whole craft of fitting models to data is bookkeeping those error
+bars honestly. The universal bookkeeping device is called
+\emph{chi-squared} ($\chi^2$), and it answers one question: \emph{by how
+many error bars, in total, does the model miss the data?}
+(Fig.~\ref{fig:dgchi}). For each data point, take the miss, divide by
+that point's error bar, square it (so misses in either direction count
+alike, and big misses count a lot), and add up over all points.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{figures/dg_chi2.pdf}
+\caption{$\chi^2$ made visible. Two candidate models through the same
+data: the good one misses each point by about one error bar
+($\chi^2 \approx$ number of points); the wrong one racks up an enormous
+total. Fitting means turning model knobs until $\chi^2$ is as small as
+it gets.}
+\label{fig:dgchi}
+\end{figure}
+
+Two rules of thumb make $\chi^2$ readable. A model that is right, fitted
+to honest error bars, should miss each point by about one error bar on
+average — so $\chi^2$ divided by the number of data points (the
+\emph{reduced} $\chi^2$) should be near 1. Much bigger means the model
+(or the error bars) are wrong; much smaller means the error bars were
+pessimistic. Our headline S2 fit lands at $\chi^2_\nu = \FitChiRed$
+(Chapter~\ref{ch:fitting}) with the published error bars used exactly
+as given.
+
+And once the best knob-settings are found, \emph{how well known} is each
+knob? Wiggle a knob away from its best value and $\chi^2$ climbs; the
+range over which it climbs by less than a set amount is the knob's
+\emph{confidence interval} — the ``$\pm$'' quoted after every fitted
+number in this report. When we write $M = \FitMass \pm \FitMassErr$
+million suns, the $\pm$ is precisely such an interval.
+
+\section{MCMC: mapping uncertainty by wandering}
+
+For a model with thirteen knobs, the surface of $\chi^2$ over all knob
+combinations is a thirteen-dimensional landscape, and simple wiggling
+can miss how knobs trade off against one another. The heavy machinery
+for this is \emph{Markov chain Monte Carlo} (MCMC): release a crowd of
+random walkers into the landscape, with rules that make them drift
+toward — and then wander within — the low-$\chi^2$ valleys
+(Fig.~\ref{fig:dgmcmc}). After enough steps, \emph{where the walkers
+spend their time is itself the answer}: dense regions are probable
+parameter values, sparse regions improbable. Histograms of the walkers'
+positions give every parameter's uncertainty and every pairwise
+trade-off at once. Chapter~\ref{ch:fitting} runs exactly this (32
+walkers, thousands of steps, the full relativistic model evaluated at
+every step) and checks that the walker map agrees with the simpler
+wiggle estimate.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{figures/dg_mcmc_walkers.pdf}
+\caption{Three MCMC walkers released onto a two-parameter landscape
+(grey contours: the low-$\chi^2$ valley). After an initial wander-in,
+the walkers trace out the valley; their footprints map the uncertainty,
+including the diagonal trade-off between the two parameters.}
+\label{fig:dgmcmc}
+\end{figure}
+
+\section{The no-hair theorem in one picture}
+
+One theorem gives this project its sharpest question. General relativity
+predicts that a black hole, once settled, is the simplest macroscopic
+object in nature: its exterior gravity is \emph{completely} fixed by two
+numbers, mass and spin. All other detail of whatever fell in — its
+shape, its chemistry, its history — is radiated away or swallowed. The
+theorem's nickname says it: \emph{black holes have no hair}.
+
+This is falsifiable. Any rotating body has a \emph{quadrupole moment} —
+a measure of how squashed its gravity field is (Fig.~\ref{fig:dgquad}).
+For planets and stars the squashing is free to vary; for a Kerr black
+hole it is locked rigidly to the mass and spin. So the test is: measure
+mass, spin, and quadrupole \emph{independently}, and check the lock. We
+implement this by adding one knob to the spacetime — a quadrupole
+surplus called $\epsq$, zero for a true Kerr hole — and asking the S2
+data how far from zero it could be
+(Chapter~\ref{ch:nohair}). The honest answer today: the data are fully
+consistent with zero, with room to spare (a single star at 1\,500
+horizon radii barely feels the quadrupole), and the same machinery is
+ready for the closer stars that future instruments will find.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{figures/dg_quadrupole.pdf}
+\caption{The no-hair test in one picture. Left: for a Kerr black hole
+the field's squashing (quadrupole) is fixed by mass and spin — nothing
+to choose. Right: if the measured squashing deviated ($\epsq \neq 0$),
+stellar orbits would precess differently, and Kerr would be falsified.}
+\label{fig:dgquad}
+\end{figure}
+
+\begin{termsbox}
+\item[Geometric units ($G=c=1$)] Measuring everything in units of the
+black hole's own scale $M$; for \sgra{}, $1\,M \approx 0.042$~au
+$\approx 21$~s.
+\item[Tensor] A machine that eats vectors and returns
+observer-independent numbers; the metric is the one that matters here.
+\item[$\chi^2$ / reduced $\chi^2$] Total squared misses in units of the
+error bars; near 1 per data point means a healthy fit.
+\item[Confidence interval] The range over which a parameter can move
+before $\chi^2$ climbs unacceptably; the ``$\pm$'' on every number.
+\item[MCMC] Mapping parameter uncertainty by letting random walkers
+populate the low-$\chi^2$ valleys.
+\item[No-hair theorem] A black hole's exterior gravity is fixed by mass
+and spin alone; tested here through the quadrupole knob $\epsq$.
+\end{termsbox}
+
+\noindent$\rightarrow$ \emph{Full treatment: units and calibration in
+Chapter~\ref{ch:calib}; fitting statistics and MCMC in
+Chapter~\ref{ch:fitting}; the no-hair constraint in
+Chapter~\ref{ch:nohair}.}

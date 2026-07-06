@@ -1,4 +1,164 @@
 \chapter{Orbits, S-Stars, and Weighing a Black Hole}
-\label{ch:f5-orbits}
+\label{ch:f5}
 
-\stub{Kepler's ellipse, astrometry vs radial velocity, precession, and how mass and distance emerge.}
+\section{Kepler's ellipse}
+
+Four hundred years before anyone imagined black holes, Johannes Kepler
+discovered that planets travel on \emph{ellipses} — squashed circles —
+with the Sun at one \emph{focus}, a point offset from the centre
+(Fig.~\ref{fig:dgkepler}). Three of his terms are used on nearly every
+page of Part~III:
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{figures/dg_kepler_ellipse.pdf}
+\caption{The anatomy of a Kepler orbit. The attracting mass sits at one
+focus; eccentricity measures how off-centre it is. The dots mark equal
+time steps: the orbiting body loiters near apocentre and races through
+pericentre.}
+\label{fig:dgkepler}
+\end{figure}
+
+\begin{itemize}
+\item the \emph{semi-major axis} $a$ — half the long diameter, the
+orbit's overall size;
+\item the \emph{eccentricity} $e$ — how squashed and off-centre the
+ellipse is, from $0$ (circle) toward $1$ (a stretched sliver);
+\item the \emph{pericentre} and \emph{apocentre} — the points of
+closest and farthest approach. (For orbits around stars you may know
+these as perihelion and aphelion.)
+\end{itemize}
+
+Kepler's second discovery is visible in the dots of
+Fig.~\ref{fig:dgkepler}: bodies move \emph{fast near pericentre and slow
+near apocentre}. His third links the orbit's size and period to the
+central mass — bigger orbits take longer, and, decisively for us,
+\emph{at fixed size, a heavier central mass means a faster orbit}.
+Measure the size and the period of any orbit and the central mass falls
+out. This is how we weigh everything in astronomy, from planets to
+galaxies — and it is exactly how \sgra{} is weighed.
+
+\section{The S-stars, and S2 above all}
+
+Buried in the central light-month of the Galaxy is a swarm of ordinary
+young stars on extraordinary orbits — the \emph{S-stars}. Since 1992,
+two teams (in Garching and in Los Angeles) have photographed the region
+every year, watching individual stars trace out their ellipses around
+an invisible focus. The star \emph{S2} is the jewel of the collection:
+bright enough to measure precisely, with a period of just 16 years —
+short enough that we have now watched it complete more than one and a
+half full loops. Its orbit is extreme by any planetary standard:
+eccentricity 0.88, pericentre speed near 7\,700~km/s (2.6\,\% of the
+speed of light), diving to about 1\,500 horizon radii from the black
+hole.
+
+This report fits the complete published S2 data set — 145 positions and
+44 velocities spanning 1992--2016 (Chapter~\ref{ch:fitting}) — plus four
+more S-stars in a joint fit (Chapter~\ref{ch:cluster}).
+
+\section{Two channels: positions and speeds}
+
+Everything we know about the S-stars comes through two complementary
+kinds of measurement (Fig.~\ref{fig:dgastro}).
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/dg_astrometry_rv.pdf}
+\caption{The two observation channels. Left — astrometry: the star's
+position on the sky, measured year after year in milliarcseconds,
+traces the projected ellipse. Right — spectroscopy: the wavelength of a
+known line in the star's light shifts with its line-of-sight speed
+(the Doppler effect of Chapter~\ref{ch:f4}).}
+\label{fig:dgastro}
+\end{figure}
+
+\emph{Astrometry} is simply measuring where the star is on the sky, epoch
+by epoch — in milliarcseconds, using adaptive-optics cameras on the
+world's largest telescopes and, since 2017, the GRAVITY interferometer,
+which links four 8-metre telescopes into one virtual 130-metre one.
+Astrometry sees the orbit \emph{projected} on the sky, like the shadow
+of a hoop tilted against a wall.
+
+\emph{Spectroscopy} measures how fast the star moves \emph{along} the
+line of sight, via the Doppler shift of a hydrogen absorption line in
+its spectrum (the Br$\gamma$ line, in the infrared where the Galactic
+dust is transparent). This ``radial velocity'' channel sees exactly the
+component of motion that astrometry cannot.
+
+Neither channel alone determines everything; together they overdetermine
+the orbit. And one beautiful consequence deserves its own sentence:
+because astrometry gives the orbit's \emph{angular} size while the
+velocities give its \emph{physical} scale, combining them yields the
+\emph{distance to the Galactic centre} — a geometric distance
+measurement across 26\,000 light-years with no cosmic distance ladder
+involved. Our fit recovers both the mass and this distance
+(Chapter~\ref{ch:fitting}).
+
+\section{Einstein's fingerprints on the orbit}
+
+If gravity were exactly Newtonian, S2's ellipse would repeat itself
+forever, fixed in space. General relativity disagrees in two measured
+ways.
+
+First, the \emph{redshift excess} of Chapter~\ref{ch:f4}: at the 2018
+pericentre passage, S2's spectral lines arrived about 200~km/s redder
+than any Newtonian orbit could explain — time dilation plus
+gravitational redshift, detected by GRAVITY in 2018.
+
+Second, \emph{orbital precession}: the ellipse itself slowly pivots. Each
+orbit, the pericentre direction advances by a small angle, so the path
+traces a rosette rather than a closed ring (Fig.~\ref{fig:dgrosette}).
+For Mercury this famous advance is 43 arcseconds per century and was the
+first triumph of general relativity; for S2 it is about 12
+\emph{arcminutes} per 16-year orbit — some fifty thousand times faster —
+and GRAVITY confirmed it in 2020. Our simulator reproduces both effects
+with no adjustable amplitudes: the fitted mass and geometry force them
+(Chapter~\ref{ch:fitting}).
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{figures/dg_rosette.pdf}
+\caption{Relativistic precession: the orbital ellipse pivots a little
+each revolution, tracing a rosette. The dots mark successive pericentre
+directions. (Exaggerated for visibility: S2's advance is $12'$ per
+orbit; this drawing uses thousands of times more.)}
+\label{fig:dgrosette}
+\end{figure}
+
+\section{Thirty-four years in one diagram}
+
+Fig.~\ref{fig:dgtimeline} places the milestones — from the first
+infrared images of the S-stars to the EHT picture of the ring — on one
+line, ending with the simulator this report describes: a single
+instrument that reproduces, from first principles, the measurements of
+that whole timeline.
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/dg_timeline.pdf}
+\caption{Milestones of the Galactic-centre programme covered in this
+report.}
+\label{fig:dgtimeline}
+\end{figure}
+
+\begin{termsbox}
+\item[Ellipse, focus, semi-major axis, eccentricity] The shape language
+of orbits (Fig.~\ref{fig:dgkepler}).
+\item[Pericentre / apocentre] Closest and farthest points of an orbit;
+S2's pericentre is $\sim$120~au at 2.6\% of light speed.
+\item[S-stars, S2] The stars orbiting \sgra{}; S2, with its 16-year
+period, is the most precisely measured.
+\item[Astrometry] Measuring sky positions over time (milliarcseconds);
+gives the projected orbit.
+\item[Radial velocity (spectroscopy)] Measuring line-of-sight speed from
+Doppler-shifted spectral lines.
+\item[Geometric distance] Combining both channels yields the distance to
+the Galactic centre directly.
+\item[Precession / rosette] The slow pivot of the orbital ellipse
+predicted by GR; $12'$ per orbit for S2, confirmed 2020.
+\end{termsbox}
+
+\noindent$\rightarrow$ \emph{Full treatment: the relativistic orbit
+model in Chapter~\ref{ch:sstar}; the fit and both GR effects in
+Chapter~\ref{ch:fitting}; the multi-star fit in
+Chapter~\ref{ch:cluster}.}

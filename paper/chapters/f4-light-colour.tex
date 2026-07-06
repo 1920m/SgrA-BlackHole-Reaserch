@@ -1,4 +1,132 @@
 \chapter{Light, Heat, and Colour: Reading the Disk}
-\label{ch:f4-light-colour}
+\label{ch:f4}
 
-\stub{blackbody colour, the accretion disk, Doppler beaming, and the three redshifts.}
+\section{Hot things glow, and colour is a thermometer}
+
+Heat a poker in a fire and it glows dull red; hotter, and it turns
+orange, then yellow, then blue-white. This everyday sequence is one of
+the most useful facts in astrophysics: a dense hot body glows with a
+spectrum — a recipe of colours — that depends on its temperature and on
+almost nothing else. Physicists call this ideal glow \emph{blackbody
+radiation}, and the temperature-to-colour dictionary is exact: around
+3\,000 degrees looks ember-orange, 6\,000 degrees looks white like the
+Sun's surface, 20\,000 degrees looks blue-white. The renders in this
+report use precisely this dictionary — every pixel's colour comes from a
+computed temperature pushed through the same colour-matching tables that
+describe human vision (Chapter~\ref{ch:disk}), not from an artist's
+palette.
+
+\section{The accretion disk}
+
+Gas falling toward a black hole almost never falls straight in. Like
+water circling a drain, it has some rotation, so it settles into a
+flattened, swirling \emph{accretion disk}. Within the disk, gas at each
+radius orbits at its own rate — inner gas circles faster than outer gas,
+just as Mercury outpaces Neptune — and the resulting internal friction
+does two things: it lets the gas drift gradually inward, and it heats
+the disk white-hot. The energy released is prodigious. Matter spiralling
+through a disk onto a rapidly spinning black hole can radiate away tens
+of per cent of its entire rest-mass energy — compared with less than one
+per cent for nuclear fusion. Our simulator computes this efficiency
+exactly (it is the $\eta$ of Chapter~\ref{ch:kerr}): about
+\EtaSchw{} per cent for a non-spinning hole, rising to
+\EtaSgrA{} per cent at \sgra{}'s spin, because the disk's inner edge (the
+ISCO of Chapter~\ref{ch:f3}) reaches so much deeper into the well.
+
+The model disk used throughout Part~III is the classic
+\emph{Novikov--Thorne} thin disk: geometrically thin like a vinyl record,
+hottest just outside the ISCO, cooling outward. It is an idealisation —
+the real flow around \sgra{} is a hot, puffed-up, far dimmer affair — and
+Chapter~\ref{ch:discussion} is careful about which conclusions survive
+that difference. The disk model gives our images their brightness and
+colour; crucially, the \emph{geometry} of shadow and photon ring comes
+from the spacetime itself, not from the disk details.
+
+\section{Why one side of the disk blazes}
+
+Every published image of a black-hole disk — the EHT rings,
+\emph{Interstellar}'s Gargantua, the renders in this report — is
+conspicuously brighter on one side. That asymmetry is a speed effect,
+not a lighting effect.
+
+The inner disk orbits at an appreciable fraction of the speed of light.
+When a source of light moves toward you that fast, three effects
+conspire: its light is squeezed forward like spray from a moving hose
+(\emph{beaming}), arrives blueshifted, and arrives at a faster clip. The
+approaching side of the disk therefore appears far brighter — in our
+reference render at $\astar = 0.94$, viewed nearly edge-on, the
+approaching limb outshines the receding one by a factor of
+\BeamRatio{} in total light (Chapter~\ref{ch:disk}). The receding side is
+correspondingly dimmed and reddened. The whole effect is packaged in a
+single number per light ray, the \emph{redshift factor} $g$: the ratio of
+the light's frequency as received to its frequency as emitted. Brightness
+scales as $g^4$ — the fourth power — which is why the asymmetry is so
+dramatic. If a simulated disk ever looks symmetric, its $g^4$ is wrong;
+this was one of our hard validation gates
+(Chapter~\ref{ch:devhistory}).
+
+\section{The three redshifts}
+
+That factor $g$ mixes three physically distinct effects, and pulling them
+apart is exactly what the S2 measurements of Part~III require
+(Fig.~\ref{fig:dgthreez}).
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/dg_three_redshifts.pdf}
+\caption{The three ways a wavelength gets shifted. Classical Doppler:
+motion along the line of sight stretches or compresses the wave train.
+Transverse Doppler: a fast clock ticks slowly, so even sideways motion
+reddens the light — a purely relativistic effect. Gravitational: light
+climbing out of a gravity well arrives stretched.}
+\label{fig:dgthreez}
+\end{figure}
+
+\begin{enumerate}
+\item \emph{Classical Doppler}: the familiar ambulance-siren shift.
+Motion away from you stretches the waves (redshift); motion toward you
+compresses them (blueshift). This is by far the largest term for an
+orbiting star, and Newton would have predicted it too.
+\item \emph{Transverse Doppler}: special relativity's addition. A fast
+mover's clock runs slow, so its emitted waves come out at a reduced
+rate — a redshift that appears even when the motion is purely sideways.
+It scales with speed squared, so it only matters when things get truly
+fast.
+\item \emph{Gravitational redshift}: general relativity's addition,
+from Chapter~\ref{ch:f2} — light climbing out of a gravitational well is
+stretched. It scales with depth in the well.
+\end{enumerate}
+
+For the star S2 at its 2018 closest approach, the first term is several
+thousand km/s, while the second and third are each worth only about a
+hundred km/s — and, by a neat algebraic coincidence worked out in
+Chapter~\ref{ch:fitting}, almost exactly equal to each other. The
+GRAVITY collaboration's 2018 detection of that little two-hundred-km/s
+surplus over the Newtonian prediction was the first direct test of
+general relativity beside a supermassive black hole. Reproducing it,
+with no tunable knob, is one of this report's headline results: our
+model peaks at \GrExcessPeak{}~km/s at epoch \GrExcessEpoch{}
+(Chapter~\ref{ch:fitting}).
+
+\begin{termsbox}
+\item[Blackbody radiation] The temperature-determined glow of a dense
+hot body; the exact temperature-to-colour dictionary used in our
+renders.
+\item[Accretion disk] The flattened swirl of hot gas spiralling into a
+black hole; modelled here as the Novikov--Thorne thin disk.
+\item[Accretion efficiency ($\eta$)] The fraction of rest-mass energy
+radiated by matter spiralling in: \EtaSchw{}\% (no spin) to
+\EtaSgrA{}\% (\sgra{}'s spin).
+\item[Doppler beaming] The forward-throwing of light by a fast-moving
+source; makes the approaching disk limb $\sim$\BeamRatio$\times$
+brighter in our reference render.
+\item[Redshift factor $g$] Received frequency over emitted frequency
+for one light ray; observed brightness scales as $g^4$.
+\item[Classical / transverse / gravitational redshift] The three
+distinct wavelength shifts; separating them at S2's pericentre is the
+GRAVITY 2018 test.
+\end{termsbox}
+
+\noindent$\rightarrow$ \emph{Full treatment: disk physics and the $g^4$
+law in Chapter~\ref{ch:disk}; the redshift decomposition and the S2
+result in Chapters~\ref{ch:sstar} and \ref{ch:fitting}.}
