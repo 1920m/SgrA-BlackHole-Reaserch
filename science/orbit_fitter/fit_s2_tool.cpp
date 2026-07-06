@@ -10,7 +10,10 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
@@ -23,12 +26,56 @@
 using namespace sgr;
 namespace fs = std::filesystem;
 
+namespace {
+
+// Thesis MCMC evaluation server (paper/THESIS_PLAN.md §2.1): read one
+// whitespace-separated parameter vector per stdin line — 13 values (kerr) or
+// 14 with a trailing ε_q (nohair) — and print χ² per line. Persistent process
+// so a Python sampler (scripts/run_mcmc.py) pays the dataset/model setup once.
+int run_chi2_server(const fs::path& data_dir, const std::string& mode) {
+    const S2Dataset data =
+        S2Dataset::load((data_dir / "s2_astrometry.csv").string(),
+                        (data_dir / "s2_radial_velocity.csv").string());
+    const bool nohair = (mode == "nohair");
+    const int nvals = S2Parameters::kNumParams + (nohair ? 1 : 0);
+    std::string line;
+    std::vector<double> v(nvals);
+    while (std::getline(std::cin, line)) {
+        if (line.empty()) continue;
+        std::istringstream iss(line);
+        bool ok = true;
+        for (int i = 0; i < nvals; ++i)
+            if (!(iss >> v[i])) { ok = false; break; }
+        double c2 = 1e30;
+        if (ok) {
+            try {
+                const S2Parameters p = S2Parameters::from_array(v.data());
+                const OrbitFitter f(data, /*a_star=*/0.0,
+                                    /*eps_q=*/nohair ? v[13] : 0.0);
+                c2 = f.chi2(p);
+                if (!std::isfinite(c2)) c2 = 1e30;
+            } catch (...) {
+                c2 = 1e30;
+            }
+        }
+        std::printf("%.10e\n", c2);
+        std::fflush(stdout);
+    }
+    return 0;
+}
+
+} // namespace
+
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::fprintf(stderr, "usage: %s <data_dir> <out_dir> [kerr|nohair]\n",
-                     argv[0]);
+        std::fprintf(stderr,
+                     "usage: %s <data_dir> <out_dir> [kerr|nohair]\n"
+                     "       %s --chi2 <data_dir> [kerr|nohair]\n",
+                     argv[0], argv[0]);
         return 2;
     }
+    if (std::string(argv[1]) == "--chi2")
+        return run_chi2_server(argv[2], argc > 3 ? argv[3] : "kerr");
     const fs::path data_dir = argv[1];
     const fs::path out_dir = argv[2];
     const std::string mode = argc > 3 ? argv[3] : "kerr";

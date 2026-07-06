@@ -6,6 +6,7 @@ Run: py -3.11 scripts/make_numbers.py
 """
 from __future__ import annotations
 
+import csv
 import json
 import pathlib
 
@@ -19,6 +20,15 @@ def load(rel: str) -> dict | None:
         print(f"  [missing] {rel}")
         return None
     return json.loads(p.read_text())
+
+
+def load_csv(rel: str) -> list[dict] | None:
+    p = ROOT / rel
+    if not p.exists():
+        print(f"  [missing] {rel}")
+        return None
+    with open(p, newline="") as f:
+        return list(csv.DictReader(f))
 
 
 def main() -> None:
@@ -122,6 +132,62 @@ def main() -> None:
                 val = f"{v:,.0f}" if abs(v) >= 1e4 else f"{v:g}"
                 macro("Bench" + "".join(w.capitalize() for w in k.split("_")),
                       val)
+
+    # ---- thesis data tools (paper/THESIS_PLAN.md §2.3) ----------------------
+    eff = load_csv("validation/thesis/efficiency_vs_spin.csv")
+    if eff:
+        def eta_at(a: float) -> float:
+            row = min(eff, key=lambda r: abs(float(r["a_star"]) - a))
+            return 100.0 * float(row["eta_pro"])
+        macro("EtaSchw", f"{eta_at(0.0):.2f}")
+        macro("EtaSgrA", f"{eta_at(0.94):.2f}")
+        macro("EtaNearExtremal", f"{eta_at(0.998):.2f}")
+    lyap = load_csv("validation/thesis/lyapunov_vs_spin.csv")
+    if lyap:
+        row = min(lyap, key=lambda r: abs(float(r["a_star"]) - 0.94))
+        macro("GammaPolarSgrA", f"{float(row['gamma_polar']):.3f}")
+        macro("GammaProSgrA", f"{float(row['gamma_pro']):.3f}")
+        macro("GammaRetroSgrA", f"{float(row['gamma_retro']):.3f}")
+    proj = load_csv("validation/thesis/projection_boundary.csv")
+    if proj:
+        on = [abs(float(r["rel_dev"])) for r in proj if r["projection"] == "1"]
+        off = [abs(float(r["rel_dev"])) for r in proj if r["projection"] == "0"]
+        macro("ProjOnWorstDev", f"{max(on):.1e}".replace("e-", r"\times10^{-") + "}")
+        macro("ProjOffWorstPct", f"{100 * max(off):.0f}")
+        macro("ProjOffBestDev", f"{min(off):.1e}".replace("e-", r"\times10^{-") + "}")
+    sub_sw = load_csv("validation/thesis/subring_sweep.csv")
+    if sub_sw:
+        r01 = [float(r["ratio_n0_n1"]) for r in sub_sw]
+        macro("SubringRatioZeroOneLo", f"{min(r01):.1f}")
+        macro("SubringRatioZeroOneHi", f"{max(r01):.1f}")
+
+    # ---- MCMC posterior (thesis Ch 9; scripts/run_mcmc.py) ------------------
+    mc = load("validation/thesis/mcmc_s2.json")
+    if mc:
+        macro("McmcMassMed", f"{mc['M_msun'][1] / 1e6:.3f}")
+        macro("McmcMassLo", f"{(mc['M_msun'][1] - mc['M_msun'][0]) / 1e6:.3f}")
+        macro("McmcMassHi", f"{(mc['M_msun'][2] - mc['M_msun'][1]) / 1e6:.3f}")
+        macro("McmcDistMed", f"{mc['R0_pc'][1]:.0f}")
+        macro("McmcDistLo", f"{mc['R0_pc'][1] - mc['R0_pc'][0]:.0f}")
+        macro("McmcDistHi", f"{mc['R0_pc'][2] - mc['R0_pc'][1]:.0f}")
+        macro("McmcNSteps", f"{mc['n_steps']}")
+        macro("McmcNWalkers", f"{mc['n_walkers']}")
+        macro("McmcTauMax", f"{mc['autocorr_max']:.0f}")
+    mcn = load("validation/thesis/mcmc_nohair.json")
+    if mcn and "eps_q" in mcn:
+        macro("McmcEpsQMed", f"{mcn['eps_q'][1] / 1e5:.2f}")
+        macro("McmcEpsQLo", f"{(mcn['eps_q'][1] - mcn['eps_q'][0]) / 1e5:.2f}")
+        macro("McmcEpsQHi", f"{(mcn['eps_q'][2] - mcn['eps_q'][1]) / 1e5:.2f}")
+
+    # ---- multi-star cluster fit (thesis Ch 9.5) ------------------------------
+    cl = load("validation/phase13/cluster_fit.json")
+    if cl:
+        macro("ClusterNStars", f"{len(cl['per_star'])}")
+        macro("ClusterMass", f"{cl['M_msun'] / 1e6:.3f}")
+        macro("ClusterMassErr", f"{cl['sigma_M_msun'] / 1e6:.3f}")
+        macro("ClusterDist", f"{cl['R0_pc']:.0f}")
+        macro("ClusterDistErr", f"{cl['sigma_R0_pc']:.0f}")
+        macro("ClusterChiRed", f"{cl['chi2_red']:.3f}")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")

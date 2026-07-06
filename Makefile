@@ -32,7 +32,13 @@ reproduce:
 	$(BUILD)/science/orbit_fitter/fit_s2_tool.exe data/gillessen_2017 validation/phase5 nohair
 	$(BUILD)/validation/sweep_tool.exe calibrate validation/phase10
 	$(BUILD)/validation/sweep_tool.exe sweep validation/phase10
+	$(BUILD)/validation/physics_tables.exe validation/thesis
+	$(BUILD)/validation/convergence_tool.exe validation/thesis
+	$(BUILD)/validation/sweep_tool.exe photonorbits validation/thesis
+	$(BUILD)/science/subring_tool.exe --sweep validation/thesis 80 560
 	$(PY) scripts/make_figures.py
+	$(PY) scripts/make_diagrams.py
+	$(PY) scripts/make_numbers.py
 
 clean-paper:
 	$(MAKE) -C paper clean

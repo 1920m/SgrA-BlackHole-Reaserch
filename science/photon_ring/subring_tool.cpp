@@ -22,10 +22,78 @@
 
 using namespace sgr;
 
+namespace {
+
+// Thesis mode (paper/THESIS_PLAN.md §2.1): sub-ring flux ratios and n = 1
+// band widths as a function of spin, at fixed inclination.
+//   subring_tool --sweep <outdir> [incl_deg] [size]
+int run_sweep(const std::filesystem::path& outdir, double incl, int size) {
+    std::filesystem::create_directories(outdir);
+    std::ofstream csv(outdir / "subring_sweep.csv");
+    csv << "a_star,incl_deg,flux_n0,flux_n1,flux_n2,ratio_n0_n1,ratio_n1_n2,"
+           "width_n1_psi0_rad,width_n1_psi90_rad,width_n1_psi180_rad,"
+           "width_n1_psi270_rad\n";
+    for (double a_star : {0.0, 0.3, 0.6, 0.8, 0.94, 0.998}) {
+        const KerrMetric metric(1.0, a_star);
+        CameraConfig cam;
+        cam.r_cam = 1000.0;
+        cam.incl_deg = incl;
+        cam.fov_rad = 0.032;
+        cam.width = size;
+        cam.height = size;
+        DiskConfig dcfg;
+        dcfg.enabled = true;
+        dcfg.r_in = metric.r_isco(true);
+        dcfg.r_out = 18.0;
+        const RaytraceCpu tracer(metric, cam, dcfg);
+        const NovikovThorneDisk disk(a_star, dcfg.r_in, dcfg.r_out, 6300.0);
+        spdlog::info("sweep a*={}: analysing {}x{} ...", a_star, size, size);
+        SubRingExtractor extractor(tracer, disk);
+        SubRingStats stats = extractor.analyze(2, size, nullptr);
+        // n = 1 band widths along four image-plane directions; a width of 0
+        // records "no band found" (occluded by the direct disk image — a real
+        // geometric effect at high inclination, documented in the thesis).
+        double w[4] = {0.0, 0.0, 0.0, 0.0};
+        const double psis[4] = {0.0, 1.5707963267948966, 3.14159265358979323846,
+                                4.71238898038469};
+        for (int k = 0; k < 4; ++k) {
+            const size_t before = stats.widths.size();
+            extractor.scan_widths(stats, 1, psis[k], 1.2e-3, 9.5e-3);
+            if (stats.widths.size() > before) {
+                const auto& b = stats.widths.back();
+                w[k] = b.s_outer - b.s_inner;
+            }
+        }
+        const double f0 = stats.bins[0].flux_bolometric;
+        const double f1 = stats.bins[1].flux_bolometric;
+        const double f2 = stats.bins[2].flux_bolometric;
+        csv << a_star << ',' << incl << ',' << f0 << ',' << f1 << ',' << f2
+            << ',' << f0 / std::max(1e-30, f1) << ','
+            << f1 / std::max(1e-30, f2) << ',' << w[0] << ',' << w[1] << ','
+            << w[2] << ',' << w[3] << '\n';
+        csv.flush();
+        spdlog::info("  ratios n0/n1={:.2f} n1/n2={:.2f}",
+                     f0 / std::max(1e-30, f1), f1 / std::max(1e-30, f2));
+    }
+    spdlog::info("wrote subring_sweep.csv");
+    return 0;
+}
+
+} // namespace
+
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: %s <outdir> [a_star] [incl_deg] [size]\n", argv[0]);
+        std::fprintf(stderr,
+                     "usage: %s <outdir> [a_star] [incl_deg] [size]\n"
+                     "       %s --sweep <outdir> [incl_deg] [size]\n",
+                     argv[0], argv[0]);
         return 2;
+    }
+    if (std::string(argv[1]) == "--sweep") {
+        if (argc < 3) { std::fprintf(stderr, "--sweep needs <outdir>\n"); return 2; }
+        const double incl = argc > 3 ? std::atof(argv[3]) : 80.0;
+        const int size = argc > 4 ? std::atoi(argv[4]) : 220;
+        return run_sweep(argv[2], incl, size);
     }
     const std::filesystem::path outdir = argv[1];
     std::filesystem::create_directories(outdir);
