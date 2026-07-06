@@ -12,6 +12,10 @@ target_link_libraries(sgr_orbit_fitter PUBLIC sgr_physics Ceres::ceres)
 add_executable(fit_s2_tool fit_s2_tool.cpp)
 target_link_libraries(fit_s2_tool PRIVATE sgr_orbit_fitter nlohmann_json::nlohmann_json)
 
+# Thesis: joint multi-star cluster fit (paper/THESIS_PLAN.md §2.1)
+add_executable(fit_cluster fit_cluster.cpp)
+target_link_libraries(fit_cluster PRIVATE sgr_orbit_fitter nlohmann_json::nlohmann_json)
+
 if(SGR_BUILD_TESTS)
     find_package(Catch2 3 CONFIG REQUIRED)
     add_executable(sgr_science_tests

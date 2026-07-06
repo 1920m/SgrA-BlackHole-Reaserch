@@ -36,6 +36,8 @@ reproduce:
 	$(BUILD)/validation/convergence_tool.exe validation/thesis
 	$(BUILD)/validation/sweep_tool.exe photonorbits validation/thesis
 	$(BUILD)/science/subring_tool.exe --sweep validation/thesis 80 560
+	$(PY) scripts/run_mcmc.py both
+	$(BUILD)/science/orbit_fitter/fit_cluster.exe data/gillessen_2017 validation/phase13
 	$(PY) scripts/make_figures.py
 	$(PY) scripts/make_diagrams.py
 	$(PY) scripts/make_numbers.py

@@ -31,6 +31,14 @@
 \newcommand{\stub}[1]{\begin{quote}\itshape [Chapter under construction —
 scope: #1 See \texttt{paper/THESIS\_PLAN.md}.]\end{quote}}
 
+% "Terms you just met" summary box for the Part I primer chapters
+\newenvironment{termsbox}{%
+  \par\medskip\noindent\begin{minipage}{\textwidth}
+  \hrule\medskip\small
+  \noindent\textbf{Terms you just met.}\begin{description}
+  \setlength{\itemsep}{1pt}}%
+  {\end{description}\medskip\hrule\end{minipage}\par\medskip}
+
 \begin{document}
 
 \input{frontmatter}
