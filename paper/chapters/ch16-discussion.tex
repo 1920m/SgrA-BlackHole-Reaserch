@@ -20,9 +20,21 @@ Third, the orbit fit adopts the \citet{Gillessen2017} compilation and its
 error model; systematic reference-frame errors are absorbed by the fitted
 frame parameters only to the extent of the \citet{Plewa2015} priors.
 
-\stub{Expanded: the axial lensing caustic vs real astrophysical jets
-(honest-limitations note, THESIS\_PLAN Part 1c); single-star quadrupole
-reach; fp32 live vs fp64 science split.}
+Three further boundaries deserve explicit statement. The bright axial
+columns in near-edge-on renders are the lensed polar caustic of
+Section~\ref{sec:axialtower} — this model contains no jet physics, and
+a viewer must not read Blandford--Znajek outflows into what is pure
+geometry; conversely, no conclusion of this report depends on jet
+absence. The no-hair reach is bounded by a single star at
+$\sim$3000 gravitational radii: the $\sigma(\epsq) \sim 10^{5}$ order
+of Chapter~\ref{ch:nohair} is a property of S2's orbit, not of the
+method, and improves quadratically with proximity — the cluster
+machinery of Chapter~\ref{ch:cluster} is the prepared vehicle for any
+confirmed closer star. Finally, the precision split is deliberate: all
+quantitative results flow from the fp64 CPU/GPU paths, while the
+interactive fp32 path exists for exploration only; the two are never
+mixed, and the display-only structure layer of
+Chapter~\ref{ch:instrument} sits outside the physics wall entirely.
 
 \section{Outlook}
 \label{sec:outlook}

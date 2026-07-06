@@ -35,11 +35,34 @@ with the CPU ground truth to \GpuMeanDiff{} mean pixel residual.
 \section{Future work}
 \label{sec:futurework}
 
-\stub{Roadmap: the multi-star joint fit (Chapter~\ref{ch:cluster}) and
-MCMC posteriors (Chapter~\ref{ch:fitting}) land in this report; beyond
-them, slim-disk emission, ray-traced sub-ring interferometric
-observables, and candidate non-Kerr metrics through the metric
-interface.}
+Two items of the original roadmap — ensemble MCMC posteriors and the
+multi-star joint fit — were completed during the writing of this report
+and appear as Chapters~\ref{ch:fitting} and \ref{ch:cluster}. The
+remaining directions, in rising order of effort:
+
+\begin{itemize}
+\item \emph{More cluster stars and richer systematics.} The
+\texttt{fit\_cluster} pipeline extends mechanically to the remaining
+Table-5 stars; the scientifically meaningful upgrade is per-instrument
+error floors and an extended-mass term in the potential, which the
+professional fits marginalise over and we currently do not.
+\item \emph{Slim-disk and hot-flow emission.} Replacing the
+Novikov--Thorne surface with a geometrically thick, radiatively
+inefficient model would let the imaging channel address \sgra's actual
+spectrum rather than only its spacetime geometry.
+\item \emph{Interferometric observables.} Fourier-domain visibilities
+of the sub-ring maps (Chapter~\ref{ch:ring}) would convert our clean
+geodesic templates into direct ngEHT forecast curves.
+\item \emph{Candidate non-Kerr metrics.} The metric interface plus the
+generic Christoffel integrator accept any stationary axisymmetric
+candidate; parametrised families beyond quasi-Kerr (bumpy black holes,
+boson-star exteriors) could be confronted with both data channels using
+the identical fitting and sampling machinery.
+\item \emph{A confirmed inner star.} The single greatest gain for the
+no-hair programme requires no new code at all — only the astronomical
+confirmation of a star well inside S2's orbit (S62 remains contested,
+as noted throughout).
+\end{itemize}
 
 \section*{Acknowledgements}
 \addcontentsline{toc}{section}{Acknowledgements}

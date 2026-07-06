@@ -1,4 +1,78 @@
 \chapter{Algorithm Pseudocode}
-\label{ch:appendix-b-pseudocode}
+\label{app:pseudocode}
 
-\stub{integrator, constraint projection, crossing bisection, fitter, sampler.}
+Compact pseudocode for the five load-bearing algorithms, matching the
+production sources line for line in structure. Notation:
+$y = (t, r, \theta, \phi, p_r, p_\theta)$ is the Mino-time state,
+$c = (M, a, E, L_z, Q)$ the ray constants.
+
+\section{Adaptive step with constraint projection}
+(\texttt{RaytraceCpu::trace} inner loop;
+\texttt{DormandPrince54::try\_step})
+
+\begin{verbatim}
+h = 1e-3
+while steps < max_steps:
+    (accepted, err, h_next) = dopri5_step(rhs, tau, y, h)   # 7 stages
+    h = clamp(h_next, 1e-14, h_max)
+    if not accepted: continue
+    # constraint projection (skip inside turning-point guard band)
+    if R(y.r) >= 0:      y.p_r     = sign(y.p_r)     * sqrt(R(y.r))
+    if Theta(y.th) >= 0: y.p_theta = sign(y.p_theta) * sqrt(Theta(y.th))
+    if y.r < 1.001*r_horizon + eps:  return CAPTURED
+    if y.r > r_escape:               return ESCAPED
+    handle_equator_crossing(y_prev, y)          # Section B.3
+\end{verbatim}
+
+\section{Grid-free boundary bisection}
+(\texttt{shadow\_boundary\_angle})
+
+\begin{verbatim}
+lo, hi = 0, angle_max            # capture at lo, escape at hi
+repeat 60 times or until hi - lo < 1e-12:
+    mid = (lo + hi) / 2
+    outcome = trace(ray_at_camera_angle(mid, psi))
+    if outcome == CAPTURED: lo = mid else: hi = mid
+return (lo + hi) / 2
+\end{verbatim}
+
+\section{Equator-crossing localisation and sub-ring count}
+(\texttt{trace} disk logic)
+
+\begin{verbatim}
+if cos(theta_prev) * cos(theta_now) < 0:        # plane crossed
+    bisect substep 40 times on cos(theta) -> crossing state x
+    if disk_enabled and r_in <= x.r <= r_out:
+        g = 1 / (u_t_circ(x.r) * (E - Omega(x.r) * L_z))
+        return DISK_HIT(r=x.r, phi=x.phi, n=crossings, g=g)
+    crossings += 1
+\end{verbatim}
+
+\section{Least-squares fit and explicit covariance}
+(\texttt{OrbitFitter::fit}, \texttt{::covariance})
+
+\begin{verbatim}
+theta = start
+theta = ceres_LM_minimise(residuals(theta))     # numeric-diff Jacobians
+# covariance: explicit central differences, physically scaled steps
+for k in 1..13:
+    J[k] = (residuals(theta + s_k e_k) - residuals(theta - s_k e_k))
+           / (2 s_k)
+C = gauss_jordan_inverse(J^T J)                 # NO SVD truncation
+sigma_k = sqrt(C[k][k])
+\end{verbatim}
+
+\section{Ensemble MCMC over the chi-squared server}
+(\texttt{scripts/run\_mcmc.py})
+
+\begin{verbatim}
+spawn K persistent workers: fit_s2_tool --chi2 <data> <mode>
+log_prob(batch X):
+    out-of-bounds rows -> -inf
+    distribute rows round-robin to workers; read chi2 back in order
+    return -chi2 / 2
+walkers = optimum + 0.5 * sigma * N(0,1)        # 32 walkers
+run emcee stretch moves for 6000 steps (vectorised log_prob)
+tau = max autocorrelation time; discard 4*tau; thin tau/2
+save chain + 16/50/84 percentiles
+\end{verbatim}

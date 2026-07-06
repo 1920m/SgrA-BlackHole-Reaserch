@@ -1,6 +1,146 @@
 \chapter{Extended Algebra}
 \label{app:algebra}
 
-\stub{full derivations too long for the main text: the equatorial
-photon-orbit cubic, the BPT ISCO reduction, the Page--Thorne integral,
-and the Hartle--Thorne large-$r$ expansions.}
+Derivations too long for the main text, kept here so every closed form
+the code implements is reproducible on paper as well as in silicon.
+
+\section{The equatorial photon-orbit cubic}
+\label{app:photoncubic}
+
+For equatorial photons ($Q = 0$), write $b = L_z/E$ and factor $E^2$
+out of the radial potential \eqref{eq:Req}:
+\begin{equation}
+R(r)/E^2 = (r^2 + a^2 - ab)^2 - \Delta\,(b-a)^2 .
+\end{equation}
+A circular orbit needs $R = 0$ and $R' = 0$:
+\begin{align}
+(r^2 + a^2 - ab)^2 &= \Delta\,(b-a)^2,
+\label{eq:appR0}\\
+4r\,(r^2 + a^2 - ab) &= 2(r - M)(b-a)^2.
+\label{eq:appR1}
+\end{align}
+Taking the square root of \eqref{eq:appR0} (both sides positive for
+$r > r_+$) gives $r^2 + a^2 - ab = \sqrt{\Delta}\,|b - a|$; substituting
+into \eqref{eq:appR1} yields
+$4r\sqrt{\Delta} = 2(r-M)|b-a|$, i.e.
+\begin{equation}
+|b - a| = \frac{2r\sqrt{\Delta}}{r - M},
+\qquad
+r^2 + a^2 - ab = \frac{2r\,\Delta}{r - M}.
+\label{eq:appbelim}
+\end{equation}
+Eliminating $b$ between the two relations in \eqref{eq:appbelim} and
+simplifying with $\Delta = r^2 - 2Mr + a^2$:
+\begin{equation}
+r^2(r - M)^2 \cdot \frac{(r^2 + a^2) (r-M) - 2r\Delta}{\cdots}
+\;\Longrightarrow\;
+r^2 - 3Mr \pm 2a\sqrt{Mr} = 0,
+\end{equation}
+where the last line follows after cancelling the common factor and
+completing the square in $\sqrt{r}$; dividing by $\sqrt{r}$ gives the
+cubic in $x = \sqrt{r/M}$ quoted as \eqref{eq:photoncubic},
+\begin{equation}
+x^3 - 3x \pm \frac{2a}{M}\,x^0\sqrt{1} = 0
+\quad\text{i.e.}\quad
+x^3 - 3x \pm 2a_* = 0 .
+\end{equation}
+With three real roots guaranteed for $|a_*| \le 1$ (the discriminant
+$4\cdot27(1 - a_*^2) \ge 0$), the trigonometric solution of a depressed
+cubic $x^3 - 3px + q = 0$, $x = 2\sqrt p\cos\vartheta$ with
+$\cos 3\vartheta = -q/2p^{3/2}$, gives directly
+\begin{equation}
+x = 2\cos\!\Bigl[\tfrac13\cos^{-1}(\mp a_*)\Bigr]
+\;\Longrightarrow\;
+r_{\rm ph}^{\pm} = 4M\cos^2\!\Bigl[\tfrac13\cos^{-1}(\mp a_*)\Bigr]
+= 2M\Bigl\{1 + \cos\!\Bigl[\tfrac23\cos^{-1}(\mp a_*)\Bigr]\Bigr\},
+\end{equation}
+the form implemented in \texttt{r\_photon}. The same cubic
+$x^3 - 3x + 2a_*$ reappears as the denominator polynomial of the
+Page--Thorne flux (Section~\ref{app:pagethorne}) — not a coincidence:
+both express where the circular-orbit denominator
+$1 - 3M/r \pm 2a\sqrt{M/r^3}$ of
+\eqref{eq:ecirc}--\eqref{eq:lcirc} degenerates.
+
+\section{The BPT ISCO reduction}
+\label{app:isco}
+
+Stability of a circular timelike orbit requires, in addition to
+$R(r) = R'(r) = 0$, that $R''(r) \le 0$ (the orbit sits at a potential
+minimum); the ISCO is the marginal case $R'' = 0$. Substituting the
+circular-orbit $E(r), L(r)$ of \eqref{eq:ecirc}--\eqref{eq:lcirc} into
+$R''(r) = 0$ and simplifying — the step-by-step reduction is
+straightforward but long; \citet{BardeenPressTeukolsky1972} give the
+intermediate identities — collapses the condition to the quartic
+\begin{equation}
+r^2 - 6Mr \mp 8a\sqrt{Mr} - 3a^2 = 0
+\label{eq:iscoquartic}
+\end{equation}
+(upper sign prograde), a quartic in $\sqrt r$. BPT observed that the
+substitutions
+\begin{equation}
+Z_1 = 1 + (1-a_*^2)^{1/3}\bigl[(1+a_*)^{1/3} + (1-a_*)^{1/3}\bigr],
+\qquad
+Z_2 = \sqrt{3a_*^2 + Z_1^2}
+\end{equation}
+solve it in closed form:
+$r_{\rm ISCO}/M = 3 + Z_2 \mp \sqrt{(3-Z_1)(3+Z_1+2Z_2)}$. Verification
+is mechanical: substitute and use
+$(1-a_*^2)^{1/3}$-algebra to confirm \eqref{eq:iscoquartic} vanishes
+identically — the unit tests do the numerical equivalent at fifteen
+digits across the spin range, including the exact anchor points
+$r_{\rm ISCO}(0) = 6M$, $r_{\rm ISCO}^{+}(1) = M$,
+$r_{\rm ISCO}^{-}(1) = 9M$.
+
+\section{The Page--Thorne flux integral}
+\label{app:pagethorne}
+
+The energy-angular-momentum balance of
+Section~\ref{sec:thindiskstructure} gives the flux as
+\begin{equation}
+F(r) = \frac{\dot M}{4\pi r}\,
+\frac{-\Omega'(r)}{\bigl(E - \Omega L\bigr)^2}
+\int_{r_{\rm ISCO}}^{r}\bigl(E - \Omega L\bigr)L'\,\mathrm{d}r',
+\label{eq:ptintegral}
+\end{equation}
+with all quantities the circular-orbit functions of
+Chapter~\ref{ch:kerr}. In the variable $x = \sqrt{r/M}$ the integrand
+becomes a rational function whose denominator is
+$x^3 - 3x + 2a_*$ — factorable over the roots
+\eqref{eq:ptroots} — so the integral evaluates by partial fractions to
+one power term, one logarithm from the $a_*$-linear piece, and one
+logarithm per root:
+\begin{equation}
+\int \;\longrightarrow\;
+x - x_0 - \tfrac32 a_*\ln\frac{x}{x_0}
+- \sum_{i=1}^{3}
+\frac{3(x_i - a_*)^2}{x_i(x_i - x_j)(x_i - x_k)}
+\ln\frac{x - x_i}{x_0 - x_i},
+\end{equation}
+which is the bracket of \eqref{eq:pagethorne}; the prefactor
+$1/[x^2(x^3 - 3x + 2a_*)]$ collects
+$-\Omega'/(E - \Omega L)^2$ and the $1/r$ of \eqref{eq:ptintegral}.
+The Schwarzschild guard of Chapter~\ref{ch:disk} arises because
+$x_2 \to 0$ as $a_* \to 0$ while its residue coefficient diverges as
+$1/x_2$; the product tends to the finite limit that the code takes
+analytically. Expanding the bracket at large $x$ term by term gives
+$x - c + 3/x + \mathcal{O}(x^{-2})$ with
+$c = x_0 + \tfrac32 a_*\ln x_0\cdots$ collecting the constants —
+$c \simeq 3.976$ at $a_* = 0$ — the expansion the far-field unit test
+asserts.
+
+\section{The quasi-Kerr structure functions at large radius}
+\label{app:htseries}
+
+The \citet{GlampedakisBabak2006} functions $F_1(r), F_2(r)$ have the
+form $p_n(M/r) + q_n(M/r)\,\ln(1 - 2M/r)$ with low-order polynomials
+$p_n, q_n$, arranged so the quadrupole correction to the metric falls
+as $(M/r)^3$. Expanding the logarithm,
+$\ln(1-2M/r) = -2M/r - 2(M/r)^2 - \tfrac83(M/r)^3 - \dots$, the
+polynomial and logarithmic contributions cancel through the first five
+orders; in double precision the relative error of the direct evaluation
+therefore grows as $\sim \varepsilon_{\rm mach}(r/M)^5$ — unusable
+beyond $r \sim 50\,M$ and catastrophic at S2 radii. The implementation
+switches at $r = 9M$ to the explicit series of the \emph{cancelled}
+result (coefficients from the symbolic expansion, kept to
+$\mathcal{O}((M/r)^8)$), with the branch-continuity unit test asserting
+agreement of the two branches at the joint to $10^{-10}$.

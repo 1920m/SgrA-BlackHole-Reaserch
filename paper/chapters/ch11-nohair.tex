@@ -1,90 +1,171 @@
 \chapter{A No-Hair Test with a Free Quadrupole}
 \label{ch:nohair}
 
-\section{The Hartle--Thorne / quasi-Kerr metric}
-\label{sec:ht}
+The no-hair theorem is only worth stating if it can fail. This chapter
+builds the failure mode into the spacetime — one extra parameter, the
+quadrupole surplus $\epsq$ — and lets the S2 data set its value
+(\texttt{physics/src/hartle\_thorne.cpp};
+\texttt{OrbitFitter::fit\_nohair}).
 
-To parametrise departures from Kerr we use the quasi-Kerr form of the
-Hartle--Thorne metric \citep{HartleThorne1968,GlampedakisBabak2006}: the
-total quadrupole is written
+\section{Multipole moments and the no-hair statement}
+\label{sec:multipoles}
+
+Any stationary, asymptotically flat spacetime is characterised far from
+the source by two towers of multipole moments (Geroch--Hansen): the mass
+moments $M_0 = M, M_2, M_4, \dots$ and the current moments
+$S_1 = J, S_3, \dots$ (odd mass moments and even current moments vanish
+for reflection-symmetric sources). For a fluid star the towers are
+essentially free — they encode the internal mass distribution. The
+no-hair theorem states that for a Kerr black hole the \emph{entire}
+double tower collapses to two numbers:
+\begin{equation}
+M_\ell + i S_\ell = M\,(ia)^\ell
+\qquad\Longrightarrow\qquad
+M_2 = -M a^2,\;\; S_3 = -M a^3,\;\dots
+\label{eq:nohairmoments}
+\end{equation}
+The first non-trivial prediction is the mass quadrupole
+$M_2 = -Ma^2$: measure $M$, $a$ and $M_2$ \emph{independently} and
+general relativity's black-hole hypothesis is falsifiable. Following
+\citet{Will2008} we parametrise the violation as
 \begin{equation}
 Q_{\rm tot} = -M a^2 + \epsq M^3,
 \label{eq:qtot}
 \end{equation}
-and the deviation enters as a perturbation $h^{ab}$ of the \emph{inverse}
-metric, valid through $\mathcal{O}(a^2,\epsq)$. At $\epsq = 0$ the
-implementation reproduces the Kerr tensor to $10^{-12}$ (a dedicated unit
-test), and for $\epsq \neq 0$ it produces the expected additional
-pericentre advance $\delta\omega_Q = -3\pi\epsq\,(M/p)^2$ per orbit for
-equatorial orbits of semilatus rectum $p$ \citep{Will2008}, which anchors
-the sign convention of the perturbation. Because the far-field expansion of
-the two structure functions $F_1, F_2$ of \citet{GlampedakisBabak2006}
-suffers catastrophic cancellation at large $r$, the implementation
-(\texttt{physics/src/hartle\_thorne.cpp}) switches
-to an asymptotic series beyond $r = 9M$.
+so $\epsq = 0$ is Kerr and $|\epsq|$ measures the surplus squashing of
+the field in natural units.
 
-\stub{Geroch--Hansen multipole moments and the no-hair statement; the
-Hartle--Thorne slow-rotation metric to $\mathcal{O}(a^2)$; the
-$F_1, F_2$ structure functions and their large-$r$ cancellation, with the
-branch-continuity test at the $9M$ switch.}
+\section{The Hartle--Thorne / quasi-Kerr metric}
+\label{sec:ht}
+
+A spacetime realising \eqref{eq:qtot} is furnished by the slow-rotation
+solution of \citet{HartleThorne1968}, valid through
+$\mathcal{O}(a^2)$ with the quadrupole free — adequate here because the
+quadrupole's orbital effect is itself a small perturbation at S2 radii.
+We implement the quasi-Kerr form of \citet{GlampedakisBabak2006}: the
+deviation enters as a perturbation of the \emph{inverse} metric,
+\begin{equation}
+g^{ab} = g^{ab}_{\rm Kerr} + \epsq\, h^{ab},
+\label{eq:quasikerr}
+\end{equation}
+where the non-zero $h^{ab}$ components are built from two radial
+structure functions $F_1(r), F_2(r)$ multiplying
+$(1 - 3\cos^2\theta)$ angular factors — the quadrupole's $P_2$
+signature. Perturbing the inverse metric is a deliberate choice: the
+geodesic Hamiltonian is $\tfrac12 g^{ab}p_a p_b$, so \eqref{eq:quasikerr}
+feeds the equations of motion linearly and the $\epsq \to 0$ limit is
+exact by construction. A dedicated unit test asserts that limit at the
+$10^{-12}$ level component-by-component (Gate 0;
+Chapter~\ref{ch:devhistory}).
+
+The structure functions carry a numerical trap that is worth recording.
+$F_1$ and $F_2$ are combinations of low-order polynomials and
+logarithms $\ln\!\bigl(r/(r-2M)\bigr)$ arranged so that the
+\emph{leading five} powers of $M/r$ cancel — the quadrupole correction
+must fall off as $r^{-3}$ relative to the monopole, and the cancellation
+enforcing this is catastrophic in floating point: at $r = 50\,M$ the
+individual terms are $\sim 10^{5}$ times the surviving result, at
+$r = 300\,M$ (an S2 apocentre distance scale) $\sim 10^{10}$ times.
+The implementation therefore switches, beyond $r = 9M$, to the
+asymptotic series of the cancelled result, with the switch radius chosen
+where the two evaluations agree to $10^{-10}$; a branch-continuity unit
+test pins the joint (Chapter~\ref{ch:devhistory}). Because the metric is
+not Carter-separable, all orbits in this spacetime run through the
+generic Christoffel integrator with complex-step derivatives
+(Chapters~\ref{ch:geodesics}--\ref{ch:numerics}) — the reason that
+integrator exists.
+
+\section{The quadrupole precession anchor}
+\label{sec:quadprec}
+
+One closed-form consequence anchors the sign and scale of everything: a
+quadrupole $\tilde q = Q/M^3$ adds, for an equatorial orbit of
+semilatus rectum $p$, a pericentre advance
+\begin{equation}
+\delta\omega_Q = -3\pi\,\tilde q\,\Bigl(\frac{M}{p}\Bigr)^{2}
+\quad\text{per orbit}
+\label{eq:quadprecession}
+\end{equation}
+\citep{Will2008} — retrograde for an oblate source ($\tilde q < 0$
+advances, $\epsq > 0$ retards; the Newtonian $-QP_2/r^3$ potential
+perturbation gives the same result, which is the fastest way to fix the
+sign). The implementation's sign convention is pinned by a
+\emph{two-sided} test: the analytic \eqref{eq:quadprecession}
+(\texttt{GRPrecession::quadrupole}) against the numerically measured
+apsidal advance of an integrated quasi-Kerr orbit, for both signs of
+$\epsq$ — a pairing that once caught a real sign error in $h^{ab}$
+(the bug-hunt narrative appears in Chapter~\ref{ch:devhistory}).
+Fig.~\ref{fig:precdecomp} places \eqref{eq:quadprecession} on the
+precession ladder: at S2's $p \approx 5400\,M$, one unit of $\epsq$
+moves the pericentre by $0.07''$ per orbit, five orders below the
+Schwarzschild term.
 
 \section{Profile-likelihood constraint from S2}
 \label{sec:nohairresult}
 
-Re-fitting the S2 data in the free-quadrupole Hartle--Thorne spacetime
-with $\epsq$ as a fourteenth parameter uses a
-profile likelihood: $\epsq$ is stepped over a grid, the remaining
-thirteen parameters are re-optimised at each step
+Re-fitting the S2 data in the quasi-Kerr spacetime with $\epsq$ as a
+fourteenth parameter uses a profile likelihood: $\epsq$ is stepped over
+a grid, the remaining thirteen parameters are re-optimised at each step
 (\texttt{OrbitFitter::fit\_nohair}), and
-$\Delta\chi^2(\epsq) = \chi^2(\epsq) - \chi^2_{\rm min}$ is interpolated
-to the $\Delta\chi^2 = 1$ (68 per cent) and $3.84$ (95 per cent)
-crossings. The profile is flat at its Kerr value near $\epsq = 0$
-(Fig.~\ref{fig:nohair}): the best fit is
-$\epsq = \EpsQBest\times10^{5}$ with
-$\sigma(\epsq) = \EpsQSigma\times10^{5}$ and a 95 per cent confidence
-half-width of $\EpsQCiNinetyFive\times10^{5}$. The data are fully
-consistent with the no-hair value $\epsq = 0$, and the marginal
-$\chi^2_\nu$ is unchanged from the Kerr fit --- the extra degree of
-freedom buys no improvement, as expected if Kerr is the true spacetime.
+$\Delta\chi^2(\epsq) = \chi^2(\epsq) - \chi^2_{\rm min}$ is read
+against the $\Delta\chi^2 = 1$ (68 per cent) and $3.84$ (95 per cent)
+levels. The profile (Fig.~\ref{fig:nohair}) is a clean parabola centred
+near zero: the best fit is $\epsq = \EpsQBest\times10^{5}$ with
+$\sigma(\epsq) = \EpsQSigma\times10^{5}$ and a 95 per cent half-width
+of $\EpsQCiNinetyFive\times10^{5}$. The data are fully consistent with
+the no-hair value, and the marginal $\chi^2_\nu$ is unchanged from the
+Kerr fit — the extra degree of freedom buys nothing, exactly as
+expected if Kerr is the true spacetime.
 
 \begin{figure}
 \centering
 \includegraphics[width=0.7\textwidth]{figures/fig_nohair_profile.pdf}
-\caption{$\Delta\chi^2$ profile of the quadrupole deviation $\epsq$ from
-the S2 data. The 95 per cent interval is
-$|\epsq| < \EpsQCiNinetyFive\times10^{5}$, consistent with the Kerr value
-$\epsq = 0$.}
+\caption{$\Delta\chi^2$ profile of the quadrupole deviation $\epsq$
+from the S2 data, with the 68 and 95 per cent levels marked. The 95 per
+cent interval is $|\epsq| < \EpsQCiNinetyFive\times10^{5}$, consistent
+with the Kerr value $\epsq = 0$.}
 \label{fig:nohair}
+\end{figure}
+
+The MCMC of Chapter~\ref{ch:fitting}, re-run with the fourteenth
+parameter, gives the same answer from a global sampling:
+$\epsq = \McmcEpsQMed^{+\McmcEpsQHi}_{-\McmcEpsQLo}\times10^{5}$
+(16/50/84 percentiles), and the joint $(\epsq, M)$ posterior
+(Fig.~\ref{fig:nohaircontours}) shows the Kerr value comfortably inside
+the 68 per cent contour with no significant $\epsq$--$M$ leakage — the
+quadrupole is not silently absorbing mass mis-estimates.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.62\textwidth]{figures/fig_nohair_contours.pdf}
+\caption{Joint posterior of the quadrupole deviation and the mass from
+the no-hair MCMC chain (68 and 95 per cent credible regions). The Kerr
+value $\epsq = 0$ (dashed) lies within the 68 per cent contour.}
+\label{fig:nohaircontours}
 \end{figure}
 
 \section{Why the constraint is weak, and how it improves}
 \label{sec:nohairforecast}
 
-The constraint is weak in absolute terms because the quadrupole
-pericentre shift scales as
-$\delta\omega_Q = -3\pi\,\epsq\,(M/p)^2$ per orbit \citep{Will2008}.
-Working the numbers: $M/p = R_g/p = 0.0424/228 = 1.86\times10^{-4}$, so
-$(M/p)^2 = 3.5\times10^{-8}$ and one unit of $\epsq$ moves the pericentre
-by only $3.3\times10^{-7}$~rad per orbit --- $0.07$~arcsec, versus an
-astrometric sensitivity to $\omega$ of order $0.5\degr$ per orbit
-(Table~\ref{tab:fit}). Inverting, the expected $1\sigma$ reach is
-$\sigma(\epsq) \sim (0.5\degr)/(0.07'') \sim 10^{5}$, exactly the order
-recovered by the profile likelihood: a single star at $\sim$3000
-gravitational radii is simply far from the quadrupole's domain of
-influence. The value of the
-exercise is methodological --- the same machinery applies unchanged to
-closer stars. Continued monitoring helps too: propagating the fitted
-covariance forward, ten further S2 orbits (astrometry and RV of the
-quality of the existing series) shrink the uncertainty to
+The constraint is weak in absolute terms because of the
+$(M/p)^2$ suppression in \eqref{eq:quadprecession}. Working the
+numbers: $M/p = 1.86\times10^{-4}$ for S2, so one unit of $\epsq$ moves
+the pericentre by $3.3\times10^{-7}$~rad per orbit — $0.07''$ —
+against an astrometric sensitivity to $\omega$ of order $0.5\degr$ per
+orbit (Table~\ref{tab:fit}). Inverting, the expected reach is
+$\sigma(\epsq) \sim 10^{5}$, exactly the order the profile likelihood
+recovers: a single star at $\sim$3000 gravitational radii is simply far
+from the quadrupole's domain of influence. The value of the exercise is
+methodological — the machinery applies unchanged to closer stars.
+Continued monitoring helps: propagating the fitted covariance forward,
+ten further S2 orbits of the existing quality shrink the uncertainty to
 $\sigma(\epsq) \approx \EpsQForecastTenOrbits\times10^{5}$, a factor
-$\sim$3. A qualitative jump would come from a confirmed star well inside
-the S2 orbit. The reported candidate S62, with a claimed 9.9-yr period and
-$\sim$36~au pericentre, would be such a star, but we emphasise:
-\emph{S62 is a contested orbit --- its identification is unconfirmed and
-may be a misidentification of S29 or a blend artefact}; we therefore do
-not build quantitative forecasts on it, and any future use of S62 in this
-context must carry the same caveat.
-
-\stub{New figures: $(M, \epsq)$ and $(\epsq, \astar)$ confidence contours
-(needs the MCMC chains of Chapter~\ref{ch:fitting}); the no-hair corner
-plot.}
+$\sim$3. A qualitative jump requires a confirmed star well inside S2's
+orbit: the $(M/p)^2$ scaling means a star at a third of S2's pericentre
+is an order of magnitude more sensitive per orbit, with a shorter
+period compounding the gain. The reported candidate S62, with a claimed
+9.9-yr period and $\sim$36~au pericentre, would be such a star, but we
+emphasise: \emph{S62 is a contested orbit — its identification is
+unconfirmed and may be a misidentification of S29 or a blend artefact};
+we therefore build no quantitative forecast on it, and any future use
+of S62 in this context must carry the same caveat.

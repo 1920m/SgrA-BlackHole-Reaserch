@@ -5,16 +5,41 @@
 \label{sec:gpuport}
 
 The null-geodesic core is ported to a GLSL compute shader (Vulkan,
-double precision) using the same second-order Mino-time formulation, with
-all per-frame parameters delivered through a bindless
-(update-after-bind) descriptor table. GLSL exposes \texttt{double}
-arithmetic (\texttt{shaderFloat64}) but no double-precision
-transcendentals, so $\sin/\cos$ are evaluated by argument reduction to
-$[-\pi/4,\pi/4]$ and a minimax polynomial pair, validated term-by-term
-against the CPU implementation.
+double precision) using the same second-order Mino-time formulation
+(\texttt{engine/shaders/geodesic.comp.glsl}), with all per-frame
+parameters delivered through a bindless (update-after-bind) descriptor
+table — one global resource array, written once, indexed by the shader,
+so no per-frame descriptor churn ever appears on the timeline.
 
-\stub{Derivation of the minimax (Remez) $\sin/\cos$ polynomials; the
-error curve figure.}
+\subsection{Double-precision trigonometry on the GPU}
+
+GLSL exposes \texttt{double} arithmetic (\texttt{shaderFloat64}) but
+\emph{no} double-precision transcendentals, and the Carter equations
+need $\sin\theta, \cos\theta$ at full precision every step. The shader
+implements them by quadrant-tracking argument reduction to
+$|x| \le \pi/4$ followed by fixed truncated Taylor polynomials — degree
+11 for sine, degree 10 for cosine (\texttt{dsin\_core},
+\texttt{dcos\_core}). (The companion journal paper called the pair
+``minimax''; the coefficients are in fact the Taylor ones, and this
+report documents the code as written. A Remez pair of the same degree
+would gain roughly one decimal digit at the interval ends — immaterial
+below the validation threshold, as the measurement shows.)
+Fig.~\ref{fig:trigerr} evaluates the shader's exact polynomial
+arithmetic against library $\sin/\cos$ across the reduction interval:
+the truncation error rises to $\sim 7\times10^{-12}$ for sine
+($\sim 5\times10^{-11}$ for cosine) at $|x| = \pi/4$, comfortably below
+the per-step tolerances of the fp64 metrology path and five orders
+below the 0.01 pixel-diff acceptance gate.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.72\textwidth]{figures/fig_taylor_trig_error.pdf}
+\caption{Measured truncation error of the GPU double-precision
+$\sin/\cos$ cores over the post-reduction interval, evaluated with the
+shader's exact coefficient arithmetic. The double-precision unit
+roundoff is marked.}
+\label{fig:trigerr}
+\end{figure}
 
 \section{Validation against the CPU reference}
 \label{sec:gpuvalidation}
@@ -23,11 +48,16 @@ A $64\times64$ shadow rendering is
 compared pixel-by-pixel against the CPU reference
 (\texttt{validation/compare\_shadow.cpp}): the mean absolute
 difference is \GpuMeanDiff{} (gate threshold 0.01), with \GpuOutliers{}
-pixels differing by more than 0.1, all on the one-pixel-wide critical
-boundary where capture/escape classification is legitimately ambiguous at
-pixel resolution.
-
-\stub{New figure: the CPU/GPU per-pixel difference map.}
+pixels differing by more than 0.1 — every one of them on the
+one-pixel-wide critical boundary, where capture/escape classification
+is legitimately ambiguous at pixel resolution (the boundary rays of
+Chapter~\ref{ch:shadow} diverge exponentially, so the last representable
+bit decides the pixel). The maximum single-pixel difference is
+\GpuMaxDiff{}, i.e.\ one full classification flip on the critical
+circle; away from that circle the two implementations agree to
+round-off. This is the strongest statement available for a
+cross-architecture port: identical mathematics, independent compilers
+and schedulers, indistinguishable physics.
 
 \section{Watchdog-safe dispatch and the precision split}
 \label{sec:watchdog}
@@ -59,6 +89,20 @@ GeForce GTX~1050 --- a 2016 notebook-class GPU --- with zero
 validation-layer errors. (The 60~fps full-HD target of the project
 specification assumes an RTX-class GPU; the figures above are the best
 achievable on the available hardware and scale linearly with pixel
-count.)
+count.) Fig.~\ref{fig:bench} collects the benchmark artefacts: the CPU
+per-core throughputs that set the offline render times, and the GPU
+frame rate against pixel count, which follows the $1/N_{\rm px}$ line
+closely — the workload is one geodesic per pixel with no shared state,
+the embarrassingly parallel ideal, so the live renderer's
+auto-resolution controller (Chapter~\ref{ch:instrument}) can trade
+resolution for frame rate predictably.
 
-\stub{New figure: fps vs resolution and rays-per-second scaling.}
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_bench.pdf}
+\caption{Performance artefacts (\texttt{phase11/bench.json}). Left: CPU
+single-core throughputs of the three hot kernels. Right: live-path GPU
+frame rate versus pixel count on the GTX 1050 against the ideal
+$1/N_{\rm px}$ scaling.}
+\label{fig:bench}
+\end{figure}
