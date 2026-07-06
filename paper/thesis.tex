@@ -31,6 +31,19 @@
 \newcommand{\stub}[1]{\begin{quote}\itshape [Chapter under construction —
 scope: #1 See \texttt{paper/THESIS\_PLAN.md}.]\end{quote}}
 
+% Placeholder for a user-supplied engine render (THESIS_PLAN Part 1c):
+% carries the exact reproducing command so the figure stays reproducible.
+\newcommand{\renderpending}[2]{%
+  \begin{figure}[ht]\centering
+  \fbox{\begin{minipage}{0.8\textwidth}\centering\vspace{1.0cm}
+  \itshape Engine render pending\\[4pt]
+  \normalfont\ttfamily\footnotesize #2
+  \vspace{1.0cm}\end{minipage}}%
+  \caption{\itshape [Placeholder] #1 Reproduced by the command shown;
+  the render will be slotted in when supplied.}%
+  \end{figure}%
+}
+
 % "Terms you just met" summary box for the Part I primer chapters
 \newenvironment{termsbox}{%
   \par\medskip\noindent\begin{minipage}{\textwidth}

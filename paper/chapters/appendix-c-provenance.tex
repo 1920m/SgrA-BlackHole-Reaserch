@@ -33,6 +33,42 @@ benchmarks & \texttt{phase11/bench.json} \\
 \end{tabular}
 \end{table}
 
-\stub{This table grows as the new thesis data tools land
-(\texttt{physics\_tables}, \texttt{convergence\_tool}, the MCMC chains,
-the cluster fit).}
+Table~\ref{tab:provthesis} extends the provenance map to the artefacts
+produced by the report's additional data tools.
+
+\begin{table}[ht]
+\centering
+\caption{Provenance of the report's extended numbers and figures. Paths
+are relative to \texttt{validation/} unless noted.}
+\label{tab:provthesis}
+\begin{tabular}{lll}
+\toprule
+Quantity / figure & Artefact & Producer \\
+\midrule
+efficiency $\eta(\astar)$, characteristic radii
+& \texttt{thesis/\{efficiency,radii\}\_vs\_spin.csv}
+& \texttt{physics\_tables} \\
+energetics, NT profiles, potentials
+& \texttt{thesis/\{energetics\_r,disk\_profiles,*\_potential\}.csv}
+& \texttt{physics\_tables} \\
+Lyapunov $\gamma$, spherical orbits
+& \texttt{thesis/\{lyapunov\_vs\_spin,spherical\_orbits\}.csv}
+& \texttt{sweep\_tool photonorbits} \\
+projection/drift/step studies
+& \texttt{thesis/\{projection\_boundary,drift\_vs\_tol,step\_size\}.csv}
+& \texttt{convergence\_tool} \\
+sub-ring vs spin
+& \texttt{thesis/subring\_sweep.csv}
+& \texttt{subring\_tool --sweep} \\
+axis-ratio / displacement maps
+& \texttt{phase10/sweep.csv}
+& \texttt{sweep\_tool sweep} \\
+MCMC medians / CI, corner plots
+& \texttt{thesis/mcmc\_\{s2,nohair\}.\{json,npz\}}
+& \texttt{run\_mcmc.py} \\
+cluster fit, per-star tracks
+& \texttt{phase13/cluster\_fit.json}, \texttt{*\_track.csv}
+& \texttt{fit\_cluster} \\
+\bottomrule
+\end{tabular}
+\end{table}

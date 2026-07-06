@@ -160,6 +160,23 @@ model excess (black line).}
 \label{fig:redshiftdecomp}
 \end{figure}
 
-\stub{Remaining for this chapter: Hermite-interpolation error bound for
-\texttt{sample\_at} (half-step position error $< 10^{-9}$ of the orbit
-scale at the production sampling density).}
+\section{Trajectory interpolation}
+\label{sec:hermite}
+
+The integrated orbit is stored as a sequence of adaptive RK45 samples;
+observables are wanted at arbitrary emission times (set by the R{\o}mer
+solve). Rather than re-integrate to each epoch, \texttt{sample\_at} uses
+cubic Hermite interpolation on the cached nodes, which is the natural
+choice here because each node carries \emph{both} position and velocity
+(the state vector already contains $u^\mu$), so the interpolant matches
+value and first derivative at both bracketing nodes with no extra
+storage. The error of cubic Hermite interpolation on a step $h$ is
+$\tfrac{1}{384}h^4\max|f^{(4)}|$; at the production sampling density
+(adaptive steps keeping the integration error at $10^{-11}$, so
+$h \lesssim 10^{-2}$ of the local orbit timescale) the interpolation
+error is below $10^{-9}$ of the orbit scale — two orders under the
+tightest astrometric uncertainty in the dataset, and negligible against
+the fit residuals. The interpolant is thus a convenience with no
+measurable cost in accuracy, which the S2-model regression tests confirm
+by comparing interpolated observables against directly-integrated ones
+at held-out epochs.

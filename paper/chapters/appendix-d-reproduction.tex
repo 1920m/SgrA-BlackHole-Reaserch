@@ -29,7 +29,29 @@ macro file from which every simulation-derived number in this text is
 typeset. A stale or hand-edited number cannot survive a
 \texttt{make reproduce} cycle.
 
-\stub{This list grows as the new thesis data tools land:
-\texttt{physics\_tables}, \texttt{convergence\_tool}, the extended
-\texttt{sweep\_tool} and \texttt{subring\_tool} modes,
-\texttt{scripts/run\_mcmc.py}, and \texttt{fit\_cluster}.}
+For this report, \texttt{make reproduce} runs the following additional
+steps after the journal-paper chain above, before regenerating figures
+and numbers:
+\begin{enumerate}
+\setcounter{enumi}{6}
+\item \texttt{physics\_tables} — Kerr radii, energetics, efficiency and
+Novikov--Thorne profiles over the spin grid (Chapters~\ref{ch:kerr},
+\ref{ch:disk});
+\item \texttt{convergence\_tool} — the projection/drift/step-size
+studies (Chapter~\ref{ch:numerics});
+\item \texttt{sweep\_tool photonorbits} — the spherical-orbit and
+Lyapunov families (Chapter~\ref{ch:shadow});
+\item \texttt{subring\_tool --sweep} — sub-ring flux ratios and widths
+over spin (Chapter~\ref{ch:ring});
+\item \texttt{run\_mcmc.py both} — the Kerr and no-hair ensemble
+posteriors via the \texttt{fit\_s2\_tool --chi2} server
+(Chapters~\ref{ch:fitting}, \ref{ch:nohair});
+\item \texttt{fit\_cluster} — the joint five-star mass fit
+(Chapter~\ref{ch:cluster});
+\item \texttt{make\_diagrams.py} — the explanatory schematics of
+Part~I.
+\end{enumerate}
+The single command \texttt{make thesis} runs \texttt{figures} and
+compiles this document; the fetch of the multi-star data
+(\texttt{fetch\_gillessen\_data.py}) is a one-time network step run
+before the cluster fit.

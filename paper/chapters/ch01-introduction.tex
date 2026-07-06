@@ -52,10 +52,40 @@ modern gravity renderers of \citet{James2015}; our CPU reference tracer
 follows the same backward ray-tracing logic but is held to numerical
 standards set by the analytic theory (Chapter~\ref{ch:numerics}).
 
-\stub{Expanded historical thread — Kerr 1963 $\to$ Boyer--Lindquist 1967
-$\to$ Carter 1968 $\to$ Bardeen 1973 $\to$ Cunningham--Bardeen 1973 $\to$
-Luminet 1979 $\to$ James et al.\ (Interstellar) 2015 $\to$ GRAVITY
-2018/2020/2022 $\to$ EHT 2022 — lands with the expanded bibliography.}
+The theoretical apparatus this simulator rests on was assembled over
+half a century. \citet{Kerr1963} found the spinning vacuum solution;
+\citet{BoyerLindquist1967} gave it the coordinates in which it is most
+usable, and in which the horizon structure is transparent.
+\citet{Carter1968} discovered the fourth constant of motion that renders
+the geodesics integrable — without it, no machine-precision ray tracer
+would be possible — and \citet{BardeenPressTeukolsky1972} worked out the
+circular-orbit structure (ISCO, photon orbits, binding energy) in the
+closed forms this code implements verbatim. \citet{Bardeen1973} computed
+the analytic shadow boundary, the ``critical curve'' against which our
+Kerr renders are validated to machine precision.
+
+The imaging problem then developed in parallel with the means to solve
+it. \citet{CunninghamBardeen1973} traced the appearance of a star
+orbiting an extreme-Kerr hole; \citet{Luminet1979} produced the first
+image of a thin accretion disk around a Schwarzschild hole, complete
+with the lensed secondary image that gives every black-hole picture its
+characteristic halo; and four decades later \citet{James2015} brought
+the same backward ray-tracing to cinema audiences through
+\emph{Interstellar}'s Gargantua. Our CPU reference tracer follows this
+lineage but is held to the numerical standards of the analytic theory
+(Chapter~\ref{ch:shadow}) rather than to visual plausibility.
+
+The observational payoff arrived in the last decade. The GRAVITY
+Collaboration detected the gravitational redshift of S2 at its 2018
+pericentre \citep{Gravity2018} — confirmed independently by
+\citet{Do2019} — measured the Schwarzschild precession of its orbit
+\citep{Gravity2020}, and combined multiple stellar orbits into the most
+precise mass and distance to date \citep{Gravity2022}. In the same
+window the Event Horizon Telescope resolved the horizon-scale emission
+ring of \sgra{} \citep{EHT2022}, whose diameter is set by the photon
+shell of Chapter~\ref{ch:shadow}. This report's forward model reproduces
+findings from both of these observational programmes from one geodesic
+core.
 
 \section{Contributions}
 \label{sec:contributions}

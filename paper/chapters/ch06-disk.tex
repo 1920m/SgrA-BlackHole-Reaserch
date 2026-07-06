@@ -244,7 +244,15 @@ mild, and the lanes remain visible around the full circumference. The
 transition between the two regimes is thus a direct visualisation of
 the ISCO physics of Chapter~\ref{ch:kerr}.
 
-\stub{User render placeholders (THESIS\_PLAN Part 1c): the two
-comparison engine renders at $\astar = 0$ and $\astar = 0.906$, with
-the exact \texttt{sgr\_engine} command lines recorded in the captions
-(pending the \texttt{--rout}/\texttt{--turb} offscreen flags).}
+\renderpending{Non-spinning disk ($\astar = 0$): the wound streamlines
+form smooth, continuous, near-concentric bright lanes around the whole
+silhouette.}%
+{sgr\_engine --shader disk --astar 0.0 --incl 80 --rout 24 --turb 1
+--width 1920 --height 1080 --no-mouse --frames 1}
+
+\renderpending{Rapidly spinning disk ($\astar = 0.906$): the coherent
+bright structure collapses to a compact, intense patch on the
+approaching (prograde) limb --- the ISCO/beaming/shear mechanism of
+this section.}%
+{sgr\_engine --shader disk --astar 0.906 --incl 80 --rout 24 --turb 1
+--width 1920 --height 1080 --no-mouse --frames 1}
