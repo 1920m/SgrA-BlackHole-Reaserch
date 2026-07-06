@@ -38,3 +38,5 @@ paper/thesis.out
 paper/thesis.toc
 paper/thesis.lof
 paper/thesis.lot
+
+scripts/__pycache__/
