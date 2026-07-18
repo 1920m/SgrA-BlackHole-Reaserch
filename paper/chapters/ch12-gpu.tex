@@ -31,6 +31,31 @@ the truncation error rises to $\sim 7\times10^{-12}$ for sine
 the per-step tolerances of the fp64 metrology path and five orders
 below the 0.01 pixel-diff acceptance gate.
 
+How those per-step errors accumulate over a ray is worth budgeting
+explicitly. The trig truncation acts as a small perturbation injected
+each step with effectively random sign as $\theta$ sweeps its
+oscillation; over a worst-case ray of $\sim$1200 steps the random-walk
+accumulation is $\sqrt{1200}\times7\times10^{-12} \approx
+2\times10^{-10}$ — utterly negligible against every tolerance in the
+pipeline \emph{except} exactly at the capture/escape separatrix, where
+Chapter~\ref{ch:shadow}'s exponential divergence amplifies any
+perturbation without bound. That budget predicts precisely the
+validation outcome observed below: bit-level agreement everywhere
+except isolated flips on the one-pixel critical circle.
+
+The precision asymmetry of consumer GPUs is the structural fact behind
+the whole port design. Gaming-class silicon executes double-precision
+arithmetic at a small fraction of single-precision throughput (1:32 on
+the Pascal generation of the test GPU), because fp64 units are a
+die-area luxury reserved for compute cards. The project therefore
+splits cleanly: the \emph{metrology} path runs fp64 offscreen, unpaced
+by any display, where a slow-but-exact frame is acceptable; the
+\emph{interactive} path runs fp32 at speed with a shortened optical
+path (Section~\ref{sec:watchdog}) so that accumulated fp32 drift stays
+below visual perceptibility. No quantitative number in this report
+ever originates from the fp32 path — the split is enforced by
+pipeline, not by discipline.
+
 \begin{figure}
 \centering
 \includegraphics[width=0.72\textwidth]{figures/fig_taylor_trig_error.pdf}

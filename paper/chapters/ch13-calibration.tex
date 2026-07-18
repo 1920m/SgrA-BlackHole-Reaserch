@@ -37,11 +37,21 @@ observations, not the simulation. The traced boundary is bisected to
 $\sim$$10^{-9}$~rad in camera angle ($\ll 10^{-3}\,\muas$ equivalent),
 and the tolerance-independence established in
 Chapter~\ref{ch:numerics} removes the integrator from the budget.
-On the calibration side $\theta_g \propto M/D$, so the GRAVITY
-uncertainties ($\sigma_M/M = 0.28$ per cent,
-$\sigma_D/D = 0.11$ per cent) propagate to
-$0.30$ per cent in the predicted diameter --- about
-$0.15\,\muas$, twenty times smaller than the EHT error bar. The
+On the calibration side the conversion scales as
+$\theta_g \propto M/D$, so
+\begin{equation}
+\frac{\sigma_{\theta}}{\theta}
+= \sqrt{\left(\frac{\sigma_M}{M}\right)^{\!2}
++ \left(\frac{\sigma_D}{D}\right)^{\!2}}
+= \sqrt{0.28^2 + 0.11^2}\,\% \simeq 0.30\,\%,
+\label{eq:calibprop}
+\end{equation}
+about $0.15\,\muas$, twenty times smaller than the EHT error bar.
+(Equation \eqref{eq:calibprop} treats the GRAVITY $M$ and $D$ as
+independent; in truth they emerge correlated from the same orbit fits
+— the very $M$--$R_0$ geometry of Chapter~\ref{ch:fitting} — and
+since the correlation is positive, part of it cancels in the ratio
+$M/D$, making \eqref{eq:calibprop} mildly conservative.) The
 comparison is therefore limited by the $2.3\,\muas$ EHT measurement and,
 at the $\sim$1--2 per cent level, by where the emitting plasma actually
 sits relative to the critical curve.
@@ -50,8 +60,30 @@ sits relative to the critical curve.
 \label{sec:sweep}
 
 Fig.~\ref{fig:sweep} maps the ring diameter over the
-full $(\astar, i)$ plane: the total spread is a few per cent, illustrating
-the well-known spin--inclination degeneracy of ring-size measurements.
+full $(\astar, i)$ plane: at each of the $20\times20$ grid points the
+complete 32-direction bisection metrology of
+Chapter~\ref{ch:shadow} is repeated from scratch — four hundred
+independently traced critical boundaries, every one anchored to the
+same tolerance-independent machinery, with the $\astar = 0$ row
+reproducing the Synge value identically at all inclinations as a
+built-in control. The total spread across the physical plane is a few
+per cent, illustrating the well-known spin--inclination degeneracy of
+ring-size measurements: spin shrinks the mean diameter slightly,
+inclination reshapes it slightly, and over most of the plane the two
+effects trade against each other inside the EHT error bar.
+
+What would break the degeneracy is worth stating, since the machinery
+to predict each candidate already exists in this report. The
+\emph{sub-ring} structure of Chapter~\ref{ch:ring} sharpens with
+resolution rather than brightness, and its azimuthal width/flux
+variation tracks the Lyapunov band of Chapter~\ref{ch:shadow}, which
+\emph{does} depend on spin at fixed diameter; interferometric
+detection of the $n = 1$ ring is therefore the cleanest
+spin-at-fixed-size observable \citep{Johnson2020}. Independently, the
+shape observables below — axis ratio and centroid displacement —
+scale as $\astar\sin i$ and so separate the two parameters if imaging
+fidelity ever reaches the sub-per-cent regime. Both statements are
+quantitative outputs of this simulator, not aspirations.
 
 \begin{figure}
 \centering
