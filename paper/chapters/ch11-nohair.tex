@@ -24,6 +24,24 @@ M_\ell + i S_\ell = M\,(ia)^\ell
 M_2 = -M a^2,\;\; S_3 = -M a^3,\;\dots
 \label{eq:nohairmoments}
 \end{equation}
+The moments are defined covariantly — Geroch and Hansen construct them
+from the asymptotic expansion of the Ernst potential, so they are
+properties of the spacetime, not of a coordinate chart — but their
+physical reading is exactly Newtonian intuition: $M_2$ is the
+oblateness of the far gravitational field, the general-relativistic
+descendant of the $J_2$ every satellite geodesist measures for the
+Earth. That comparison calibrates how radical \eqref{eq:nohairmoments}
+is. For material bodies the quadrupole is a free diagnostic of internal
+structure: the Sun's $J_2 \sim 2\times10^{-7}$ reflects its slow
+rotation, a millisecond pulsar's dimensionless quadrupole can reach
+order unity, and in every case measuring it teaches you about the
+matter. For a Kerr black hole there is nothing to learn — the
+quadrupole is \emph{locked} to $-Ma^2$, and every higher moment
+follows suit, because the exterior field has shed all memory of the
+source's structure \citep{Psaltis2016}. A single confirmed violation
+at any rung of the tower would falsify the black-hole hypothesis for
+\sgra{} outright — no astrophysical dial could repair it.
+
 The first non-trivial prediction is the mass quadrupole
 $M_2 = -Ma^2$: measure $M$, $a$ and $M_2$ \emph{independently} and
 general relativity's black-hole hypothesis is falsifiable. Following
@@ -42,6 +60,16 @@ A spacetime realising \eqref{eq:qtot} is furnished by the slow-rotation
 solution of \citet{HartleThorne1968}, valid through
 $\mathcal{O}(a^2)$ with the quadrupole free — adequate here because the
 quadrupole's orbital effect is itself a small perturbation at S2 radii.
+The truncation is not a loose end but a budgeted approximation: the
+first neglected structure is the current octupole $S_3 = -Ma^3$, whose
+pericentre imprint at S2's semilatus rectum sits a further two-plus
+orders below the quadrupole rung on the precession ladder of
+Fig.~\ref{fig:precdecomp} — if the data cannot yet see the quadrupole,
+they are far blinder to what the truncation discards. The moment the
+target moves to stars deep enough that $S_3$ matters, the
+\texttt{IMetric} interface accepts a higher-order metric without
+touching the integrator; that is the payoff of the generic-metric
+design decision of Chapter~\ref{ch:numerics}.
 We implement the quasi-Kerr form of \citet{GlampedakisBabak2006}: the
 deviation enters as a perturbation of the \emph{inverse} metric,
 \begin{equation}
@@ -109,7 +137,17 @@ a grid, the remaining thirteen parameters are re-optimised at each step
 (\texttt{OrbitFitter::fit\_nohair}), and
 $\Delta\chi^2(\epsq) = \chi^2(\epsq) - \chi^2_{\rm min}$ is read
 against the $\Delta\chi^2 = 1$ (68 per cent) and $3.84$ (95 per cent)
-levels. The profile (Fig.~\ref{fig:nohair}) is a clean parabola centred
+levels. The statistical licence for those thresholds is Wilks'
+theorem: with Gaussian errors, the profiled $\Delta\chi^2$ of a single
+interior parameter is asymptotically $\chi^2$-distributed with one
+degree of freedom, \emph{regardless} of how the thirteen nuisance
+parameters contort — re-optimising them at each grid point is what
+buys that invariance. Profiling, rather than slicing $\chi^2$ at the
+global best-fit nuisance values, matters in principle here: $\epsq$
+acts through the pericentre advance, so it can trade against the
+orientation elements, and a fixed-nuisance slice would understate the
+interval by the usual ``across the valley versus along its floor''
+geometry. Profiling walks the floor. The profile (Fig.~\ref{fig:nohair}) is a clean parabola centred
 near zero: the best fit is $\epsq = \EpsQBest\times10^{5}$ with
 $\sigma(\epsq) = \EpsQSigma\times10^{5}$ and a 95 per cent half-width
 of $\EpsQCiNinetyFive\times10^{5}$. The data are fully consistent with

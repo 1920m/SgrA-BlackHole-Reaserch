@@ -40,9 +40,37 @@ reference-frame offsets and drifts $(x_0, y_0, v_x, v_y)$ of the mass with
 respect to the radio frame, and $v_{z}$; the no-hair mode adds $\epsq$.
 Weak priors tie the frame to \sgra{} following \citet{Plewa2015}
 ($\pm0.2$~mas at epoch 2009.0, $\pm0.1$~mas\,yr$^{-1}$,
-$\pm5$~km\,s$^{-1}$). The $\chi^2$ is minimised with the Ceres solver
-(automatic differentiation; \texttt{OrbitFitter::fit}); parameter
-covariances are obtained as
+$\pm5$~km\,s$^{-1}$).
+
+\subsection{Minimisation: Gauss--Newton with Levenberg damping}
+
+Nonlinear least squares has special structure a generic minimiser
+wastes: with the $\sigma$-normalised residual vector $r(\theta)$,
+$\chi^2 = r^{\mathsf T}r$, one linearisation
+$r(\theta + \delta) \approx r + J\delta$ turns each iteration into a
+\emph{linear} least-squares problem,
+$(J^{\mathsf T}J)\,\delta = -J^{\mathsf T}r$ — Gauss--Newton, which
+converges quadratically near an optimum where residuals are small (as
+here: $\chi^2_\nu \approx 1$ means the model passes within an error
+bar of most points). Far from the optimum the linearisation can
+overshoot; the Levenberg--Marquardt remedy damps the normal equations,
+$(J^{\mathsf T}J + \lambda D)\,\delta = -J^{\mathsf T}r$,
+interpolating between Gauss--Newton ($\lambda \to 0$) and a short
+gradient-descent step ($\lambda$ large), with $\lambda$ adapted by a
+trust-region rule. This is the algorithm the Ceres solver implements
+(\texttt{OrbitFitter::fit}), with the residual Jacobian supplied by
+Ceres's forward-mode automatic differentiation — dual-number
+arithmetic propagated through the entire forward model of
+Chapter~\ref{ch:sstar}, the same exactness idea as the complex-step
+derivatives of Chapter~\ref{ch:numerics}, so no finite-difference
+noise enters the optimiser's line of sight. From the published
+starting elements the fit converges in a handful of LM iterations;
+the question of secondary minima elsewhere in parameter space is
+answered not by the optimiser but by the MCMC of
+Section~\ref{sec:mcmc}, whose walkers explore the full bounded volume
+and return a single-moded posterior.
+
+Parameter covariances are obtained as
 $C = (J^{\mathsf T} J)^{-1}$ from an explicit central-difference Jacobian
 $J$ of the weighted residual vector (\texttt{OrbitFitter::covariance}),
 because the solver's truncated-SVD
@@ -74,11 +102,29 @@ partial pivoting (\texttt{OrbitFitter::covariance}).
 \subsection{Why the solver's SVD covariance fails here}
 \label{sec:svdfail}
 
-The subtlety is the spectrum of $F$. Astrometry alone constrains the
-\emph{angular} orbit — approximately the combination
-$M/R_0^3$ through Kepler's law with the angular semi-major axis and the
-period — while the radial velocities pin the \emph{physical} velocity
-scale $\propto \sqrt{M/R_0}$. The two constraints intersect at a sharp
+The subtlety is the spectrum of $F$, and it is worth deriving rather
+than asserting. Astrometry measures the \emph{angular} semi-major axis
+$\theta_a$ and the period $P$; Kepler's third law then fixes
+\begin{equation}
+M = \frac{4\pi^2 (\theta_a R_0)^3}{G P^2}
+\;\;\Longrightarrow\;\;
+M \propto R_0^{\,3} \quad \hbox{(astrometry + period)},
+\label{eq:astroconstraint}
+\end{equation}
+a one-parameter family, not a measurement of $M$. The radial
+velocities break it: orbital speeds scale as
+$v \sim \sqrt{GM/(\theta_a R_0)}$, so matching the measured
+km\,s$^{-1}$ imposes
+\begin{equation}
+M \propto R_0 \quad \hbox{(radial velocities)}.
+\label{eq:rvconstraint}
+\end{equation}
+The two power laws cross at the true $(M, R_0)$ — this crossing
+\emph{is} the geometric distance determination celebrated in the
+primer — but they cross at a shallow angle in logarithmic coordinates
+(slopes 3 and 1), so the joint constraint is superbly conditioned
+along one combination and weakly conditioned along the
+near-degenerate one. The two constraints intersect at a sharp
 angle in the $(M, R_0)$ plane: the fit is superbly conditioned along
 one combination and weakly conditioned along the near-degenerate one,
 so $F$ carries one singular value several orders below the rest —
@@ -136,6 +182,22 @@ $\FitMassNSigma\sigma$ and $\FitDistNSigma\sigma$ respectively --- a
 non-trivial cross-check, since our fit uses none of the GRAVITY beam
 astrometry, only the VLT/Keck imaging era compiled by
 \citet{Gillessen2017}.
+
+The bookkeeping behind the headline statistic: the data contribute
+$2\times\FitNAst + \FitNRv = 334$ measured values, the model spends 13
+parameters, leaving $\FitDof$ degrees of freedom, and the minimum is
+$\chi^2 = \FitChiTwo$ — i.e.\ $\chi^2_\nu = \FitChiRed$, marginally
+below unity. Read against the primer's Chapter~\ref{ch:f6}: the model
+misses a typical point by slightly \emph{less} than its published
+error bar, which for a heterogeneous 24-year compilation (two
+telescopes, several instrument generations, uncertainties assigned
+per-epoch by the original teams) most plausibly means the published
+uncertainties carry a small conservative margin, not that the model
+over-fits — thirteen parameters cannot flatter 334 residuals, and no
+error rescaling was applied at any point. The expected statistical
+spread of $\chi^2_\nu$ itself at $\nu = \FitDof$ is
+$\sqrt{2/\nu} \approx 0.08$, so \FitChiRed{} sits half a spread from
+unity: unremarkable, which is the point.
 
 \begin{figure}
 \centering
@@ -291,12 +353,28 @@ We use the affine-invariant ensemble sampler of
 \citep{ForemanMackey2013}: an ensemble of walkers in which each is
 updated by a ``stretch move'' along the line toward a randomly chosen
 partner, with a step-size distribution that makes the algorithm
-invariant under all affine reparameterisations. Affine invariance is
+invariant under all affine reparameterisations. Concretely, walker
+$X_k$ proposes
+\begin{equation}
+X_k \;\rightarrow\; X_j + Z\,(X_k - X_j),
+\qquad
+Z \sim g(z) \propto \frac{1}{\sqrt z}\ \hbox{ on }
+\Bigl[\tfrac1a,\, a\Bigr],\ a = 2,
+\label{eq:stretch}
+\end{equation}
+with $X_j$ a random \emph{other} walker, accepting with probability
+$\min\bigl(1,\ Z^{\,d-1}\,\pi(X')/\pi(X_k)\bigr)$ for $d$ parameters
+\citep{GoodmanWeare2010}. Because the proposal is built from the
+ensemble's own spread, it automatically aligns with however the
+posterior is stretched or tilted. Affine invariance is
 exactly the property this problem wants — the posterior's dominant
 feature is the elongated, tilted $M$--$R_0$ ellipse of
 Section~\ref{sec:svdfail}, which a naive Metropolis sampler with
 axis-aligned proposals would traverse painfully slowly, but which a
-stretch move handles as easily as a sphere.
+stretch move handles as easily as a sphere. The cost of that elegance
+is that walkers must number at least a few times the dimension (32
+walkers for 13--14 parameters here) and that the ensemble equilibrates
+collectively; both are accounted for in the convergence budget below.
 
 The log-probability is $-\tfrac12\chi^2$ evaluated by the \emph{same
 production code path} as the least-squares fit: a persistent

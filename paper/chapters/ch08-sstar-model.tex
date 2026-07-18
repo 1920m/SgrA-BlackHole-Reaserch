@@ -29,6 +29,29 @@ including all relativistic terms (Section~\ref{sec:spectro}). Steps
 epoch. One full evaluation against the S2 dataset costs 3.7~ms — the
 number that made the MCMC of Chapter~\ref{ch:fitting} practical.
 
+The thirteen parameters split into three tiers with very different
+characters. Two are \emph{global physics}: the mass $M$ and the
+distance $R_0$, shared by every star in the joint fit of
+Chapter~\ref{ch:cluster}. Six are \emph{per-star geometry}: the
+angular semi-major axis $a_{\rm mas}$, eccentricity $e$, inclination
+$i$, node angle $\Omega$, pericentre argument $\omega$, and pericentre
+epoch $t_{\rm peri}$ — the classical osculating elements, here
+interpreted as exact turning-point data (Section~\ref{sec:darwin})
+rather than Keplerian constants. Five are \emph{nuisance}: the
+reference-frame offsets and drifts $(x_0, y_0, v_x, v_y)$ and the
+radial-velocity zero point $v_z$, which absorb the imperfect tie
+between the infrared astrometric frame and \sgra{}'s radio position
+\citep{Plewa2015}. The split matters for interpretation: the
+relativistic observables — precession, redshift excess — are driven
+by the first two tiers, while the nuisance tier exists precisely so
+that frame systematics cannot masquerade as physics. The black-hole
+spin is deliberately \emph{not} among the parameters: at S2's orbital
+radius the Lense--Thirring and quadrupole effects it would produce
+are two and four orders below the Schwarzschild precession
+respectively (the hierarchy is quantified in
+Chapter~\ref{ch:nohair}), so the S2 data cannot constrain it and the
+forward model holds it fixed at the calibration value.
+
 \section{Orbital elements from radial turning points}
 \label{sec:darwin}
 
@@ -85,12 +108,27 @@ geometry exactly by definition.
 \label{sec:romer}
 
 The integrated orbit lives in BH-centred coordinates; the observables
-live on the sky. The rotation by $(i, \Omega, \omega)$ maps the orbital
-plane to East--North offsets and a line-of-sight coordinate $z$
-(positive away from us), scaled by $R_0$ into angles; the fitted frame
-parameters $(x_0, y_0, v_x, v_y)$ absorb the residual tie between the
-infrared frame and the radio position of \sgra{}, and $v_z$ the
-line-of-sight zero point.
+live on the sky. The map between them is the classical composition of
+three rotations — by $\omega$ about the orbit normal (placing the
+pericentre), by $i$ about the node line (tilting the plane), and by
+$\Omega$ about the line of sight (orienting the node on the sky) —
+taking the orbital plane to East--North offsets and a line-of-sight
+coordinate $z$ (positive away from us), scaled by $R_0$ into angles.
+Two conventions are worth pinning because sign errors here are the
+classic failure mode of orbit-fitting codes: the node angle is a
+position angle measured from North through East (the astronomers'
+convention, not the mathematicians'), and the same rotation applied to
+the velocity vector must reproduce the sign of the measured radial
+velocities — a consistency the S2-model regression tests exercise
+against the published data conventions. The fitted frame parameters
+$(x_0, y_0, v_x, v_y)$ absorb the residual tie between the
+infrared frame and the radio position of \sgra{} \citep{Plewa2015},
+and $v_z$ the line-of-sight zero point. The model applies the
+rotation directly at each evaluation; the classical Thiele--Innes
+linearisation (solving for rotation-matrix elements as if independent)
+buys nothing here, since the fit is nonlinear in $e$ and
+$t_{\rm peri}$ regardless and the exact elements are wanted for the
+relativistic bookkeeping.
 
 Light from different orbit phases travels different distances: an epoch
 observed at $t_{\rm obs}$ was \emph{emitted} at $t_{\rm em}$ satisfying
@@ -135,8 +173,31 @@ wavelength ratio factorises exactly as
 where the three factors isolate the classical line-of-sight Doppler
 term $z_{\rm D}$, the special-relativistic transverse (time-dilation)
 term $z_{\rm tD} = \gamma - 1$, and the gravitational redshift
-$z_{\rm grav}$ at the emission point (\texttt{redshift\_terms}
-evaluates each along the cached trajectory). The quoted model radial
+$z_{\rm grav}$ at the emission point. The diagnostic accessor
+\texttt{redshift\_terms} evaluates, along the cached trajectory,
+\begin{equation}
+z_{\rm tD} = \frac{1}{\sqrt{1 - \beta^2}} - 1,
+\qquad
+z_{\rm grav} = \frac{1}{\sqrt{1 - 2M/r}} - 1,
+\qquad
+z_{\rm D} = \beta_z\;(\hbox{to leading order}),
+\label{eq:zterms}
+\end{equation}
+with $\beta$ the coordinate speed and $\beta_z$ its line-of-sight
+component. Two honesty notes on \eqref{eq:zterms}. First, the
+\emph{fit} does not consume these named pieces — the model radial
+velocity comes from the exact accumulated frequency ratio along the
+geodesic (the \texttt{redshift} field of each trajectory sample); the
+decomposition exists for plots and physical narration, and the near
+equality of its pieces' sum with the exact total (sub-km/s through
+pericentre) is itself a useful cross-check of the integration. Second,
+$z_{\rm grav}$ is written in the static ($a = 0$) form: at
+$r \sim 3000\,M$ the spin's imprint on the emitter's clock rate enters
+through the $g_{t\phi}\,\Omega$ cross term at relative order
+$a M^{3/2}/r^{5/2} \sim 10^{-9}$ of the already-small
+$z_{\rm grav}$ — far below every observational and numerical
+threshold in this report, which is exactly why S2 weighs the mass but
+not the spin. The quoted model radial
 velocity is the \emph{apparent}
 $v_r = c\,(\lambda_{\rm obs}/\lambda_{\rm rest} - 1)$ — the same
 convention the observers use — so the relativistic terms appear as an

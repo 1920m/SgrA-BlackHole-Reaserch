@@ -39,6 +39,35 @@ only star $k$'s residuals). Starting elements are the Table~3 values of
 starting-$\chi^2$ probe over the four $(\Omega, \omega) \pm 180\degr$
 orientation conventions guards against convention mismatches.
 
+\subsection{The joint likelihood and its block structure}
+
+Formally the objective is the direct sum of five copies of the
+single-star $\chi^2$ \eqref{eq:chi2}, coupled only through the global
+block $g = (M, R_0, x_0, y_0, v_x, v_y, v_z)$:
+\begin{equation}
+\chi^2_{\rm joint}(g, e_1, \dots, e_5)
+= \sum_{k=1}^{5} \chi^2_k\bigl(g, e_k\bigr) + \chi^2_{\rm prior}(g),
+\label{eq:jointchi2}
+\end{equation}
+with $e_k$ the six elements of star $k$. The normal equations inherit
+the classic \emph{block-arrow} sparsity: each per-star block
+$\partial^2/\partial e_k^2$ is dense $6\times6$, the coupling blocks
+$\partial^2/\partial g\,\partial e_k$ are thin, and no
+$e_j$--$e_k$ block exists at all — star $j$'s residuals never see star
+$k$'s elements. Eliminating the per-star blocks first (the Schur
+complement onto the 7-dimensional global block — the same structure
+photogrammetrists call bundle adjustment) means the 37-parameter joint
+problem costs little more than five independent fits per iteration,
+and it is exactly the structure the per-star Ceres parameter blocks
+expose to the solver. The statistical content of \eqref{eq:jointchi2}
+is worth saying plainly: the model asserts that \emph{one} pair
+$(M, R_0)$ must simultaneously satisfy \eqref{eq:astroconstraint} and
+\eqref{eq:rvconstraint} for five stars with five different semi-major
+axes and periods. Systematics that could hide inside a single star's
+elements — a slightly wrong eccentricity trading against mass — have
+nowhere to hide when the same $(M, R_0)$ must serve orbits spanning a
+factor of ten in period.
+
 \section{Why partial arcs need a shared potential}
 \label{sec:partialarc}
 
@@ -61,6 +90,22 @@ The joint fit changes the game: $M$ and $R_0$ are pinned by S2's
 complete orbit, and each partial-arc star then only needs its six
 elements — for which even a short arc with RVs suffices. In exchange,
 every additional star's data sharpens the \emph{global} block.
+
+The mechanism deserves one more sentence, because it is the
+information accounting of Section~\ref{sec:svdfail} in action. A short
+arc measures a piece of a conic and a run of radial velocities; alone,
+that determines the product structure of \eqref{eq:astroconstraint}
+so poorly that the $M \propto R_0^3$ and $M \propto R_0$ constraints
+barely intersect. But the \emph{shape} information in even a short arc
+— curvature on the sky plus the simultaneous line-of-sight
+acceleration from RVs — constrains the local gravitational parameter
+$GM/R_0$-ish combinations at the star's current radius quite well.
+Once the joint fit supplies $(M, R_0)$ from S2, that same shape
+information inverts into clean per-star elements; and conversely each
+star's local-acceleration constraint, referred to the shared
+potential, tightens the global block by exactly the amount its arc
+quality merits. The convergence ladder of
+Fig.~\ref{fig:clusterfig} is this argument rendered as data.
 
 \section{Results}
 \label{sec:clusterresults}
