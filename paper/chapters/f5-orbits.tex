@@ -56,6 +56,27 @@ This report fits the complete published S2 data set — 145 positions and
 44 velocities spanning 1992--2016 (Chapter~\ref{ch:fitting}) — plus four
 more S-stars in a joint fit (Chapter~\ref{ch:cluster}).
 
+\begin{worked}{How fast is S2 at pericentre?}
+Newton's toolkit — accurate to about a per cent even this close to a
+black hole — gives the speed anywhere on a Kepler orbit through the
+\emph{vis-viva} relation, $v^2 = Gm\,(2/r - 1/a)$. There is a
+convenient set of units: with $r$ and $a$ in au and $v$ in km/s, $Gm$
+for one solar mass is $887$ (because the Earth, at $r=a=1$~au, orbits
+at $29.8$~km/s). For \sgra{}, multiply by $4.27$ million. S2's orbit
+has $a \approx 1\,033$~au and eccentricity $e = 0.883$, putting
+pericentre at $r_p = a(1-e) = 121$~au:
+\[
+v_p^2 = 4.27\times10^{6}\times887\times
+\left(\tfrac{2}{121}-\tfrac{1}{1033}\right)
+= 5.9\times10^{7}~{\rm (km/s)^2},
+\]
+so $v_p \approx 7\,700$~km/s — the 2.6\% of light speed quoted above.
+The same formula at apocentre ($r_a = a(1+e) = 1\,944$~au) gives just
+$480$~km/s: sixteen times slower. That factor is Kepler's second law
+made vivid, and it is why the dots of Fig.~\ref{fig:dgkepler} bunch up
+at the far end of the ellipse.
+\end{worked}
+
 \section{Two channels: positions and speeds}
 
 Everything we know about the S-stars comes through two complementary
@@ -94,6 +115,30 @@ measurement across 26\,000 light-years with no cosmic distance ladder
 involved. Our fit recovers both the mass and this distance
 (Chapter~\ref{ch:fitting}).
 
+\begin{worked}{Weighing \sgra{} in three lines}
+The fitted S2 orbit of Chapter~\ref{ch:fitting} has angular semi-major
+axis $\FitSma$~milliarcseconds, period $\FitPeriod$~years, and the
+distance comes out at $\FitDist$~parsecs. Kepler's third law then
+weighs the black hole with startling economy. First convert the angle
+to a physical length — this is what the parsec is \emph{for}: one au
+subtends exactly one arcsecond at one parsec, so
+\[
+a = 0.12482'' \times 8\,272~{\rm pc} = 1\,033~{\rm au}.
+\]
+Second, apply Kepler's third law in solar units (mass $= a^3/P^2$, with
+$a$ in au, $P$ in years, mass in Suns):
+\[
+m = \frac{(1\,033)^3}{(16.06)^2}
+= \frac{1.10\times10^{9}}{258} \approx 4.27\ \hbox{million solar masses}.
+\]
+Three lines of arithmetic land within a fraction of a per cent of the
+full relativistic fit, $\FitMass\pm\FitMassErr$ million
+(Chapter~\ref{ch:fitting}) — because S2 spends most of its 16 years in
+territory where Newton is an excellent approximation. Everything beyond
+these three lines — precession, redshift excess, the no-hair test —
+lives in the small, precious relativistic corrections.
+\end{worked}
+
 \section{Einstein's fingerprints on the orbit}
 
 If gravity were exactly Newtonian, S2's ellipse would repeat itself
@@ -114,6 +159,27 @@ first triumph of general relativity; for S2 it is about 12
 and GRAVITY confirmed it in 2020. Our simulator reproduces both effects
 with no adjustable amplitudes: the fitted mass and geometry force them
 (Chapter~\ref{ch:fitting}).
+
+\begin{worked}{The rosette angle}
+The pericentre advance per orbit has a closed form, derived in
+Chapter~\ref{ch:sstar}:
+\[
+\Delta\varpi = \frac{6\pi\,Gm}{c^2\,a\,(1-e^2)}.
+\]
+Every ingredient is already on the table. The mass-as-length:
+$Gm/c^2 = 4.27\times10^{6}\times1.48~{\rm km} = 0.0421$~au. The
+denominator: $a(1-e^2) = 1\,033\times(1-0.883^2) = 228$~au. So
+\[
+\Delta\varpi = \frac{6\pi\times0.0421}{228} = 3.5\times10^{-3}\
+\hbox{radians} = 0.20^\circ \approx 12\ \hbox{arcminutes per orbit},
+\]
+the very advance GRAVITY confirmed in 2020 (the full model gives
+$\PrecSchw'$; Chapter~\ref{ch:fitting}). Mercury's celebrated 43
+arcseconds per \emph{century} is this same formula fed with one solar
+mass and Mercury's orbit — S2's advance per unit time is some fifty
+thousand times larger, which is what makes a sixteen-year experiment
+possible in a human career.
+\end{worked}
 
 \begin{figure}
 \centering

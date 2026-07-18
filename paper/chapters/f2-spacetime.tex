@@ -73,6 +73,24 @@ the film \emph{Interstellar}'s Gargantua — have their characteristic
 crossed-halo look. Every one of those features appears, for the right
 physical reasons, in the renders of Part~III.
 
+\begin{worked}{The 1919 deflection, in two lines}
+General relativity gives a compact formula for the bending of a light
+ray that passes a mass $m$ at closest distance $r$ (it follows from the
+same equations the simulator integrates, Chapter~\ref{ch:geodesics}):
+\[
+\delta = \frac{4Gm}{c^2 r}.
+\]
+The combination $Gm/c^2$ — a mass expressed as a length — will follow
+us through the whole report; for the Sun it is $1.48$~km. A ray grazing
+the solar surface has $r = 696\,000$~km, so
+$\delta = 4\times1.48/696\,000 = 8.5\times10^{-6}$~radians. Multiplying
+by $206\,265$ (arcseconds per radian) gives $1.75''$ — precisely the
+deflection Eddington's expeditions went to measure in 1919, and double
+what a na\"ive Newtonian calculation predicts. The factor of two is
+pure spacetime curvature: half the bend comes from time running slow,
+half from space itself being curved.
+\end{worked}
+
 \section{Time runs slow near mass}
 
 Curved spacetime does something with no Newtonian counterpart at all: it
@@ -88,6 +106,27 @@ navigation would drift by kilometres within a day. Near a black hole the
 same effect grows enormous; at the horizon, an outside observer would see
 a falling clock slow to a stop.
 
+\begin{worked}{The GPS correction, by the numbers}
+The fractional rate difference between a clock at radius $r_1$ and one
+at radius $r_2$ is, to an excellent approximation,
+$(Gm/c^2)\,(1/r_1 - 1/r_2)$. For the Earth,
+$Gm/c^2 = 4.4$~\emph{millimetres} — the Earth's mass written as a
+length. With the ground at $r_1 = 6\,371$~km and the GPS orbit at
+$r_2 = 26\,560$~km:
+\[
+\frac{1}{r_1}-\frac{1}{r_2} = 1.19\times10^{-7}~{\rm m}^{-1},
+\qquad
+0.0044\times1.19\times10^{-7} = 5.3\times10^{-10}.
+\]
+Multiply by the $86\,400$ seconds in a day: $46$ microseconds — the
+satellite clocks run \emph{fast} by that much, because they sit higher
+in the well. (Special relativity's time dilation from orbital speed
+works the other way and claws back about $7\,\mu$s, for a net
+$39\,\mu$s a day.) Light travels twelve kilometres in $39\,\mu$s:
+ignore relativity today and satellite navigation is off by kilometres
+by tomorrow.
+\end{worked}
+
 For this report the significance is very concrete: when the star S2 dives
 to its closest approach to \sgra{}, its light is emitted from slightly
 deeper in the black hole's gravitational well, where time runs slower.
@@ -96,6 +135,25 @@ shifts toward the red. The GRAVITY instrument measured exactly this
 \emph{gravitational redshift} in 2018, and reproducing that measurement
 from first principles is one of this report's central results
 (Chapters~\ref{ch:f4}, \ref{ch:fitting}).
+
+\begin{worked}{S2's slowed clock, on an envelope}
+How large is the effect for S2 at closest approach? The fractional
+redshift of light climbing out from radius $r$ is roughly $Gm/(c^2 r)$.
+For \sgra{}, $Gm/c^2 = 6.35\times10^{9}$~m — half the horizon radius
+computed in Chapter~\ref{ch:f1} — and S2's closest approach is
+$r \approx 120~{\rm au} = 1.80\times10^{13}$~m:
+\[
+z_{\rm grav} \approx \frac{6.35\times10^{9}}{1.80\times10^{13}}
+= 3.5\times10^{-4}.
+\]
+A wavelength stretch of $3.5\times10^{-4}$ masquerades, in a
+spectrograph, as an extra recession speed of
+$3.5\times10^{-4}\times c \approx 106$~km/s. That — about a hundred
+km/s of ``impossible'' extra redshift, switching on only around closest
+approach — is the size of the signal GRAVITY hunted in 2018, and
+Chapter~\ref{ch:fitting} shows our full model reproducing it with no
+adjustable amplitude.
+\end{worked}
 
 \section{What a metric is (without tensors)}
 

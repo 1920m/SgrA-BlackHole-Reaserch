@@ -16,6 +16,23 @@ computed temperature pushed through the same colour-matching tables that
 describe human vision (Chapter~\ref{ch:disk}), not from an artist's
 palette.
 
+\begin{worked}{Wien's thermometer}
+The dictionary's headline entry is Wien's displacement law: a hot body
+at temperature $T$ glows most brightly at the wavelength
+\[
+\lambda_{\rm peak} = \frac{2.90\times10^{6}~{\rm nm\,K}}{T}.
+\]
+The Sun's surface, at $T \approx 5\,800$~K, peaks at
+$2.90\times10^{6}/5\,800 = 500$~nm — blue-green light; the Sun looks
+white only because the glow is a broad mixture centred there. A
+$3\,000$~K ember peaks at $970$~nm, in the infrared — our eyes catch
+only its red tail, hence ``red-hot''. A $20\,000$~K surface peaks at
+$145$~nm, deep in the ultraviolet, and the visible scraps of that
+spectrum read as blue-white. Every rendered pixel in Part~III runs this
+logic in exact form: temperature in, full spectrum out, folded through
+the eye's three colour sensitivities (Chapter~\ref{ch:disk}).
+\end{worked}
+
 \section{The accretion disk}
 
 Gas falling toward a black hole almost never falls straight in. Like
@@ -65,6 +82,24 @@ dramatic. If a simulated disk ever looks symmetric, its $g^4$ is wrong;
 this was one of our hard validation gates
 (Chapter~\ref{ch:devhistory}).
 
+\begin{worked}{Why the fourth power is dramatic}
+Let one limb of the disk approach so that its light arrives with all
+frequencies raised twenty per cent ($g = 1.2$), and the other limb
+recede with them lowered twenty per cent ($g = 0.8$). Twenty per cent
+sounds modest, but brightness follows $g^4$:
+\[
+\frac{(1.2)^4}{(0.8)^4} = \left(\frac{1.2}{0.8}\right)^4 = 1.5^4
+\approx 5.1
+\]
+— a five-fold contrast from a twenty-per-cent frequency shift. In our
+reference render of \sgra{}'s disk the factor $g$ actually spans
+\GMin{} (deep, receding, gravitationally dimmed gas) to \GMax{} (the
+fast approaching limb), so the most extreme pixel pair differs in $g^4$
+by a factor of order ten thousand; integrated limb against limb, the
+measured contrast is \BeamRatio$\times$ (Chapter~\ref{ch:disk}). This
+is why no honest render of an orbiting disk can ever look symmetric.
+\end{worked}
+
 \section{The three redshifts}
 
 That factor $g$ mixes three physically distinct effects, and pulling them
@@ -107,6 +142,22 @@ general relativity beside a supermassive black hole. Reproducing it,
 with no tunable knob, is one of this report's headline results: our
 model peaks at \GrExcessPeak{}~km/s at epoch \GrExcessEpoch{}
 (Chapter~\ref{ch:fitting}).
+
+\begin{worked}{The two small redshifts at S2's pericentre}
+Both relativistic terms can be sized on the back of an envelope. At
+closest approach S2 moves at $v \approx 7\,700$~km/s
+(Chapter~\ref{ch:f5} computes this from the orbit), so
+$v/c = 0.0256$. The transverse-Doppler redshift is half the square of
+that: $z_{\rm trans} = \tfrac12(0.0256)^2 = 3.3\times10^{-4}$, worth
+$\approx 98$~km/s. The gravitational redshift was estimated in
+Chapter~\ref{ch:f2}: $3.5\times10^{-4}$, or $\approx 106$~km/s. Their
+sum, $\approx 204$~km/s, is the extra redshift no Newtonian analysis
+can produce — and the full model of Chapter~\ref{ch:fitting} indeed
+peaks at \GrExcessPeak~km/s. The near-equality of the two terms is no
+accident of arithmetic: at the pericentre of a very eccentric orbit the
+speed is close to the free-fall speed, $v^2 \approx 2Gm/r$, which
+forces $\tfrac12 v^2/c^2$ to sit close to $Gm/(c^2r)$ automatically.
+\end{worked}
 
 \begin{termsbox}
 \item[Blackbody radiation] The temperature-determined glow of a dense

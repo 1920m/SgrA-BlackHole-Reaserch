@@ -52,6 +52,13 @@ scope: #1 See \texttt{paper/THESIS\_PLAN.md}.]\end{quote}}
   \setlength{\itemsep}{1pt}}%
   {\end{description}\medskip\hrule\end{minipage}\par\medskip}
 
+% Worked-example box for the primer (plan: expand primer worked examples)
+\newenvironment{worked}[1]{%
+  \par\medskip\noindent\begin{minipage}{\textwidth}
+  \rule{\textwidth}{0.4pt}\par\smallskip
+  \noindent\textbf{Worked example: #1}\par\smallskip\small}%
+  {\par\smallskip\rule{\textwidth}{0.4pt}\end{minipage}\par\medskip}
+
 \begin{document}
 
 \input{frontmatter}

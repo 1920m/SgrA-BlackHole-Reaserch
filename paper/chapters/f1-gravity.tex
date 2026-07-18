@@ -21,6 +21,25 @@ sound. From the surface of the Sun it is about 620 kilometres per second.
 The rule of thumb is simple: the more mass squeezed below you, and the
 closer you stand to it, the faster you must go to leave.
 
+\begin{worked}{How fast must you throw?}
+The escape velocity has a one-line recipe. A thrown object escapes if
+its energy of motion, $\tfrac12 v^2$ for every kilogram of it, at least
+matches the energy needed to climb out of the gravity well, $Gm/r$ per
+kilogram — where $m$ is the planet's mass, $r$ its radius, and $G$ is
+Newton's gravitational constant, $6.67\times10^{-11}$ in SI units.
+Setting the two equal and solving for $v$:
+\[
+v_{\rm esc}=\sqrt{\frac{2Gm}{r}}.
+\]
+For the Earth, $m = 5.97\times10^{24}$~kg and $r = 6\,371$~km, so
+$2Gm = 7.97\times10^{14}$~m$^3$/s$^2$; dividing by
+$r = 6.371\times10^{6}$~m gives $1.25\times10^{8}$~m$^2$/s$^2$, and the
+square root is $11\,200$~m/s — the 11~km/s quoted above. Notice that
+nothing in the formula cares what the ball is made of: only total mass
+and radius enter. That indifference is the loophole a black hole
+exploits.
+\end{worked}
+
 That second part — \emph{the closer you stand} — is the key to everything
 in this report. Squeeze the same mass into a smaller ball and its surface
 moves closer to the centre, so the escape velocity from that surface goes
@@ -62,6 +81,29 @@ singularity is a statement of ignorance rather than a physical prediction:
 it marks where the current theory of gravity stops being trustworthy.
 Fortunately, for everything in this report only the \emph{outside} of the
 horizon matters, and there the theory is precise and testable.
+
+\begin{worked}{The size of \sgra{}'s horizon}
+Ask the escape-velocity recipe a pointed question: at what radius does
+$v_{\rm esc}$ reach the speed of light? Set $v_{\rm esc}=c$ and solve
+for the radius:
+\[
+R_S=\frac{2Gm}{c^2}.
+\]
+For \sgra{}, $m = 4.297$ million solar masses
+$= 4.297\times10^{6}\times1.989\times10^{30}~{\rm kg}
+= 8.55\times10^{36}$~kg. Then $2Gm = 1.14\times10^{27}$ in SI units,
+and dividing by $c^2 = 9.0\times10^{16}$~m$^2$/s$^2$ gives
+\[
+R_S = 1.27\times10^{10}~{\rm m} \approx 12.7\ \hbox{million km},
+\]
+about eighteen Sun-radii, as quoted in the text; light itself would
+need 42 seconds to cross that distance. One honest caution: we used
+Newton's energy formula in a regime where Newton's theory fails. By a
+happy algebraic coincidence the fully relativistic calculation
+(Chapter~\ref{ch:kerr}) returns \emph{exactly} the same $R_S$ — which
+is why this little derivation, essentially the one John Michell wrote
+down in 1784, is worth showing at all.
+\end{worked}
 
 \section{Sagittarius A*, our own giant}
 
@@ -106,7 +148,7 @@ Moon.}
 
 Astronomers measure distances within a planetary system in
 \emph{astronomical units} (au): one au is the Earth–Sun distance, about 150
-million kilometres. The horizon of \sgra{} spans roughly a quarter of an
+million kilometres. The horizon of \sgra{} spans about a sixth of an
 au. The star S2, the most important character of Part~III, dives to about
 120~au from the black hole — about three times the distance of Pluto from
 the Sun — which sounds close until you recall that this is still about

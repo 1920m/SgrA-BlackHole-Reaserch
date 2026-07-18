@@ -21,6 +21,27 @@ image in Parts~II--III applies to \emph{any} black hole; only the final
 conversion to kilometres, seconds, or microarcseconds depends on the
 actual mass (that conversion is Chapter~\ref{ch:calib}).
 
+\begin{worked}{One $M$, three ways}
+For \sgra{}, the yardstick $M$ — the gravitational radius $Gm/c^2$ —
+evaluates, in everyday units, to
+\[
+M = 4.297\times10^{6}\times1.48~{\rm km}
+\approx 6.35\times10^{9}~{\rm m} = 0.0424~{\rm au},
+\]
+using the handy fact that one solar mass equals $1.48$~km of length. As
+a \emph{time}, divide by $c$ once more:
+$6.35\times10^{9}/3.00\times10^{8} = 21.2$~seconds — the natural tick
+of \sgra{} (one orbit at the innermost stable circle takes about two
+dozen ticks, some eight and a half minutes). As an \emph{angle} seen
+from Earth, divide instead by the distance,
+$8\,277~{\rm pc} = 2.554\times10^{20}$~m, giving
+$2.49\times10^{-11}$~radians; radians convert to microarcseconds via
+$\times\,2.063\times10^{11}$, so one $M$ subtends
+$5.12~\muas$ — the $\UasPerM~\muas$ per $M$ used throughout
+Chapter~\ref{ch:calib}. Mass as kilometres, seconds, and
+microarcseconds: one number, three costumes.
+\end{worked}
+
 A related habit: Part~II speaks of \emph{vectors} (arrows with direction
 and length — a velocity is one) and occasionally \emph{tensors}. For
 reading this report it is enough to know that a tensor is a
@@ -66,6 +87,25 @@ range over which it climbs by less than a set amount is the knob's
 \emph{confidence interval} — the ``$\pm$'' quoted after every fitted
 number in this report. When we write $M = \FitMass \pm \FitMassErr$
 million suns, the $\pm$ is precisely such an interval.
+
+\begin{worked}{A five-point $\chi^2$, by hand}
+Toy data: five measurements with error bars, and a candidate model
+curve. Suppose the model misses the five points by
+$0.8,\,-1.2,\,0.3,\,1.5,\,-0.6$ error bars respectively. Then
+\[
+\chi^2 = 0.64+1.44+0.09+2.25+0.36 = 4.8,
+\]
+about one per point ($\chi^2_\nu \approx 1$): a healthy fit. Now slide
+the whole curve up by two error bars. The misses become
+$2.8,\,0.8,\,2.3,\,3.5,\,1.4$, and
+\[
+\chi^2 = 7.84+0.64+5.29+12.25+1.96 = 28
+\]
+— nearly six per point. No committee is needed to reject the second
+model; the ``ruling'' is nothing more than this arithmetic done
+honestly. The real fits of Chapter~\ref{ch:fitting} do exactly the
+same sum, with hundreds of measurements and thirteen knobs.
+\end{worked}
 
 \section{MCMC: mapping uncertainty by wandering}
 
