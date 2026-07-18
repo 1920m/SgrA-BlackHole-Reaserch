@@ -56,6 +56,46 @@ bare exponential. The $F_0/F_1$ ratio, by contrast, is dominated by how
 much of the direct disk image lies far from the critical curve — it
 measures the emission model as much as the spacetime.
 
+The orders obey a universal asymptotic law \citep{Johnson2020,
+GrallaLupsasca2020}: successive sub-rings converge on the critical
+curve geometrically, with the \emph{same} exponent governing all three
+observables —
+\begin{equation}
+w_{n+1} \simeq e^{-\gamma}\,w_n, \qquad
+d_n - d_\infty \propto e^{-\gamma n}, \qquad
+F_{n+1} \simeq e^{-\gamma}\,F_n \quad (n \gtrsim 1),
+\label{eq:universal}
+\end{equation}
+where $w_n$, $d_n$, $F_n$ are the $n$-th ring's width, diameter, and
+flux, $d_\infty$ is the critical-curve diameter, and $\gamma$ is the
+Lyapunov exponent of Section~\ref{sec:spherical} for the shell orbit
+imaged at that position angle. The law holds only asymptotically — the
+$n = 0 \to 1$ step still remembers the emission profile, which is why
+$F_0/F_1$ and $F_1/F_2$ differ so strongly in the measurements above —
+but from $n = 1$ onward the spacetime dictates everything: width
+ratios, diameter convergence, and flux ratios collapse onto
+$e^{-\gamma}$. This is what makes the photon ring a \emph{clean} probe
+in principle: measure two successive sub-rings and the emission model
+cancels out of their ratio, leaving pure Kerr geometry. Our traced
+$F_1/F_2$ against the $\gamma$-band of Fig.~\ref{fig:sphericalorbits}
+is precisely that consistency check run on synthetic data.
+
+One more exact property deserves note because interferometric
+proposals lean on it: the sub-rings are \emph{time-shifted} copies of
+the source. A photon in the $n{+}1$ ring lingers one polar half-orbit
+longer near the shell than its $n$-ring counterpart; for Schwarzschild
+the half-orbit of the $r = 3M$ photon circle takes
+$\pi\,r_{\rm ph}^{3/2}/M^{1/2} = 3\sqrt{3}\,\pi\,M \approx 16.3\,M$ of
+coordinate time — about $5.8$ minutes at the \sgra{} mass (using the
+$21.2$~s per $M$ of Chapter~\ref{ch:f6}). Each sub-ring therefore
+replays the disk's flickering with a fixed, mass-determined lag: a
+detected ``echo'' at that delay would be a direct, purely geometric
+mass measurement, independent of every calibration in
+Chapter~\ref{ch:calib}. Our static disk model cannot exhibit the echo,
+but the ray-by-ray path-time bookkeeping that would feed such a
+simulation is already carried by the tracer's $t$-equation
+\eqref{eq:tphi}.
+
 \section{Sub-ring metrics across the spin range}
 \label{sec:subringsweep}
 

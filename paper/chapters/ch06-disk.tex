@@ -23,20 +23,41 @@ applied to an annulus $[r, r+\mathrm{d}r]$ in a steady state:
 annuli, less what is radiated; \emph{energy} — the local dissipation is
 the difference between the torque's work and the advected binding
 energy $E(r)$ (eq.~\ref{eq:ecirc}). Eliminating the torque between the
-latter two — with the boundary condition that the torque vanishes at the
-ISCO, where circular orbits end and matter plunges — gives the
-time-averaged radiated flux as a single quadrature over the
-circular-orbit quantities of Chapter~\ref{ch:kerr}
-\citep[eq.~15n]{PageThorne1974}:
+latter two gives the flux as a single quadrature over the
+circular-orbit functions of Chapter~\ref{ch:kerr},
+\begin{equation}
+F(r) \;\propto\; \frac{\dot M}{r}\,
+\Bigl[-\Omega'(r)\Bigr]\,
+\bigl[E(r) - \Omega(r) L(r)\bigr]^{-2}
+\int_{r_{\rm ISCO}}^{r}
+\bigl[E(\tilde r) - \Omega(\tilde r)L(\tilde r)\bigr]\,
+L'(\tilde r)\,\mathrm{d}\tilde r ,
+\label{eq:ptquadrature}
+\end{equation}
+each factor with a physical job: $-\Omega'$ is the shear that feeds
+the viscous dissipation, $(E - \Omega L)$ is the energy flux carried
+per unit angular momentum flux, and the integral accumulates the
+angular momentum the gas has had to shed since crossing the inner
+edge. The lower limit implements the crucial boundary condition — the
+torque \emph{vanishes at the ISCO}, where circular orbits end and
+matter plunges ballistically without further contact — so the flux is
+pinned to zero at the inner edge, rises to a peak a few gravitational
+radii outside it, and decays outward: the single most consequential
+qualitative feature of the profile (a disk lit all the way to its
+inner edge would look measurably different). Carrying out the
+quadrature with the Kerr $E, L, \Omega$ gives the closed form of
+\citet[eq.~15n]{PageThorne1974}:
 \begin{equation}
 F(r) = \frac{3\dot M}{8\pi M^2}\,\frac{f(x)}{x^4},
 \qquad x = \sqrt{r/M},
 \label{eq:ptflux}
 \end{equation}
-where the dimensionless $f(x)$ carries all the relativity. Carrying out
-the quadrature (the integrand is rational in $x$ after the
-substitution; the full evaluation is reproduced in
-Appendix~\ref{app:algebra}) yields the closed form the code implements:
+where the dimensionless $f(x)$ carries all the relativity. The
+integrand of \eqref{eq:ptquadrature} becomes rational in
+$x = \sqrt{r/M}$ — this is why the substitution is made — and partial
+fractions plus term-by-term integration (the full evaluation is
+reproduced in Appendix~\ref{app:algebra}) yield the closed form the
+code implements:
 \begin{equation}
 f(x) = \frac{1}{x^{2}\bigl(x^3 - 3x + 2\astar\bigr)}
 \Bigl[x - x_0 - \tfrac{3}{2}\astar\ln\frac{x}{x_0}
@@ -122,7 +143,28 @@ gravitational redshift and transverse Doppler (it is $1/u^t$, the
 emitter's total time dilation), while the denominator
 $1 - \Omega b_\gamma$ is the line-of-sight Doppler term — photons
 emitted forward along the orbital motion ($\Omega b_\gamma > 0$) are
-blueshifted, backward redshifted. In the reference render at
+blueshifted, backward redshifted. For the Kerr circular orbits feeding
+the disk, the numerator is available in closed form: the normalisation
+worked through \citet{BardeenPressTeukolsky1972} gives
+\begin{equation}
+u^t =
+\frac{1 \pm a\sqrt{M/r^3}}{\sqrt{1 - 3M/r \pm 2a\sqrt{M/r^3}}}
+\qquad\text{(upper sign prograde)},
+\label{eq:utcirc}
+\end{equation}
+which at $a = 0$ reduces to the memorable
+$u^t = (1 - 3M/r)^{-1/2}$: a clock on a circular orbit at the ISCO of
+a Schwarzschild hole runs slow by $\sqrt{1 - 1/2} = 0.707$ — half its
+time-dilation from depth, half from speed, the two contributions the
+primer's Chapter~\ref{ch:f4} kept separate now fused into one exact
+factor. The divergence of \eqref{eq:utcirc} as $r$ approaches the
+photon orbit (where the denominator vanishes) is physical: circular
+orbits become null there, and the formal $g \to 0$ says any emitter
+forced onto them would be infinitely dimmed. The disk never reaches
+that regime — it ends at the ISCO — but rays that skim the photon
+shell \emph{between} disk crossings do, which is one reason
+higher-order sub-ring images are faint beyond their geometric
+demagnification. In the reference render at
 $\astar = 0.94$, $i = 80\degr$ the factor spans $g = \GMin$ to
 $\GMax$ across the image.
 
@@ -177,6 +219,51 @@ ember-orange to blue-white thermometer of the primer, now quantitative.
 The disk's inner annuli at $g T_{\rm eff} \sim 10^4$~K render
 blue-white; the beamed approaching limb is pushed further blueward
 exactly as \eqref{eq:gfactor} dictates.
+
+Two implementation details bound the pipeline's domain, both visible
+in \texttt{disk\_model.cpp}. The blackbody LUT is log-spaced over
+$500$--$60\,000$~K ($512$ entries of the exact
+\texttt{planck\_to\_linear\_srgb} evaluation), and pixels whose
+$g\,T_{\rm eff}$ falls below $505$~K return black: below that
+temperature the visible-band radiance of a blackbody is negligible at
+any exposure the renders use, so the floor discards nothing
+observable. At the top, $60\,000$~K comfortably exceeds the hottest
+$g\,T_{\rm eff}$ any production configuration produces (beamed inner
+annuli at high spin); chromaticity also saturates along the Planckian
+locus above $\sim$$2\times10^4$~K — hotter only gets marginally bluer
+— so LUT resolution there is uncritical. Both bounds are asserted,
+not assumed: the colour unit test sweeps the LUT against direct
+evaluation, and the ``blackbody colours behave physically'' test pins
+monotonicity of the red-to-blue progression
+(Chapter~\ref{ch:devhistory}).
+
+\section{The temperature scale, and what the model does not claim}
+\label{sec:tempscale}
+
+One honest caveat belongs in the derivation chapter rather than the
+small print. The Page--Thorne flux \eqref{eq:ptflux} carries the
+accretion rate $\dot M$ as an overall factor, and this project makes
+no claim about the true $\dot M$ of \sgra{}. The implementation
+(\texttt{NovikovThorneDisk}) instead exposes a display normalisation:
+the constructor scans the flux profile, finds its maximum, and sets
+the temperature scale so that the \emph{peak} effective temperature
+equals a chosen $T_{\rm peak}$; $T_{\rm eff}(r) \propto F(r)^{1/4}$
+then fixes every other annulus relative to it. Every quantitative
+claim this report makes from disk renders is therefore a \emph{shape}
+or \emph{ratio} statement — the beaming contrast \BeamRatio{}, the
+$g$-range $[\GMin, \GMax]$, sub-ring flux ratios, the radial profile
+against \eqref{eq:farfield} — in which the normalisation cancels;
+none is an absolute-luminosity statement, which would require the real
+accretion rate. This division of labour is deliberate and mirrors the
+physical situation: the \emph{geometry} of the image (shadow, critical
+curve, lensed arches) is pure spacetime, the \emph{kinematic} pattern
+(beaming, redshift gradients) is pure orbital mechanics, and only the
+absolute brightness depends on the messy accretion physics that the
+thin-disk idealisation cannot capture for \sgra{} anyway — the real
+flow there is a hot, radiatively inefficient structure accreting far
+below the Eddington rate \citep{Broderick2014, EHT2022}, not a cold
+thin disk. Chapter~\ref{ch:discussion} weighs which conclusions
+survive that difference.
 
 \begin{figure}
 \centering

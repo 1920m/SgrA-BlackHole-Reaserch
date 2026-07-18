@@ -28,10 +28,36 @@ u^t = \bigl[-(g_{tt} + 2\omega g_{t\phi} +
 \end{equation}
 completed to an orthonormal basis by the unit vectors along $r$,
 $\theta$, and the remaining direction in the $t$--$\phi$ plane
-(\texttt{zamo\_tetrad}). This observer exists everywhere outside the
+(\texttt{zamo\_tetrad}). Written out, the four legs are
+\begin{equation}
+e_{\hat 0} = \frac{1}{\alpha}\left(\partial_t + \omega\,
+\partial_\phi\right),
+\quad
+e_{\hat r} = \sqrt{\frac{\Delta}{\Sigma}}\,\partial_r,
+\quad
+e_{\hat\theta} = \frac{1}{\sqrt{\Sigma}}\,\partial_\theta,
+\quad
+e_{\hat\phi} = \sqrt{\frac{\Sigma}{A}}\,
+\frac{1}{\sin\theta}\,\partial_\phi,
+\label{eq:zamotetrad}
+\end{equation}
+with the lapse $\alpha = \sqrt{\Delta\Sigma/A}$ of
+Section~\ref{sec:zamo}; orthonormality is a two-line check using the
+determinant identity \eqref{eq:blockdet} — for instance
+$g(e_{\hat 0}, e_{\hat 0}) = (g_{tt} + 2\omega g_{t\phi} + \omega^2
+g_{\phi\phi})/\alpha^2 = (g_{tt}g_{\phi\phi} -
+g_{t\phi}^2)/(g_{\phi\phi}\,\alpha^2) = -1$. This observer exists
+everywhere outside the
 horizon — including inside the ergosphere, where a static camera would
 be impossible — and reduces to the static observer at $a = 0$, so a
-single camera implementation serves every spin.
+single camera implementation serves every spin. The conserved
+quantities of a launched photon follow by contraction: a locally
+measured direction with celestial angles maps to
+$E = \alpha + \omega L_z$ scalings and $L_z \propto
+\sin\theta\sqrt{A/\Sigma}$ factors, which is how frame dragging enters
+the optics — two photons launched at mirror-image local angles carry
+\emph{different} $L_z/E$ once $\omega \neq 0$, and everything
+asymmetric about Kerr images descends from that line.
 
 A pixel at normalised image-plane position $(x, y)$ defines a unit
 direction $(n^{\hat r}, n^{\hat\theta}, n^{\hat\phi})$ on the local sky;
@@ -96,6 +122,21 @@ independently in the $(\astar, i)$ sweep of Chapter~\ref{ch:calib}:
 every $\astar = 0$ grid row returns it identically at all inclinations,
 as spherical symmetry demands.
 
+The approach to $b_c$ carries its own universal law, worth stating
+because Section~\ref{sec:spherical} re-derives it from a different
+direction. Photons with $b = b_c(1 + \epsilon)$, $\epsilon \ll 1$,
+linger near the photon sphere for a winding angle that grows as
+$-\ln\epsilon$: the deflection diverges \emph{logarithmically} at the
+critical impact parameter. Inverting, the impact-parameter window that
+achieves $n$ additional half-windings shrinks as $e^{-\pi n}$ — each
+successive image of the source sky is squeezed into an annulus
+$e^{-\pi} \approx 0.043$ times thinner than the last, and a full extra
+orbit costs $e^{-2\pi} \approx 1/535$. This is the demagnification
+ladder first exhibited in \citet{Luminet1979}'s photograph of a
+Schwarzschild disk, and the exponent is exactly the Lyapunov
+$\gamma = \pi$ established below; the traced flux ratios of
+Chapter~\ref{ch:ring} will land on it.
+
 \section{The Bardeen critical curve}
 \label{sec:bardeen}
 
@@ -104,8 +145,12 @@ shell} — the family of unstable spherical photon orbits of
 Section~\ref{sec:turningpoints}. On the shell the radial potential has a
 double root, $R(\tilde r) = R'(\tilde r) = 0$; solving the pair for the
 two conserved ratios $\xi = L_z/E$ and $\eta = Q/E^2$ as functions of
-the shell radius $\tilde r$ gives, after the reduction of
-\citet{Bardeen1973},
+the shell radius $\tilde r$ is mechanical once set up: with the quartic
+in the Bardeen form \eqref{eq:bardeenquartic}, the two conditions are
+linear in the combinations $\xi^2 + \eta$ and $(\xi - a)^2 + \eta$, so
+one solves the $2\times2$ linear system and then untangles $\xi$ from
+the difference of the two combinations, which is linear in $\xi$. The
+result, after the reduction of \citet{Bardeen1973},
 \begin{align}
 \xi(\tilde r) &= \frac{\tilde r^2(3M-\tilde r) - a^2(\tilde r+M)}
 {a(\tilde r-M)},
@@ -123,7 +168,25 @@ plane as
 \end{equation}
 tracing the closed \emph{critical curve} as $\tilde r$ runs over the
 interval where $\beta^2 \geq 0$ — from near $r_{\rm ph}^+$ (prograde
-edge) to near $r_{\rm ph}^-$ (retrograde edge). Fig.~\ref{fig:critcurves}
+edge) to near $r_{\rm ph}^-$ (retrograde edge). Three limit checks pin
+\eqref{eq:bardeen} to earlier chapters. At the shell edges $\eta = 0$:
+the spherical orbits degenerate to the equatorial circular orbits, and
+$\tilde r$ solves the photon cubic \eqref{eq:photoncubic}. As
+$a \to 0$ the parametrisation degenerates to the single statement
+$\xi^2 + \eta = 27M^2$ — every ``spherical orbit'' sits at $3M$ and
+the critical curve is the Synge circle, which is why a circular traced
+shadow at $\astar > 0$ would signal broken spin coupling (a failure
+mode the test suite explicitly probes). And the zero of $\xi(\tilde r)$
+marks the \emph{polar} spherical orbit — the one photon family that
+crosses the spin axis — whose radius at $\astar = 0.94$ the
+\texttt{sweep\_tool} family of Fig.~\ref{fig:sphericalorbits} contains
+as its $\xi = 0$ member. For our actual \sgra{} viewing geometry,
+$\theta_o \approx 30^\circ$ from the pole, the visible window of
+$\tilde r$ narrows — an observer near the axis receives photons from
+a sub-range of the shell centred on the polar orbit — and the critical
+curve rounds toward a displaced near-circle: the geometric reason the
+EHT cannot read the spin from the ring shape at \sgra{}'s inclination
+(Chapter~\ref{ch:calib} quantifies this as the axis-ratio map). Fig.~\ref{fig:critcurves}
 overlays the curves for four spins: growing spin flattens and displaces
 the prograde side, exactly as frame dragging predicts, while the overall
 scale barely changes — the geometric root of the spin--inclination
