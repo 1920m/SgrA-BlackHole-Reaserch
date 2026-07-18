@@ -59,6 +59,49 @@ $e_1,\dots,e_7$ hard-coded in \texttt{try\_step}, so that
 estimates the local truncation error of the \emph{fourth}-order
 solution, an upper bound on that of the propagated fifth-order one.
 
+One implementation nuance is worth recording because it differs from
+the textbook DOPRI5. In the classical formulation the seventh stage is
+``first same as last'' (FSAL): $k_7$ of an accepted step is reused as
+$k_1$ of the next, amortising the cost to six evaluations per step.
+Here \texttt{try\_step} is deliberately \emph{stateless} — a
+fixed-dimension, allocation-free template a caller can drive from any
+loop (CPU tracer, fitter, convergence tool) without carrying integrator
+state between calls — so $k_1$ is re-evaluated and a step costs a flat
+seven RHS evaluations. For this project the RHS is a handful of
+polynomial operations (Section~\ref{sec:mino}); the seventh evaluation
+buys API simplicity at negligible cost, and the identical stage
+structure keeps the coefficients directly comparable against
+\citet{DormandPrince1980}.
+
+\subsection{Why this pair, and not something fancier}
+
+Three roads were open: higher order, implicitness, or symplecticity.
+Each loses on this problem's specifics. \emph{Order}: at the production
+tolerance of $10^{-11}$, a 5(4) pair with $\sim$$10^3$ steps per
+strong-field ray sits near the textbook optimum — an 8(7) pair
+\citep[e.g.][]{HairerNorsettWanner1993} takes 13 stages per step and
+pays off only when tolerances tighten a further two-plus decades or
+the RHS is expensive; here the RHS is cheap polynomial algebra, but
+the \emph{number of rays} ($10^5$--$10^6$ per image) multiplies
+everything, and the mid-order pair minimises evaluations per correct
+digit across the tolerance range actually used
+(Fig.~\ref{fig:drifttol}). \emph{Implicitness}: implicit methods buy
+stability for stiff systems; geodesic flow is not stiff — its
+difficulty is sensitivity (positive Lyapunov exponent at the photon
+shell), which implicitness does nothing to cure. \emph{Symplecticity}:
+the Mino-time system is Hamiltonian, and a symplectic integrator would
+bound the energy-shell drift without projection — but standard
+symplectic schemes require fixed steps, and Fig.~\ref{fig:stepsize}
+shows the required step spanning four orders of magnitude along a
+single ray; a fixed step sized for the photon-shell passage would
+waste $10^4\times$ the work on the quiet legs. Adaptive
+step-size selection destroys formal symplecticity in any case
+\citep{HairerNorsettWanner1993}. The chosen architecture — adaptive
+non-symplectic stepping \emph{plus} explicit constraint restoration
+(Section~\ref{sec:projection}) — recovers the invariant-preserving
+benefit of a geometric method while keeping the adaptivity the
+boundary metrology demands.
+
 \subsection{Error norm and step control}
 
 The implementation controls the root-mean-square of the component-wise
@@ -77,7 +120,15 @@ h_{\rm next} = h \cdot \mathrm{clamp}\bigl(0.9\,
 \end{equation}
 — the classical proportional (deadbeat) controller with safety factor
 $0.9$ and growth limits; the exponent $-1/5$ reflects the fourth-order
-error estimate ($\delta \propto h^5$). (The companion journal paper
+error estimate ($\delta \propto h^5$): if a step of size $h$ produced
+scaled error $\epsilon$, the largest step that would have met
+$\epsilon = 1$ is $h\,\epsilon^{-1/5}$, and the safety factor hedges
+the fifth-power sensitivity of that extrapolation (a 10 per cent
+under-ask halves the predicted error). The clamp to $[0.2, 5]$
+prevents a single anomalous error estimate — typically at the entry to
+the strong-field region — from collapsing or exploding the step and
+then thrashing: a rejected step costs the full seven stages, so the
+controller's job is as much economic as mathematical. (The companion journal paper
 loosely called this a ``PI'' controller; the implementation carries no
 integral memory, and none proved necessary — the acceptance rate on
 production rays exceeds 97 per cent.) For null-ray metrology the
@@ -209,6 +260,19 @@ suite exists to prevent; finite differences trade a truncation error
 \varepsilon_{\rm mach}/h$), bottoming out near $10^{-10}$ relative at
 best.
 
+The structure of the problem keeps the derivative demand small. From
+the metric derivatives the Christoffel symbols follow as
+\begin{equation}
+\Gamma^\lambda_{\mu\nu} = \tfrac12 g^{\lambda\sigma}
+\left(\partial_\mu g_{\sigma\nu} + \partial_\nu g_{\sigma\mu}
+- \partial_\sigma g_{\mu\nu}\right),
+\label{eq:christoffel}
+\end{equation}
+and for a stationary axisymmetric metric only $\partial_r$ and
+$\partial_\theta$ are non-zero: two directional derivatives of the ten
+independent components feed all forty independent symbols. The question
+is solely how to get those two derivatives without error.
+
 The \emph{complex-step} method \citep{SquireTrapp1998} evades the
 trade-off entirely. For a real-analytic $f$, Taylor expansion along the
 imaginary axis gives
@@ -233,6 +297,47 @@ is that the metric components be evaluable on complex arguments, which
 is why \texttt{kerr\_components} and the Hartle--Thorne functions are
 templated on the scalar type and every \texttt{IMetric} exposes a
 \texttt{std::complex<double>} overload.
+
+The method is, in modern language, forward-mode automatic
+differentiation in disguise: a complex number $x + \mathrm{i}h$ with
+negligible $h^2$ behaves exactly like the dual number $x + \varepsilon
+x'$ of AD. It was chosen over a dedicated dual-number type for a
+prosaic reason — \texttt{std::complex} ships with the standard
+library, propagates through every arithmetic operation the metric code
+uses, and needs no custom type plumbing — and over hand-coded
+derivatives for a principled one: when Chapter~\ref{ch:nohair} swaps
+the Hartle--Thorne metric (or any future \texttt{IMetric}) into the
+integrator, its Christoffel symbols are correct \emph{by construction},
+with nothing new to derive, transcribe, or mistype. The cost is a
+small constant factor per evaluation (complex multiplication is a few
+real multiplications), which the benchmarks of Chapter~\ref{ch:gpu}
+absorb into the Christoffel-path figure.
+
+\section{Guard rails}
+\label{sec:guards}
+
+Three guards bound the integrator's domain, all previously introduced,
+collected here because they form the complete list of places the code
+ever overrides the mathematics. (i) The \emph{polar clamp}: BL
+coordinates degenerate on the spin axis, so $\theta$ is kept
+$10^{-8}$ away from $0, \pi$ (\texttt{kThetaClamp}); orbits with
+$L_z = 0$, which genuinely cross the pole, pass through the clamp with
+error far below the conservation gates. (ii) The \emph{horizon stop}:
+rays are terminated at $r = 1.001\,r_+$ — the BL chart's $1/\Delta$
+factors grow without bound at $r_+$, but by that radius the
+classification (captured) is already certain, and Chapter~\ref{ch:kerr}'s
+Kerr--Schild argument guarantees no physics is being cut off. (iii) The
+\emph{turning-point guard band}: projection \eqref{eq:projection} is
+suspended where $R$ or $\Theta$ is negative by less than the local
+error, since there the constraint surface is tangent to the motion and
+a na\"ive square root would inject spurious momentum. Each guard is a
+place a subtle bug could hide, and the suite of
+Chapter~\ref{ch:devhistory} exercises all three: the
+conserved-quantity tests drive inclined rays through turning points
+and past the clamp, the ``rays inside/outside the critical impact
+parameter'' test pins the capture classification, and the traced
+shadow boundary is compared against the analytic critical curve at the
+$10^{-9}$ level.
 
 \section{Convergence behaviour}
 \label{sec:convergence}

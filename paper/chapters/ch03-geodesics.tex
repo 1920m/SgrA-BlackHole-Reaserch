@@ -31,9 +31,36 @@ S = -E\,t + L_z\,\phi + S_r(r) + S_\theta(\theta),
 \label{eq:ansatz}
 \end{equation}
 and \citet{Carter1968} discovered that with the inverse metric
-\eqref{eq:ginv} the remainder separates completely. Substituting
-\eqref{eq:ansatz} into \eqref{eq:hje} and multiplying through by
-$\Sigma$, the mixed terms assemble into
+\eqref{eq:ginv} the remainder separates completely. The substitution
+deserves to be seen once in full. With $\partial_t S = -E$,
+$\partial_\phi S = L_z$, the contraction \eqref{eq:hje} reads
+\begin{equation}
+\frac{-A E^2 + 4Mar\,E L_z
++ \dfrac{\Delta - a^2\sin^2\theta}{\sin^2\theta}\,L_z^2}{\Sigma\Delta}
++ \frac{\Delta\,S_r'^2 + S_\theta'^2}{\Sigma} = -\mu^2 ,
+\label{eq:hjraw}
+\end{equation}
+where every coefficient is an entry of \eqref{eq:ginv}. The numerator of
+the first term looks hopelessly mixed — $A$ and the $\sin^2\theta$
+denominator couple $r$ to $\theta$ — but it regroups exactly:
+using $A = (r^2+a^2)^2 - a^2\Delta\sin^2\theta$ and
+$r^2 + a^2 - \Delta = 2Mr$ one verifies term by term that
+\begin{equation}
+\frac{-A E^2 + 4Mar\,EL_z + \bigl(\Delta/\sin^2\theta -
+a^2\bigr)L_z^2}{\Delta}
+= -\frac{P(r)^2}{\Delta}
++ \left(aE\sin\theta - \frac{L_z}{\sin\theta}\right)^2 ,
+\label{eq:regroup}
+\end{equation}
+with $P(r)$ as defined below — the entire $t$--$\phi$ sector splits
+into a pure-$r$ piece and a pure-$\theta$ piece, with no remainder.
+This is the miracle of Kerr (the hidden Killing tensor of
+Section~\ref{sec:killing} wearing coordinates); it is \emph{not}
+generic, and its failure for the Hartle--Thorne metric is why the
+no-hair machinery of Chapter~\ref{ch:nohair} must integrate
+Christoffel symbols instead. Multiplying \eqref{eq:hjraw} through by
+$\Sigma = r^2 + a^2\cos^2\theta$ and applying \eqref{eq:regroup}, the
+mixed terms assemble into
 \begin{equation}
 -\frac{1}{\Delta}\bigl[E(r^2+a^2) - a L_z\bigr]^2
 + \Delta\left(\frac{\mathrm{d}S_r}{\mathrm{d}r}\right)^2
@@ -96,6 +123,76 @@ For photons ($\mu = 0$) these are the four equations implemented in
 derivatives are \texttt{radial\_potential[\_deriv]} and
 \texttt{polar\_potential[\_deriv]}.
 
+\subsection{Photons carry only two numbers: $\xi$ and $\eta$}
+\label{sec:xieta}
+
+A null geodesic is unchanged by rescaling its affine parameter, so for
+$\mu = 0$ the three constants $(E, L_z, Q)$ act only through the two
+ratios
+\begin{equation}
+\xi = \frac{L_z}{E}, \qquad \eta = \frac{Q}{E^2},
+\label{eq:xieta}
+\end{equation}
+Bardeen's impact parameters. Dividing \eqref{eq:rpotgen} by $E^2$ and
+expanding puts the radial potential in the form used for every
+shadow-boundary computation in this report:
+\begin{equation}
+\frac{R(r)}{E^2} = r^4 + (a^2 - \xi^2 - \eta)\,r^2
++ 2M\bigl[\eta + (\xi - a)^2\bigr]\,r - a^2\eta .
+\label{eq:bardeenquartic}
+\end{equation}
+Three of its structural properties do real work later. The cubic term
+is absent — the sum of the four roots vanishes, so roots come in
+balanced constellations. The coefficient of $r$ is non-negative, and at
+$r \to 0^+$ the quartic approaches $-a^2\eta$: for $\eta > 0$ the
+potential is negative just outside the ring singularity, so
+equator-crossing photons can never reach $r = 0$. And at large $r$ the
+quartic grows as $r^4$ regardless of aim — every photon is free at
+infinity, which is what makes backward ray tracing from a distant
+camera well-posed. For the camera itself the pair $(\xi, \eta)$ maps
+affinely onto detector coordinates (Chapter~\ref{ch:shadow}), so
+\eqref{eq:bardeenquartic} really is ``the optics of the Kerr field''
+in a single polynomial.
+
+\subsection{Polar motion: the $u = \cos^2\theta$ quadratic}
+\label{sec:polar}
+
+The polar potential becomes elementary under $u = \cos^2\theta$. For
+photons, $\Theta/E^2 = \eta + a^2u - \xi^2 u/(1-u)$; clearing the
+$(1-u)$ denominator, the turning points in $u$ solve the quadratic
+\begin{equation}
+a^2 u^2 - \left(a^2 - \xi^2 - \eta\right)u - \eta = 0 ,
+\label{eq:polarquad}
+\end{equation}
+whose two roots $u_\pm$ classify all latitudinal behaviour
+\citep{Chandrasekhar1983, GrallaLupsasca2020}:
+\begin{itemize}
+\item $\eta > 0$: the product of roots $-\eta/a^2$ is negative, so
+exactly one root $u_+$ lies in $(0, 1)$. The orbit oscillates
+symmetrically about the equator between $\pm\theta_{\max}$,
+$\cos^2\theta_{\max} = u_+$, crossing the equatorial plane each
+half-cycle — the ``ordinary'' photons, and the only kind that can
+image an equatorial disk repeatedly (the sub-ring count of
+Chapter~\ref{ch:ring} is precisely the number of these crossings).
+\item $\eta = 0$: $u = 0$ is a root — motion confined to the
+equatorial plane, the case reduced to the cubic of
+Section~\ref{sec:photonorbit}.
+\item $\eta < 0$: both roots must be positive for motion to exist at
+all; the orbit is \emph{vortical}, circulating around the spin axis
+without ever crossing the equator. Such photons exist only for
+$a \neq 0$ and only in a thin sliver of parameter space; they
+contribute nothing to disk images but are traced correctly by the same
+code path, and the polar-axis clamp of Section~\ref{sec:mino} is what
+keeps their near-axis passages finite.
+\end{itemize}
+For timelike orbits the same substitution carries the extra term
+$a^2(1 - E^2)u$; for the bound stellar orbits of Part~III, with
+$E < 1$, the effect is a slight stiffening of the polar oscillation.
+The S2 model exploits none of this structure directly — its orbit is
+planar in the relevant sense — but \texttt{polar\_potential} evaluates
+the general form, and the conserved-$Q$ diagnostic would flag any
+latitudinal drift immediately.
+
 \section{Turning points and orbit classification}
 \label{sec:turningpoints}
 
@@ -140,6 +237,20 @@ propagates all the way to the observable demagnification of the photon
 sub-rings, via the Lyapunov exponents computed in
 Chapter~\ref{ch:shadow}.
 
+Root-counting sharpens the picture. Since \eqref{eq:bardeenquartic} has
+no cubic term, its four roots sum to zero; for capture orbits all real
+roots (if any) lie behind the horizon, for scattering orbits a
+conjugate pair has moved out past $r_+$. As $(\xi, \eta)$ crosses the
+critical curve, two real roots merge and annihilate — a fold
+catastrophe, which is why observables vary \emph{smoothly} on either
+side of the shadow edge but with a square-root cusp exactly at it. The
+numerical consequence is practical: near-critical rays spend
+arbitrarily long near the double root (logarithmic divergence of the
+winding number), and it is precisely there that the adaptive stepping
+of Chapter~\ref{ch:numerics} pays for itself, collapsing the step size
+around the photon-shell passage and re-expanding after
+(Fig.~\ref{fig:stepsize}).
+
 \section{Mino time and the second-order formulation}
 \label{sec:mino}
 
@@ -181,6 +292,52 @@ exists to mis-set. The state vector the integrator carries is
 $y = (t, r, \theta, \phi, p_r, p_\theta)$ with
 $p_r = \mathrm{d}r/\mathrm{d}\tau$,
 $p_\theta = \mathrm{d}\theta/\mathrm{d}\tau$.
+
+The right-hand sides are plain polynomials and rational functions. For
+the radial sector, differentiating \eqref{eq:rpotgen} (with
+$\Delta' = 2(r - M)$, $P' = 2Er$),
+\begin{equation}
+R'(r) = 4Er\,P(r) - 2(r-M)\bigl[\mu^2 r^2 + (L_z - aE)^2 + Q\bigr]
+- 2\mu^2 r\,\Delta ,
+\label{eq:rprime}
+\end{equation}
+which is exactly what \texttt{radial\_potential\_deriv} returns —
+evaluated as written, not by finite differences, so the ``force'' in
+\eqref{eq:secondorder} is exact to rounding. Cheap analytic derivatives
+are a quiet advantage of the Carter form: the generic Christoffel path
+used for Hartle--Thorne (Section~\ref{sec:timelike}) pays roughly an
+order of magnitude more per step for the same accuracy, a comparison
+quantified in the benchmarks of Chapter~\ref{ch:gpu}.
+
+\subsection{Fundamental frequencies, and why orbits are rosettes}
+\label{sec:frequencies}
+
+Separability makes the $r$- and $\theta$-motions individually periodic
+in Mino time, with periods
+\begin{equation}
+\Lambda_r = 2\!\int_{r_{\rm peri}}^{r_{\rm apo}}
+\frac{\mathrm{d}r}{\sqrt{R(r)}},
+\qquad
+\Lambda_\theta = 4\!\int_{\theta_{\min}}^{\pi/2}
+\frac{\mathrm{d}\theta}{\sqrt{\Theta(\theta)}}
+\label{eq:minoperiods}
+\end{equation}
+\citep{Mino2003}. The azimuth and coordinate time, by \eqref{eq:tphi},
+advance by fixed increments per radial (or polar) cycle, so a generic
+bound orbit is characterised by three frequencies
+$(\omega_r, \omega_\theta, \omega_\phi)$ — and almost never closes:
+unless the frequency ratios are rational, the trajectory densely fills
+a torus. The observable content of this incommensurability is exactly
+the rosette of the primer's Fig.~\ref{fig:dgrosette}: per radial
+period, the azimuth advances by $2\pi$ \emph{plus} the apsidal excess
+$\Delta\varpi = \omega_\phi/\omega_r \cdot 2\pi - 2\pi$, which for S2
+evaluates to the $\PrecSchw'$ per orbit of Part~III. The code never
+computes elliptic integrals — the integrator resolves the same
+frequencies dynamically — but \eqref{eq:minoperiods} explains a
+numerical observation of Chapter~\ref{ch:sstar}: matching a
+relativistic orbit to Keplerian initial conditions misassigns the
+\emph{radial} period by the frequency mismatch, the 1.6 per cent error
+that motivated the Darwin-element initialisation.
 
 The price of differentiating is that \eqref{eq:secondorder} admits
 solutions that drift off the true energy shell — precisely the first

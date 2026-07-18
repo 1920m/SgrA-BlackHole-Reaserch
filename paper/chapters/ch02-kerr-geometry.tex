@@ -42,6 +42,38 @@ spheroidal coordinates — the residual $a$ then only labels a coordinate
 choice, which is why all curvature effects below always enter through
 products $Ma$ or $M/r$.
 
+That this two-parameter family is not merely \emph{a} solution but
+\emph{the} solution is the content of the black-hole uniqueness
+theorems: Israel's theorem forces the static vacuum black hole to be
+Schwarzschild, and the Carter--Robinson theorem extends the rigidity to
+the stationary axisymmetric case, singling out Kerr
+\citep{Wald1984, Chandrasekhar1983}. Whatever messy configuration
+collapses — a lopsided star, a merging binary — the exterior is
+expected to ring down to \eqref{eq:kerr}, radiating away every memory
+except $M$ and $a$. (A third parameter, electric charge, is allowed by
+the theorems but is neutralised in astrophysical environments within
+moments; we set it to zero throughout.) This rigidity is what
+Chapter~\ref{ch:nohair} turns into a measurement: if the exterior of
+\sgra{} is \emph{not} Kerr, no choice of $M$ and $a$ can hide it.
+
+The two parameters can be read off at infinity without ever approaching
+the hole. Expanding \eqref{eq:kerr} for $r \gg M$,
+\begin{equation}
+g_{tt} \simeq -\left(1 - \frac{2M}{r}\right), \qquad
+g_{t\phi} \simeq -\frac{2Ma\sin^2\theta}{r},
+\label{eq:asymptotic}
+\end{equation}
+the first entry is the Newtonian potential $\Phi = -M/r$ in disguise —
+so $M$ is the mass any distant Keplerian orbit weighs — while the
+cross-term is the gravitomagnetic potential of a body with angular
+momentum $J = Ma$: spin is stored in the metric's off-diagonal entry.
+In the multipole language of Chapter~\ref{ch:nohair}, these are the
+statements $M_0 = M$ and $S_1 = Ma$; the first \emph{non-trivial}
+no-hair lock appears one order deeper, $M_2 = -Ma^2$. Throughout we use
+the dimensionless spin $\astar = a/M \in [0, 1]$, so that the working
+\sgra{} model, $\astar = 0.94$, carries angular momentum
+$J = 0.94\,GM^2/c$ in physical units.
+
 \subsection{Metric determinant and inverse}
 
 The $t$--$\phi$ sector of \eqref{eq:kerr} is a $2\times2$ block; its
@@ -72,6 +104,18 @@ g^{rr} = \frac{\Delta}{\Sigma}, \quad
 g^{\theta\theta} = \frac{1}{\Sigma}.
 \label{eq:ginv}
 \end{equation}
+Two consequences of this block structure are used constantly downstream.
+First, the invariant volume element is simply
+$\sqrt{-g} = \Sigma\sin\theta$ — no square roots of $\Delta$ survive —
+which keeps the ZAMO tetrad normalisation of Chapter~\ref{ch:shadow}
+free of horizon-adjacent cancellations. Second, because the only
+off-diagonal coupling is $t$--$\phi$, the four-velocity normalisation
+condition $g_{\mu\nu}u^\mu u^\nu = -1$ is always a \emph{quadratic} in
+$u^t$ with coefficients read directly from \eqref{eq:kerr}; that is the
+equation \texttt{solve\_ut} solves in closed form when initialising
+timelike geodesics (Chapter~\ref{ch:geodesics}), and its discriminant
+going negative is the code's first line of defence against unphysical
+initial conditions.
 
 \subsection{Kerr--Schild form}
 
@@ -89,7 +133,37 @@ l_\mu = \left(1,\ \frac{rx + ay}{r^2+a^2},\ \frac{ry - ax}{r^2+a^2},\
 where $\eta$ is the flat metric, $l_\mu$ is null with respect to both
 $\eta$ and $g$, and $r(x,y,z)$ is defined implicitly by
 $\frac{x^2+y^2}{r^2+a^2} + \frac{z^2}{r^2} = 1$. Every metric component
-in \eqref{eq:kerrschild} is manifestly regular at the horizon. The
+in \eqref{eq:kerrschild} is manifestly regular at the horizon.
+
+The route from Boyer--Lindquist to this form is worth recording,
+because it shows exactly which pathology the BL chart has. Define
+ingoing Kerr coordinates $(v, r, \theta, \tilde\phi)$ by absorbing the
+divergent pieces of radial null motion,
+\begin{equation}
+\mathrm{d}v = \mathrm{d}t + \frac{r^2+a^2}{\Delta}\,\mathrm{d}r,
+\qquad
+\mathrm{d}\tilde\phi = \mathrm{d}\phi + \frac{a}{\Delta}\,\mathrm{d}r .
+\label{eq:ingoing}
+\end{equation}
+Both corrections blow up at $\Delta = 0$ precisely because BL time $t$
+and azimuth $\phi$ are tied to distant static observers, for whom an
+infalling ray takes infinite $t$ (and winds infinitely in $\phi$, the
+signature twist of rotation) to reach the horizon. Substituting
+\eqref{eq:ingoing} into \eqref{eq:kerr} cancels every $1/\Delta$:
+\begin{align}
+\mathrm{d}s^2 ={}& -\left(1-\frac{2Mr}{\Sigma}\right)\mathrm{d}v^2
++ 2\,\mathrm{d}v\,\mathrm{d}r
+- \frac{4Mar\sin^2\theta}{\Sigma}\,\mathrm{d}v\,\mathrm{d}\tilde\phi
+\nonumber\\
+&{} - 2a\sin^2\theta\,\mathrm{d}r\,\mathrm{d}\tilde\phi
++ \Sigma\,\mathrm{d}\theta^2
++ \frac{A\sin^2\theta}{\Sigma}\,\mathrm{d}\tilde\phi^2 ,
+\label{eq:ingoingkerr}
+\end{align}
+which is regular for all $r > 0$; the Cartesian relabelling
+$x + \mathrm{i}y = (r + \mathrm{i}a)\sin\theta\,
+\mathrm{e}^{\mathrm{i}\tilde\phi}$, $z = r\cos\theta$ then produces
+\eqref{eq:kerrschild}. The
 simulator works in Boyer--Lindquist coordinates throughout — the Carter
 separation of Chapter~\ref{ch:geodesics} lives there — and simply stops
 rays at $r = 1.001\,r_+$; the Kerr--Schild form is recorded here as the
@@ -120,6 +194,34 @@ $(E, L_z, Q, p_\mu p^\mu)$ for four momentum components is what makes
 Kerr geodesics integrable, and hence what makes a machine-precision
 ray tracer possible at all.
 
+The hidden symmetry is concrete enough to write down. The Killing--Yano
+two-form of Kerr is \citep{Penrose1969, Chandrasekhar1983}
+\begin{equation}
+f = a\cos\theta\,\mathrm{d}r\wedge
+    \left(\mathrm{d}t - a\sin^2\theta\,\mathrm{d}\phi\right)
+  + r\sin\theta\,\mathrm{d}\theta\wedge
+    \left[(r^2+a^2)\,\mathrm{d}\phi - a\,\mathrm{d}t\right],
+\label{eq:killingyano}
+\end{equation}
+antisymmetric and satisfying $\nabla_{(\mu}f_{\nu)\lambda} = 0$; its
+square $K_{\mu\nu} = f_{\mu\lambda}f^\lambda{}_\nu$ is the Killing
+tensor. Two structural facts follow by inspection of
+\eqref{eq:killingyano}. First, $f$ mixes the $(t,\phi)$ and
+$(r,\theta)$ sectors with coefficients depending on $r$ and $\theta$
+\emph{separately} — the geometric seed of the additive separation
+$S = S_r(r) + S_\theta(\theta)$ that Chapter~\ref{ch:geodesics}
+exploits. Second, at $a = 0$ the first term dies and
+$K_{\mu\nu}p^\mu p^\nu$ degenerates to $r^4 p_\theta^2$ plus angular
+momentum terms — the square of the \emph{total} angular momentum, which
+is why Carter's $Q$ reduces in the Schwarzschild limit to
+$L^2 - L_z^2$, the familiar statement that only two of the three
+angular momentum components are independent once $L_z$ is fixed. The
+combination the code actually conserves,
+$Q = K_{\mu\nu}p^\mu p^\nu - (L_z - aE)^2$
+(\texttt{carter\_q}), is chosen so that $Q = 0$ picks out exactly the
+equatorial geodesics — the convention under which every potential in
+Chapter~\ref{ch:geodesics} is written.
+
 \section{Frame dragging and the ZAMO}
 \label{sec:zamo}
 
@@ -140,6 +242,30 @@ horizon, including inside the ergosphere, and reduces to the static
 observer at $a = 0$; its orthonormal tetrad is constructed explicitly in
 Chapter~\ref{ch:shadow} (\texttt{zamo\_tetrad}).
 
+Three properties of $\omega$ deserve record. Far from the hole,
+$\omega \to 2J/r^3$ with $J = Ma$: the Lense--Thirring precession rate,
+the same gravitomagnetic circulation measured (at the level of tens of
+milliarcseconds per year) by the Gravity Probe~B gyroscopes and the
+LAGEOS laser-ranging satellites in Earth orbit — the identical term of
+the identical metric expansion, sixteen orders of magnitude apart in
+field strength. At the horizon, using $r_+^2 + a^2 = 2Mr_+$ (from
+$\Delta = 0$),
+\begin{equation}
+\omega(r_+) = \frac{2Mar_+}{(r_+^2+a^2)^2} = \frac{a}{2Mr_+}
+\equiv \Omega_H,
+\label{eq:omegah}
+\end{equation}
+\emph{independent of} $\theta$: the horizon rotates rigidly, like a
+solid body, with angular velocity $\Omega_H$ — for the \sgra{} model
+spin, $2\pi/\Omega_H \approx 18\,M$, one horizon revolution every six
+and a half minutes of coordinate time. And between those limits $\omega$ interpolates
+monotonically, which is what the primer's Fig.~\ref{fig:dgframedrag}
+displays. The ZAMO's proper-time normalisation defines the lapse
+$\alpha = \sqrt{\Delta\Sigma/A}$; $\alpha \to 0$ at the horizon is the
+familiar infinite-redshift statement, and the pair $(\alpha, \omega)$
+is exactly what the camera model of Chapter~\ref{ch:shadow} needs to
+convert locally measured photon directions into conserved $(E, L_z)$.
+
 \section{Horizons, ergosphere, and the static limit}
 \label{sec:radii}
 
@@ -155,6 +281,32 @@ shrinks from $2M$ at $a = 0$ to $M$ at extremality, where the square root
 vanishes. For $|a| > M$ there is no horizon at all — a naked
 singularity — and the \texttt{KerrMetric} constructor refuses such spins
 by design.
+
+The horizon is not merely a radius; it has intrinsic geometry. Setting
+$r = r_+$, $\mathrm{d}t = \mathrm{d}r = 0$ in \eqref{eq:kerr} and
+integrating $\sqrt{g_{\theta\theta}g_{\phi\phi}}$ over the sphere gives
+the horizon area
+\begin{equation}
+A_H = 4\pi\left(r_+^2 + a^2\right) = 8\pi M r_+ ,
+\label{eq:area}
+\end{equation}
+where the second equality again uses $r_+^2 + a^2 = 2Mr_+$. Two
+classical consequences hang on \eqref{eq:area}. First, the
+\emph{irreducible mass} $M_{\rm irr} = \sqrt{A_H/16\pi}$: Hawking's
+area theorem forbids $A_H$ from decreasing in any classical process, so
+$M_{\rm irr}$ is the part of the mass that can never be extracted. For
+a Kerr hole $M^2 = M_{\rm irr}^2 + J^2/(4M_{\rm irr}^2)$
+(Christodoulou's mass formula), and the difference between $M$ and
+$M_{\rm irr}$ — up to $29\%$ of $M$ at extremality — is rotational
+energy stored in the dragged spacetime itself, in principle minable via
+the Penrose process \citep{Penrose1969} or its electromagnetic cousin,
+the \citet{BlandfordZnajek1977} mechanism, which powers the relativistic
+jets this simulator deliberately does \emph{not} model
+(Chapter~\ref{ch:discussion} returns to that honest boundary). Second,
+the area never appears in any optics below: the \emph{shadow} of
+Chapter~\ref{ch:shadow} is set by the photon orbits at
+$\sim\!3M$, not by $r_+$ — a distinction the popular identification of
+``the EHT ring'' with ``the horizon'' blurs.
 
 \emph{Static limit and ergosphere.} A static observer (fixed $r, \theta,
 \phi$) has $u^\mu \propto \partial_t$, which requires $g_{tt} < 0$.
@@ -215,6 +367,24 @@ displaced shadow of Chapter~\ref{ch:shadow}. The corresponding critical
 impact parameters follow from back-substituting \eqref{eq:rph} into the
 double-root conditions; they reappear as the Bardeen critical curve in
 Chapter~\ref{ch:shadow}.
+
+Two consistency checks on \eqref{eq:rph} are cheap and instructive. For
+small spin, $\cos^{-1}(\mp\astar) = \pi/2 \pm \astar + O(\astar^3)$,
+and expanding the cosine about $\pi/3$ gives
+\begin{equation}
+r_{\rm ph}^{\pm} = 3M \mp \frac{2a}{\sqrt{3}} + O(a^2/M):
+\label{eq:rphexpand}
+\end{equation}
+the photon orbits split \emph{linearly} in spin, prograde inward,
+retrograde outward, at slope $2/\sqrt3 \approx 1.15$ — this is the
+leading-order lever by which spin displaces the shadow silhouette. At
+the working spin $\astar = 0.94$ the exact values from \eqref{eq:rph}
+are $r_{\rm ph}^{+} = 1.43\,M$ and $r_{\rm ph}^{-} = 3.95\,M$ (the
+\texttt{physics\_tables} grid of Fig.~\ref{fig:radiispin}): the
+prograde orbit sits barely $0.08\,M$ outside the horizon at
+$1.34\,M$, while the retrograde orbit has retreated past the
+Schwarzschild value — an asymmetry of nearly a factor of three in
+radius for light, all of it frame dragging.
 
 \begin{figure}
 \centering
@@ -300,12 +470,46 @@ r_{\rm ISCO} &= M\left[3 + Z_2 \mp
       \sqrt{(3-Z_1)(3+Z_1+2Z_2)}\right],
 \label{eq:isco}
 \end{align}
-with the upper sign prograde (\texttt{r\_isco}). The checks the test
-suite pins (Chapter~\ref{ch:devhistory}): at $\astar = 0$,
+with the upper sign prograde (\texttt{r\_isco}). Before the $Z_1, Z_2$
+machinery, the stability condition itself is compact enough to quote:
+a circular orbit at radius $r$ is stable iff
+\begin{equation}
+r^2 - 6Mr \pm 8a\sqrt{Mr} - 3a^2 \;\geq\; 0,
+\label{eq:iscostability}
+\end{equation}
+and the ISCO is its marginal root
+\citep{BardeenPressTeukolsky1972}. Equation~\eqref{eq:iscostability}
+passes its limits transparently: at $a = 0$ it factors to
+$r(r - 6M) \geq 0$, hence $6M$; at $a = M$ the prograde form
+$r^2 - 6Mr + 8M^{3/2}r^{1/2} - 3M^2$ vanishes at $r = M$ and the
+retrograde form at $r = 9M$. The checks the test suite pins
+(Chapter~\ref{ch:devhistory}): at $\astar = 0$,
 $Z_1 = 3$, $Z_2 = 3$ and $r_{\rm ISCO} = 6M$ exactly; as
 $\astar \to 1$ the prograde ISCO slides to $M$ while the retrograde one
 recedes to $9M$; and the prograde radius decreases monotonically with
 spin (Fig.~\ref{fig:radiispin}).
+
+One more closed form deserves promotion from the appendix, because it
+compresses the entire energetics of accretion into a single line. At
+the ISCO — and \emph{only} there — the specific energy
+\eqref{eq:ecirc} collapses to
+\begin{equation}
+E_{\rm ISCO} = \sqrt{1 - \frac{2M}{3\,r_{\rm ISCO}}},
+\label{eq:eisco}
+\end{equation}
+valid for every spin and both senses of rotation (the derivation is
+three lines from the marginal-stability condition
+\eqref{eq:iscostability}; Appendix~\ref{app:algebra}). It reproduces
+$\sqrt{8/9}$ at $r_{\rm ISCO} = 6M$ and $1/\sqrt{3}$ at the extremal
+prograde $r_{\rm ISCO} = M$, and it means the whole efficiency curve of
+Fig.~\ref{fig:efficiency} is really just the ISCO-radius curve of
+Fig.~\ref{fig:radiispin} replotted. The identity doubles as an external
+check on the code: \texttt{physics\_tables} evaluates $E_{\rm ISCO}$
+through the general formula \eqref{eq:ecirc}, knowing nothing of
+\eqref{eq:eisco}, yet its tabulated values reproduce
+$\sqrt{1-2M/3r_{\rm ISCO}}$ to all six printed decimals across the
+spin grid (e.g.\ $E = 0.820404$ against the identity's $0.820406$ at
+$\astar = 0.938$).
 
 A second marginal radius appears in accretion theory: the
 \emph{marginally bound} orbit, where $E = 1$ — a particle dropped from
@@ -349,3 +553,46 @@ prograde and retrograde, from \texttt{physics\_tables}. The Schwarzschild
 value $1-\sqrt{8/9} = 5.72\%$ is marked.}
 \label{fig:efficiency}
 \end{figure}
+
+\section{What the rest of the report inherits from this chapter}
+\label{sec:kerrinherit}
+
+Because every later chapter leans on these closed forms, it is worth
+closing with the explicit ledger of Table~\ref{tab:kerrledger}: each
+formula, the function that implements it, and the place its correctness
+is pinned. The pattern of the table is the pattern of the whole
+project: no formula ships without a limit it must hit exactly, and no
+implementation ships without a test that hits it.
+
+\begin{table}
+\centering
+\caption{The Chapter~\ref{ch:kerr} ledger: closed form
+$\rightarrow$ implementation $\rightarrow$ anchor. All functions live
+in \texttt{physics/src/metric.cpp}; tests are named as in the Catch2
+suite of Chapter~\ref{ch:devhistory}.}
+\label{tab:kerrledger}
+\small
+\begin{tabular}{lll}
+\toprule
+Quantity & Implementation & Anchored by \\
+\midrule
+Metric \eqref{eq:kerr} & \texttt{kerr\_components} &
+  determinant identity \eqref{eq:detg} test \\
+Inverse \eqref{eq:ginv} & \texttt{invert\_bl\_block} &
+  $g^{\mu\lambda}g_{\lambda\nu}=\delta^\mu_\nu$ spot checks \\
+Horizon \eqref{eq:horizon} & \texttt{r\_horizon} &
+  $2M$ at $\astar=0$; $M$ at $\astar=1$ \\
+Ergosphere \eqref{eq:ergo} & \texttt{r\_ergosphere} &
+  $2M$ equatorial for all spins \\
+Photon orbits \eqref{eq:rph} & \texttt{r\_photon} &
+  $3M$ at $\astar=0$; split for $\astar>0$ \\
+ISCO \eqref{eq:isco} & \texttt{r\_isco} &
+  $6M$ at $\astar=0$; monotone in spin \\
+$\Omega, E, L$ \eqref{eq:omegacirc}--\eqref{eq:lcirc} &
+  \texttt{omega/energy/angmom\_circular} &
+  $E_{\rm ISCO}$ identity \eqref{eq:eisco} \\
+Efficiency \eqref{eq:eta} & \texttt{physics\_tables} &
+  $\EtaSchw\%$ Schwarzschild closed form \\
+\bottomrule
+\end{tabular}
+\end{table}
