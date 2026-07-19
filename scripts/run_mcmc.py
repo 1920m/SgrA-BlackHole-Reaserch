@@ -126,6 +126,10 @@ def run(mode: str, steps: int, nwalkers: int, workers: int,
     p0 = np.clip(p0, lo + 1e-12, hi - 1e-12)
 
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob, vectorize=True)
+    # Seed emcee's internal RandomState too: default_rng above only seeds the
+    # walker ball, and an unseeded sampler makes every `make reproduce` emit a
+    # different chain (breaking the numbers.tex reproducibility contract).
+    sampler.random_state = np.random.RandomState(seed).get_state()
     t0 = time.time()
     print(f"[{mode}] sampling {nwalkers} walkers x {steps} steps "
           f"({ndim} params, {workers} chi2 workers) ...")

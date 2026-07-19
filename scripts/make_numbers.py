@@ -173,6 +173,9 @@ def main() -> None:
         macro("McmcNSteps", f"{mc['n_steps']}")
         macro("McmcNWalkers", f"{mc['n_walkers']}")
         macro("McmcTauMax", f"{mc['autocorr_max']:.0f}")
+        macro("McmcNSamples", f"{mc['n_samples']:,}".replace(",", "\\,"))
+        macro("McmcChainTau", f"{mc['n_steps'] / mc['autocorr_max']:.0f}")
+        macro("McmcAcceptance", f"{mc['acceptance']:.2f}")
     mcn = load("validation/thesis/mcmc_nohair.json")
     if mcn and "eps_q" in mcn:
         macro("McmcEpsQMed", f"{mcn['eps_q'][1] / 1e5:.2f}")

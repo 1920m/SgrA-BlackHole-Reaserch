@@ -389,14 +389,18 @@ Priors are flat within generous physical bounds; the
 \subsection{Convergence and results}
 
 The production chain runs \McmcNWalkers{} walkers for \McmcNSteps{}
-steps from a small ball around the least-squares optimum. The mean
-acceptance fraction is $0.72$ and the longest integrated
+steps from a small ball around the least-squares optimum, with the
+sampler's random state seeded so the chain — and every posterior
+number quoted from it — is bit-reproducible under
+\texttt{make reproduce}. The mean
+acceptance fraction is \McmcAcceptance{} and the longest integrated
 autocorrelation time across parameters is
-$\tau_{\max} \approx \McmcTauMax{}$ steps — the chain is
-$\sim$$10^2\,\tau$ long, comfortably beyond the
-$50\,\tau$ convergence rule of thumb \citep{ForemanMackey2013}.
+$\tau_{\max} \approx \McmcTauMax{}$ steps: the chain is
+$\approx\McmcChainTau\,\tau$ long, against the
+$\gtrsim 50\,\tau$ convergence rule of thumb
+\citep{ForemanMackey2013}.
 Discarding $4\tau_{\max}$ as burn-in and thinning by $\tau_{\max}/2$
-leaves $6\,336$ effectively independent posterior samples.
+leaves \McmcNSamples{} effectively independent posterior samples.
 
 The marginal posteriors give
 $M = \McmcMassMed^{+\McmcMassHi}_{-\McmcMassLo}\times10^{6}\,\msun$ and
