@@ -59,7 +59,17 @@ $\CalDiamUas\,\muas$, inside the EHT measurement of
 $51.8\pm2.3\,\muas$ \citep{EHT2022}. Freeing the quadrupole moment in a
 Hartle--Thorne extension yields
 $\epsq = \EpsQBest \pm \EpsQSigma \times 10^{5}$ (68 per cent),
-consistent with the no-hair theorem.
+consistent with the no-hair theorem. An affine-invariant ensemble MCMC
+run through the identical forward model
+(\McmcNWalkers{} walkers $\times$ \McmcNSteps{} steps) confirms the
+least-squares covariances globally — the posterior is single-moded
+with $M = \McmcMassMed^{+\McmcMassHi}_{-\McmcMassLo}\times10^6\,\msun$
+— and a joint fit of five S-stars (S2, S1, S8, S12, S13) sharing one
+potential tightens the mass to
+$\ClusterMass \pm \ClusterMassErr \times 10^{6}\,\msun$, a
+\ClusterMassImprovePct{} per cent improvement over S2 alone, while
+demonstrating concretely why single short-arc stellar fits cannot
+weigh the black hole.
 
 This report is the long-form account of that programme. Part~I is a
 plain-language primer for readers without a physics background. Parts~II--IV
@@ -68,8 +78,6 @@ document the numerical methods and their error analysis; present the full
 results with their statistical treatment; and record the complete
 development history, test suite, and validation gates through which the
 instrument was built.
-
-% TODO(thesis): expand to ~400 words when the MCMC and cluster-fit results land.
 
 %---------------------------------------------------------------- notation
 \chapter*{Notation and Conventions}
@@ -81,8 +89,10 @@ and times are quoted in units of the gravitational radius $M$
 Metric signature $(-,+,+,+)$; Boyer--Lindquist coordinates
 $(t,r,\theta,\phi)$.
 
-% TODO(thesis): full symbol table (M, a, a*, Sigma, Delta, A, E, Lz, Q, mu,
-% lambda Mino, tau, eps_q, g, xi, eta, gamma_Lyapunov, chi2, ...).
+The complete symbol table, with the equation or section where each
+symbol is defined, is Appendix~\ref{app:glossary}; it is placed at the
+back so it can cross-reference the definitions, and duplicated there
+by design so a reader can reach it from either end of the report.
 
 %------------------------------------------------- reproducibility statement
 \chapter*{Reproducibility Statement}

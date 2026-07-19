@@ -25,7 +25,8 @@ cross-validation (Gate 7).
 \caption{Verification gates. Every criterion is asserted by code; the
 tags exist in the repository history.}
 \label{tab:gates}
-\small
+\footnotesize
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{llll}
 \toprule
 Gate & Tag & Criterion & Result \\
@@ -57,6 +58,26 @@ journal paper + this report \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Read as a sequence, the ladder tells the project's story in
+miniature. Gates 0--2 built \emph{trust in the mathematics}: no
+pixel existed yet, only conserved quantities and analytic boundary
+comparisons — the phase where a sign error costs an afternoon instead
+of a month. Gates 3--5 converted trusted mathematics into
+\emph{science claims}: the first quantitative beaming ratio, the
+first fit against real published data, the first constraint with an
+error bar. Gates 6--9 were \emph{engineering under guard}: the GPU
+was allowed to render only what the CPU had already proven
+(the pixel-difference gate is the enforcement mechanism), and the
+interactive shell was allowed to exist only with validation layers
+permanently on. Gates 10--12 \emph{closed the loop} back to the sky:
+calibration against EHT, and the reproducibility contract that turned
+a working simulator into a defensible report. The ordering was not
+aesthetic: on three occasions (the tolerance-dependent shadow, the
+Keplerian period error, the covariance failure — all below) a gate
+refused to pass, and in each case the failure was caught at the
+cheapest possible layer because nothing downstream had been built on
+it yet.
 
 \section{The test suite}
 \label{sec:testsuite}

@@ -107,6 +107,33 @@ honestly. The real fits of Chapter~\ref{ch:fitting} do exactly the
 same sum, with hundreds of measurements and thirteen knobs.
 \end{worked}
 
+\section{When two knobs move together: degeneracy}
+
+One statistical idea deserves its own section, because it shapes the
+headline results of Part~III. Sometimes two model knobs affect the
+data in nearly the same way, so turning one up and the other down
+leaves the fit almost unchanged: the knobs are \emph{degenerate}, and
+the data constrain some \emph{combination} of them tightly while
+leaving the individual values loose.
+
+The mass of \sgra{} and our distance to it are the canonical example.
+The star's \emph{angular} orbit (astrometry) fixes only how mass and
+distance-cubed combine — a heavier hole farther away draws the same
+picture on the sky. The star's \emph{speeds} (spectroscopy) fix a
+different combination — a heavier hole farther away must move its
+stars faster. Each channel alone leaves a whole family of acceptable
+$(M, \hbox{distance})$ pairs; only together do they pick the single
+crossing point. Even then, the crossing is at a shallow angle: the
+allowed region is not a neat circle but a long, tilted ellipse, and
+quoting ``$M = \FitMass\pm\FitMassErr$'' without also stating the
+distance assumption would quietly misrepresent what is known. The
+corner-plot figures of Chapter~\ref{ch:fitting} exist precisely to
+display such ellipses; the spin--inclination degeneracy of the ring
+size (Chapter~\ref{ch:f3}) is the same phenomenon wearing imaging
+clothes. When a later chapter says a parameter direction is ``weakly
+constrained'', this picture — a long valley in the $\chi^2$ landscape
+— is always what is meant.
+
 \section{MCMC: mapping uncertainty by wandering}
 
 For a model with thirteen knobs, the surface of $\chi^2$ over all knob

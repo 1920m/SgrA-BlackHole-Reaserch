@@ -91,6 +91,39 @@ which is why that section grounds each visual feature in the underlying
 validated quantity ($r_{\rm ISCO}$, $g^4$, $\Omega(r)$) rather than in
 the layer itself.
 
+\section{The control surface and the auto-resolution loop}
+\label{sec:controls}
+
+Interactivity is only useful if the frame rate survives it, and the
+GTX-class test hardware saturates at roughly nine full-resolution
+frames per second (one full geodesic per pixel;
+Chapter~\ref{ch:gpu}). Rather than pick a fixed internal resolution,
+the instrument closes the loop: every two seconds the frame-rate
+sampler updates the internal render scale by
+\begin{equation}
+s \;\leftarrow\; \mathrm{clamp}\!\left(s\,
+\sqrt{\tfrac{\mathrm{fps}}{13}},\; 0.25,\; 2.0\right),
+\label{eq:autores}
+\end{equation}
+damped by blending most of the way toward the new value and ignoring
+sub-5-per-cent changes to avoid render-target churn (each change
+rebuilds the target and rewrites its bindless slot). The square root
+is exact, not heuristic: the workload is one ray per pixel, so frame
+time scales linearly with pixel \emph{count} and hence quadratically
+with linear scale — the $1/N_{\rm px}$ law measured in
+Fig.~\ref{fig:bench} makes \eqref{eq:autores} a one-step deadbeat
+controller, the same design logic as the integrator's step
+controller in Chapter~\ref{ch:numerics}. Scales above $1\times$
+downsample through a linear blit, so the same slider doubles as a
+supersampling control for stills. The rotation-rate slider is
+calibrated so that $1.0$ advances the disk pattern at real \sgra{}
+wall-clock rate ($GM/c^3 = 21.2$~s per unit of coordinate time; one
+ISCO orbit every $8.5$ minutes) on a logarithmic range up to
+$1000\times$ — at $1.0$ the disk is, correctly and instructively,
+almost static to the eye, which is itself a physics statement about
+how sedate a four-million-solar-mass hole's dynamics are in human
+units.
+
 \renderpending{The four colour presets (FIRESTORM, GARGANTUA, ARCTIC,
 NEBULA) on the same physical scene, showing that the preset acts on the
 display LUT only --- the geometry is identical across all four.}%

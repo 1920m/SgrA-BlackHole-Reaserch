@@ -358,6 +358,38 @@ The coordinate singularities of the BL chart at $\theta = 0, \pi$
 $10^{-8}$ clamp (\texttt{kThetaClamp}); polar-crossing orbits with
 $L_z = 0$ pass smoothly.
 
+\section{The time equation, and who owns which clock}
+\label{sec:timeclocks}
+
+The $t$-equation of \eqref{eq:tphi} deserves a section of its own,
+because three different clocks run through this report and confusing
+them is the classic error of the field. \emph{Coordinate time} $t$ is
+the bookkeeping label of the BL chart — the far observer's clock, the
+time in which the horizon is never crossed and the S2 observation
+epochs are stamped. \emph{Proper time} $\tau_{\rm prop}$ ticks on the
+moving object itself: for S2 it runs slow by the combined
+gravitational-plus-velocity factor $1/u^t$ of Chapter~\ref{ch:disk}
+(about seven parts in $10^{4}$ at pericentre — the two
+$\sim$$10^{-4}$ redshift terms of Chapter~\ref{ch:fitting} added),
+and for photons it does not run at all. \emph{Mino time} $\tau$ is neither: it is a
+computational parameter chosen to decouple the equations, with no
+clock anywhere reading it. The integrator marches in Mino time,
+accumulates coordinate time through \eqref{eq:tphi}, and never needs
+proper time for photons at all.
+
+Two physical effects live entirely inside the $t$-equation. First,
+its $P(r)/\Delta$ term diverges at the horizon: as a ray approaches
+$r_+$, equal steps of Mino time cost ever more coordinate time — the
+distant observer sees the approach freeze, which is why the tracer's
+$1.001\,r_+$ stop (Chapter~\ref{ch:numerics}) discards only an
+infinite tail of frozen bookkeeping, not physics. Second, along
+escaping rays the accumulated $t$ minus the flat-space expectation is
+finite and positive — strong-field paths arrive \emph{late}, the
+Shapiro delay in geodesic dress. The sub-ring echo delay of
+Chapter~\ref{ch:ring} and the R{\o}mer solve of
+Chapter~\ref{ch:sstar} are both, at bottom, careful audits of this
+same accumulated-$t$ ledger, one for photons and one for a star.
+
 \section{Launching rays: from four-momentum to constants}
 \label{sec:makenullray}
 

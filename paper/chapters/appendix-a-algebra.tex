@@ -4,6 +4,42 @@
 Derivations too long for the main text, kept here so every closed form
 the code implements is reproducible on paper as well as in silicon.
 
+\section{The Carter regrouping identity, term by term}
+\label{app:carterfull}
+
+Chapter~\ref{ch:geodesics} asserts the identity \eqref{eq:regroup} that
+makes the Hamilton--Jacobi equation separate; here is the verification
+in full, since the whole architecture rests on it. Multiply both sides
+of \eqref{eq:regroup} by $\Delta$ and expand the right-hand side:
+\begin{align}
+-P^2 + \Delta\left(aE\sin\theta - \frac{L_z}{\sin\theta}\right)^{\!2}
+={}& -\bigl[E(r^2+a^2) - aL_z\bigr]^2 \nonumber\\
+&{}+ \Delta\left(a^2E^2\sin^2\theta - 2aEL_z
++ \frac{L_z^2}{\sin^2\theta}\right) .
+\end{align}
+Collect by powers of $E$ and $L_z$:
+\begin{align}
+E^2:&\quad -(r^2+a^2)^2 + a^2\Delta\sin^2\theta = -A
+&&\text{(definition of $A$)},\nonumber\\
+EL_z:&\quad 2a(r^2+a^2) - 2a\Delta = 2a\bigl[r^2+a^2-\Delta\bigr]
+= 4Mar
+&&\text{(since $r^2+a^2-\Delta = 2Mr$)},\nonumber\\
+L_z^2:&\quad -a^2 + \frac{\Delta}{\sin^2\theta}
+&&\text{(as it stands)} .
+\label{eq:regroupterms}
+\end{align}
+The three collected coefficients are exactly the numerator entries of
+the raw contraction \eqref{eq:hjraw}, term for term, which proves
+\eqref{eq:regroup}. Note what did the work: the definition of $A$
+absorbed the $\theta$-dependence of the $E^2$ sector, and the identity
+$r^2 + a^2 - \Delta = 2Mr$ — the statement that $g_{t\phi}$ is
+proportional to $Mar$ — collapsed the cross term. Both are properties
+of the specific Kerr combination of metric functions; a generic
+stationary axisymmetric metric leaves an irreducible mixed remainder,
+which is precisely why the quasi-Kerr spacetime of
+Chapter~\ref{ch:nohair} has no Carter constant and must be integrated
+by Christoffel symbols.
+
 \section{The equatorial photon-orbit cubic}
 \label{app:photoncubic}
 
@@ -29,19 +65,29 @@ $4r\sqrt{\Delta} = 2(r-M)|b-a|$, i.e.
 r^2 + a^2 - ab = \frac{2r\,\Delta}{r - M}.
 \label{eq:appbelim}
 \end{equation}
-Eliminating $b$ between the two relations in \eqref{eq:appbelim} and
-simplifying with $\Delta = r^2 - 2Mr + a^2$:
+Eliminating $b$ is now mechanical. From the first relation,
+$b = a \pm 2r\sqrt{\Delta}/(r-M)$; substituting into the second,
 \begin{equation}
-r^2(r - M)^2 \cdot \frac{(r^2 + a^2) (r-M) - 2r\Delta}{\cdots}
-\;\Longrightarrow\;
-r^2 - 3Mr \pm 2a\sqrt{Mr} = 0,
+r^2 + a^2 - ab
+= r^2 \mp \frac{2ar\sqrt{\Delta}}{r-M}
+\stackrel{!}{=} \frac{2r\,\Delta}{r-M} ,
 \end{equation}
-where the last line follows after cancelling the common factor and
-completing the square in $\sqrt{r}$; dividing by $\sqrt{r}$ gives the
-cubic in $x = \sqrt{r/M}$ quoted as \eqref{eq:photoncubic},
+and multiplying through by $(r-M)/r$:
 \begin{equation}
-x^3 - 3x \pm \frac{2a}{M}\,x^0\sqrt{1} = 0
-\quad\text{i.e.}\quad
+r(r-M) \mp 2a\sqrt{\Delta} = 2\Delta
+\quad\Longrightarrow\quad
+\mp 2a\sqrt{\Delta} = r^2 - 3Mr + 2a^2 .
+\end{equation}
+Squaring and inserting $\Delta = r^2 - 2Mr + a^2$, the $a^4$ terms
+cancel and a common factor $r$ drops out:
+\begin{equation}
+r^3 - 6Mr^2 + 9M^2 r - 4a^2 M = 0
+\quad\Longleftrightarrow\quad
+\bigl(x^3 - 3x\bigr)^2 = 4a_*^2,
+\qquad x = \sqrt{r/M},
+\end{equation}
+whose two square-root branches are the prograde/retrograde pair
+\begin{equation}
 x^3 - 3x \pm 2a_* = 0 .
 \end{equation}
 With three real roots guaranteed for $|a_*| \le 1$ (the discriminant
@@ -91,6 +137,33 @@ digits across the spin range, including the exact anchor points
 $r_{\rm ISCO}(0) = 6M$, $r_{\rm ISCO}^{+}(1) = M$,
 $r_{\rm ISCO}^{-}(1) = 9M$.
 
+\subsection{The ISCO energy identity}
+\label{app:eisco}
+
+Chapter~\ref{ch:kerr} promotes the identity
+$E_{\rm ISCO} = \sqrt{1 - 2M/(3\,r_{\rm ISCO})}$
+\eqref{eq:eisco}. In the Schwarzschild case it is a two-line
+computation worth seeing. With $a = 0$,
+\begin{equation}
+E^2(r) = \frac{(1 - 2M/r)^2}{1 - 3M/r},
+\end{equation}
+and the marginal-stability quartic \eqref{eq:iscoquartic} reduces to
+$r = 6M$, so
+\begin{equation}
+E^2_{\rm ISCO} = \frac{(1 - 1/3)^2}{1 - 1/2} = \frac{4/9}{1/2}
+= \frac{8}{9} = 1 - \frac{2M}{3\cdot 6M} .
+\end{equation}
+For general spin the same statement follows from
+\eqref{eq:ecirc} once the marginal condition \eqref{eq:iscoquartic} is
+used to eliminate the $a\sqrt{M/r^3}$ combinations
+\citep[the intermediate identities are eqs.~2.12--2.21
+of][]{BardeenPressTeukolsky1972}; rather than transcribe that page of
+algebra we record the numerical confirmation, which is independent of
+any transcription: across the \texttt{physics\_tables} spin grid the
+identity and the general formula agree to all printed digits (e.g.\
+$0.820404$ vs $0.820406$ at $\astar = 0.938$, the residual being the
+grid's own rounding), including both rotation senses.
+
 \section{The Page--Thorne flux integral}
 \label{app:pagethorne}
 
@@ -103,9 +176,33 @@ F(r) = \frac{\dot M}{4\pi r}\,
 \label{eq:ptintegral}
 \end{equation}
 with all quantities the circular-orbit functions of
-Chapter~\ref{ch:kerr}. In the variable $x = \sqrt{r/M}$ the integrand
-becomes a rational function whose denominator is
-$x^3 - 3x + 2a_*$ — factorable over the roots
+Chapter~\ref{ch:kerr}. The substitution $x = \sqrt{r/M}$ (and units
+$M = 1$) turns every circular-orbit function into a ratio of low-order
+polynomials in $x$ over the \emph{same} square root:
+\begin{equation}
+\Omega = \frac{1}{x^3 + a_*},
+\qquad
+E = \frac{x^3 - 2x + a_*}{x^{3/2}\sqrt{x^3 - 3x + 2a_*}},
+\qquad
+L = \frac{x^4 - 2a_* x + a_*^2}{x^{3/2}\sqrt{x^3 - 3x + 2a_*}} .
+\label{eq:ptcircx}
+\end{equation}
+The combination the integrand needs then telescopes beautifully:
+\begin{align}
+E - \Omega L
+&= \frac{(x^3 - 2x + a_*)(x^3 + a_*) - (x^4 - 2a_*x + a_*^2)}
+{(x^3 + a_*)\,x^{3/2}\sqrt{x^3 - 3x + 2a_*}} \nonumber\\
+&= \frac{x^3\,(x^3 - 3x + 2a_*)}
+{(x^3 + a_*)\,x^{3/2}\sqrt{x^3 - 3x + 2a_*}}
+= \frac{x^{3/2}\,\sqrt{x^3 - 3x + 2a_*}}{x^3 + a_*} ,
+\label{eq:eminusomegal}
+\end{align}
+the square root cancelling into the numerator (the middle equality is
+a direct expansion; every term not proportional to
+$x^3 - 3x + 2a_*$ cancels identically). Equation
+\eqref{eq:eminusomegal} is the engine of the whole closed form: the
+integrand $(E - \Omega L)L'$ becomes a rational function whose
+denominator is $x^3 - 3x + 2a_*$ — factorable over the roots
 \eqref{eq:ptroots} — so the integral evaluates by partial fractions to
 one power term, one logarithm from the $a_*$-linear piece, and one
 logarithm per root:
@@ -122,11 +219,44 @@ $-\Omega'/(E - \Omega L)^2$ and the $1/r$ of \eqref{eq:ptintegral}.
 The Schwarzschild guard of Chapter~\ref{ch:disk} arises because
 $x_2 \to 0$ as $a_* \to 0$ while its residue coefficient diverges as
 $1/x_2$; the product tends to the finite limit that the code takes
-analytically. Expanding the bracket at large $x$ term by term gives
-$x - c + 3/x + \mathcal{O}(x^{-2})$ with
-$c = x_0 + \tfrac32 a_*\ln x_0\cdots$ collecting the constants —
-$c \simeq 3.976$ at $a_* = 0$ — the expansion the far-field unit test
-asserts.
+analytically.
+
+\subsection{The far-field constant, exactly}
+\label{app:farfield}
+
+The far-field expansion asserted by the unit test —
+$x - c + 3/x + \mathcal{O}(x^{-2})$ with $c \simeq 3.976$ at
+$a_* = 0$, \emph{not} the Newtonian constant — can be closed in
+elementary terms. At $a_* = 0$ the cubic's roots are
+$x_1 = \sqrt3$, $x_2 = 0$, $x_3 = -\sqrt3$, and
+$x_0 = \sqrt{r_{\rm ISCO}/M} = \sqrt6$. The $x_2$ term vanishes (the
+guard limit), and the two surviving residues evaluate to
+\begin{equation}
+\frac{3(\pm\sqrt3)^2}{(\pm\sqrt3)(\pm\sqrt3)(\pm2\sqrt3)}
+= \pm\frac{\sqrt3}{2},
+\end{equation}
+so the bracket is
+\begin{equation}
+x - \sqrt6
+- \frac{\sqrt3}{2}\ln\frac{x-\sqrt3}{\sqrt6-\sqrt3}
++ \frac{\sqrt3}{2}\ln\frac{x+\sqrt3}{\sqrt6+\sqrt3} .
+\end{equation}
+As $x \to \infty$,
+$\ln\bigl[(x-\sqrt3)/(x+\sqrt3)\bigr] \to -2\sqrt3/x + \mathcal
+O(x^{-3})$, which supplies exactly the $+3/x$ term of the expansion,
+and the constants collect into
+\begin{equation}
+c = \sqrt6 + \frac{\sqrt3}{2}
+\ln\frac{\sqrt6+\sqrt3}{\sqrt6-\sqrt3}
+= 2.4495 + 0.8660\times1.7629 = 3.9762 ,
+\label{eq:farfieldc}
+\end{equation}
+the ``$c \simeq 3.976$'' of \eqref{eq:farfield} now an exact closed
+form. The Newtonian folklore profile corresponds to dropping the two
+logarithms — i.e.\ to $c = \sqrt6 \approx 2.449$ — and the difference
+between the two constants is precisely the general-relativistic
+torque bookkeeping near the inner edge, which is why asserting the
+correct $c$ in a unit test guards physics no rendered image can.
 
 \section{The quasi-Kerr structure functions at large radius}
 \label{app:htseries}
@@ -144,3 +274,117 @@ switches at $r = 9M$ to the explicit series of the \emph{cancelled}
 result (coefficients from the symbolic expansion, kept to
 $\mathcal{O}((M/r)^8)$), with the branch-continuity unit test asserting
 agreement of the two branches at the joint to $10^{-10}$.
+
+For the record, the exact covariant deviation the code applies
+(\texttt{HartleThorneMetric::components\_impl}) is, with
+$f = 1 - 2M/r$ and the quadrupole angular factor
+$1 - 3\cos^2\theta = -2P_2(\cos\theta)$:
+\begin{align}
+\delta g_{tt} &= +\epsq\, f\,(1 - 3\cos^2\theta)\,F_1(r),
+\nonumber\\
+\delta g_{rr} &= +\epsq\,(1 - 3\cos^2\theta)\,F_1(r)/f,
+\nonumber\\
+\delta g_{\theta\theta} &= -\epsq\, r^2 (1 - 3\cos^2\theta)\,F_2(r),
+\nonumber\\
+\delta g_{\phi\phi} &= -\epsq\, r^2\sin^2\theta\,
+(1 - 3\cos^2\theta)\,F_2(r),
+\label{eq:htdeviation}
+\end{align}
+added to the exact Kerr components (with the $\epsq = 0$ early-return
+making the Kerr limit exact by construction rather than by
+cancellation). The overall sign is anchored \emph{empirically}, not
+notationally: \citet{GlampedakisBabak2006} define $h^{ab}$ as a
+perturbation of the inverse metric, so a naive index-lowering flips
+the sign relative to \eqref{eq:htdeviation}, and the convention that
+counts is the physical one — with the signs as written, the far-field
+Newtonian limit is $\delta\Phi = -\delta Q\,P_2(\cos\theta)/r^3$ with
+$\delta Q = +\epsq M^3$ (the $Q_{\rm tot}$ convention of
+\eqref{eq:qtot}), and the measured apsidal advance of integrated
+orbits matches $-3\pi\epsq(M/p)^2$ for both signs of $\epsq$. That
+two-sided empirical pin is the quadrupole-sign test of
+Chapter~\ref{ch:devhistory}.
+
+\section{The Bardeen critical curve by elimination}
+\label{app:bardeen}
+
+Chapter~\ref{ch:shadow} quotes the parametrisation
+\eqref{eq:bardeen}; here is the elimination that produces it. Write
+the two shell conditions on the quartic \eqref{eq:bardeenquartic}
+with the shorthand $A_c = \xi^2 + \eta$ and
+$B_c = \eta + (\xi - a)^2$:
+\begin{align}
+R/E^2 &= r^4 + (a^2 - A_c)\,r^2 + 2MB_c\,r - a^2\eta = 0,
+\label{eq:appbardR}\\
+R'/E^2 &= 4r^3 + 2(a^2 - A_c)\,r + 2MB_c = 0 .
+\label{eq:appbardRp}
+\end{align}
+Equation \eqref{eq:appbardRp} is linear in $(a^2 - A_c)$:
+\begin{equation}
+a^2 - A_c = -2r^2 - \frac{MB_c}{r} .
+\label{eq:appbardA}
+\end{equation}
+Substituting into \eqref{eq:appbardR} collapses it to a relation
+linear in $\eta$:
+\begin{equation}
+r^4 - 2r^4 - MB_c r + 2MB_c r = a^2\eta
+\quad\Longrightarrow\quad
+\eta = \frac{r\,(MB_c - r^3)}{a^2} .
+\label{eq:appbardeta}
+\end{equation}
+Finally, the definitions of $A_c$ and $B_c$ give
+$A_c - B_c = 2a\xi - a^2$, so with \eqref{eq:appbardA},
+\begin{equation}
+\xi = \frac{A_c - B_c + a^2}{2a}
+= \frac{2a^2 + 2r^2 + MB_c/r - B_c}{2a} ,
+\label{eq:appbardxi}
+\end{equation}
+and imposing the remaining consistency $\eta = A_c - \xi^2$ closes
+the system into a single quadratic for $B_c(r)$, whose physical root,
+back-substituted through
+\eqref{eq:appbardeta}--\eqref{eq:appbardxi}, factors into the
+compact forms of \eqref{eq:bardeen}. (The factorisation is tedious to
+carry by hand but trivial to verify: substituting
+\eqref{eq:bardeen} into \eqref{eq:appbardR}--\eqref{eq:appbardRp}
+makes both vanish identically as polynomials in $r$ — and the traced
+boundary of Fig.~\ref{fig:boundary} performs the same verification
+numerically at every point, against the independent integrator.) The
+route displays where each qualitative feature comes from: $\eta$ in
+\eqref{eq:appbardeta} changes sign where $MB_c = r^3$ — the shell
+edges, where the orbit becomes equatorial — and $\xi$ in
+\eqref{eq:appbardxi} inherits its $1/a$ prefactor, which is why the
+critical curve degenerates to the Synge circle as $a \to 0$ only
+through the combination $\xi^2 + \eta$, individual $\xi$ diverging.
+
+\section{The Synge shadow angle at finite radius}
+\label{app:synge}
+
+Chapter~\ref{ch:shadow} quotes \eqref{eq:synge}; the derivation is
+three steps. A photon at radius $r_{\rm obs}$ in Schwarzschild with
+impact parameter $b$ makes a local angle $\alpha$ with the radial
+direction given by the tetrad components of its momentum,
+\begin{equation}
+\sin\alpha
+= \frac{k^{\hat\phi}}{\sqrt{(k^{\hat r})^2 + (k^{\hat\phi})^2}}
+= \frac{k^{\hat\phi}}{k^{\hat t}}
+= \frac{L_z/r}{E\big/\sqrt{1 - 2M/r}}
+= \frac{b}{r}\sqrt{1 - \frac{2M}{r}} ,
+\label{eq:syngestep}
+\end{equation}
+using the static-observer tetrad components
+($k^{\hat\phi} = L_z/r$, $k^{\hat t} = E/\sqrt{f}$) and, in the second
+equality, the null condition
+$(k^{\hat t})^2 = (k^{\hat r})^2 + (k^{\hat\phi})^2$ — the relation is
+exact, not small-angle. The shadow edge is the
+critical impact parameter $b_c = \sqrt{27}\,M$ of the photon sphere,
+so
+\begin{equation}
+\sin\alpha_{\rm sh} = \frac{\sqrt{27}\,M}{r_{\rm obs}}
+\sqrt{1 - \frac{2M}{r_{\rm obs}}} ,
+\end{equation}
+which is \eqref{eq:synge}. Two limits orient the formula: at
+$r_{\rm obs} \gg M$ it reduces to the flat-sky $b_c/r_{\rm obs}$
+(the correction factor is the $1/\sqrt{1-2M/r}$ of
+\eqref{eq:btoalpha}), and at $r_{\rm obs} = 3M$ it gives
+$\sin\alpha_{\rm sh} = 1$: an observer \emph{on} the photon sphere
+finds the shadow filling exactly half the sky, the memorable
+boundary between outside and inside views of the photon shell.

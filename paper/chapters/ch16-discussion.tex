@@ -93,6 +93,25 @@ equations) can be dropped in and confronted with both data channels at
 once. Next-generation instruments motivate exactly this: ngEHT-class
 arrays project ring-diameter precision at the per-cent level and access to
 the $n=1$ sub-ring \citep{Johnson2020}, while continued GRAVITY astrometry
-of S2 --- and any confirmed closer star (S62 remains contested, as noted
+of S2 --- and any confirmed closer star (S62 remains
+\mbox{contested}, as noted
 in Chapter~\ref{ch:nohair}) --- pushes the stellar channel toward the
 spin and quadrupole terms \citep{Will2008,Psaltis2016}.
+
+It is worth being concrete about what each future measurement would
+flow into, because the pipelines here are already shaped for them.
+A confirmed star inside S2's orbit drops into \texttt{fit\_cluster}
+as a sixth parameter block with no code change, and the
+$(M/p)^2$ scaling of Chapter~\ref{ch:nohair} converts its pericentre
+directly into quadrupole reach. A per-cent ring-diameter measurement
+tightens the $(\astar, i)$ sweep of Chapter~\ref{ch:calib} from a
+consistency check into a joint constraint, in combination with the
+stellar-channel mass — the two channels' error ellipses cross at a
+usefully steep angle because one scales as $M/D$ and the other
+carries $M$ and $D$ separately. And a resolved $n = 1$ sub-ring
+would, through the universal-ratio law of Chapter~\ref{ch:ring},
+measure the Lyapunov band of Chapter~\ref{ch:shadow} — the first
+observable that reads Kerr's \emph{instability structure} rather
+than its geometry. Each of these is a measurement campaign away, not
+a theory away; the instrument this report documents is the part that
+is already finished.

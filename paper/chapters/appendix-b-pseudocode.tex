@@ -1,7 +1,7 @@
 \chapter{Algorithm Pseudocode}
 \label{app:pseudocode}
 
-Compact pseudocode for the five load-bearing algorithms, matching the
+Compact pseudocode for the load-bearing algorithms, matching the
 production sources line for line in structure. Notation:
 $y = (t, r, \theta, \phi, p_r, p_\theta)$ is the Mino-time state,
 $c = (M, a, E, L_z, Q)$ the ray constants.
@@ -75,4 +75,60 @@ walkers = optimum + 0.5 * sigma * N(0,1)        # 32 walkers
 run emcee stretch moves for 6000 steps (vectorised log_prob)
 tau = max autocorrelation time; discard 4*tau; thin tau/2
 save chain + 16/50/84 percentiles
+\end{verbatim}
+
+\section{Darwin turning-point initialisation}
+(\texttt{S2Model} setup; Section~\ref{sec:darwin})
+
+\begin{verbatim}
+a_phys = a_mas * R0                       # angular -> physical (au -> M)
+r_p, r_a = a_phys*(1-e), a_phys*(1+e)
+# solve R(r_p) = R(r_a) = 0 for E^2, L^2 in the well-conditioned form
+#   E^2 = (1 - 2M/r)(1 + L^2/r^2)  at both radii  -> L^2 first
+L2 = (f_p/r_p^2 - f_a/r_a^2)^-1 * (f_a - f_p)     # f = 1 - 2M/r
+E2 = f_p * (1 + L2/r_p^2)
+u  = (u^t from normalisation quadratic, future root)   # solve_ut
+state = (t=0, r=r_p, phi=0, u^r=0, u^phi=L/r_p^2, u^t)
+integrate one full radial period; cache adaptive nodes (pos + vel)
+\end{verbatim}
+
+\section{R{\o}mer fixed-point solve per epoch}
+(\texttt{SkyProjection}; Section~\ref{sec:romer})
+
+\begin{verbatim}
+t_em = t_obs
+repeat 3 times:                     # contraction rate |beta_z| < 0.03
+    z    = line_of_sight(sample_at(t_em))
+    t_em = t_obs - z / c
+return sample_at(t_em)              # observables at emission time
+\end{verbatim}
+
+\section{Cluster joint fit assembly}
+(\texttt{fit\_cluster}; Chapter~\ref{ch:cluster})
+
+\begin{verbatim}
+global = (M, R0, x0, y0, vx, vy, vz)           # one block, Plewa priors
+for star k in {S2, S1, S8, S12, S13}:
+    elements[k] = per-star block (a, e, i, Omega, omega, t_peri)
+    refine elements[k] alone (global frozen at start values)
+    probe (Omega, omega) +/- 180 deg; keep lowest starting chi^2
+build one Ceres problem:
+    residuals_k(global, elements[k]) for every epoch of every star
+solve; covariance: explicit central-difference J over the full
+concatenated 37-vector, gauss_jordan_inverse(J^T J)   # no SVD
+subsets: repeat solve for {S2}, {S2,S1}, ... -> convergence ladder
+\end{verbatim}
+
+\section{Sub-ring decomposition and width scan}
+(\texttt{SubRingExtractor::analyze}, \texttt{scan\_widths})
+
+\begin{verbatim}
+render image with per-pixel record (n = crossing count, bolometric I)
+for n in {0, 1, 2}:
+    F_n = sum of I over pixels with crossing count n
+ratios = F_0/F_1, F_1/F_2
+for psi in {0, 90, 180, 270} deg:          # image directions
+    walk outward along psi from image centre
+    band = contiguous run of n==1 pixels   # may be occluded: record none
+    width[psi] = outer_edge - inner_edge   # in camera angle
 \end{verbatim}

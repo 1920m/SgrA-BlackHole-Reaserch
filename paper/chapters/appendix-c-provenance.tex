@@ -33,6 +33,159 @@ benchmarks & \texttt{phase11/bench.json} \\
 \end{tabular}
 \end{table}
 
+Tables~\ref{tab:macros1} and \ref{tab:macros2} go one level deeper:
+they list \emph{every} macro of \texttt{numbers.tex} with its current
+value and source artefact. The values printed here are typeset from
+the macros themselves, so this appendix can never disagree with the
+body text — if \texttt{make reproduce} changes a number, it changes
+here too.
+
+\begin{table}[p]
+\centering
+\caption{Complete macro inventory, part 1: orbit fits and relativistic
+observables. Values are typeset from the live macros.}
+\label{tab:macros1}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llll}
+\toprule
+Macro & Value & Units & Artefact \\
+\midrule
+\multicolumn{4}{l}{\emph{S2 Kerr fit} (\texttt{phase4/s2\_fit.json})}\\
+\texttt{FitMass(Err)} & $\FitMass\pm\FitMassErr$ & $10^6\,\msun$ & fit \\
+\texttt{FitDist(Err)} & $\FitDist\pm\FitDistErr$ & pc & fit \\
+\texttt{FitSma(Err)} & $\FitSma\pm\FitSmaErr$ & mas & fit \\
+\texttt{FitEcc(Err)} & $\FitEcc\pm\FitEccErr$ & --- & fit \\
+\texttt{FitIncl(Err)} & $\FitIncl\pm\FitInclErr$ & deg & fit \\
+\texttt{FitOmegaBig(Err)} & $\FitOmegaBig\pm\FitOmegaBigErr$ & deg & fit \\
+\texttt{FitOmegaSm(Err)} & $\FitOmegaSm\pm\FitOmegaSmErr$ & deg & fit \\
+\texttt{FitTPeri(Err)} & $\FitTPeri\pm\FitTPeriErr$ & yr & fit \\
+\texttt{FitPeriod(Err)} & $\FitPeriod\pm\FitPeriodErr$ & yr & fit \\
+\texttt{FitChiTwo / FitDof / FitChiRed} &
+  $\FitChiTwo$ / $\FitDof$ / $\FitChiRed$ & --- & fit \\
+\texttt{FitNAst / FitNRv} & $\FitNAst$ / $\FitNRv$ & epochs & data \\
+\texttt{FitMassNSigma / FitDistNSigma} &
+  $\FitMassNSigma$ / $\FitDistNSigma$ & $\sigma$ vs GRAVITY & fit \\
+\texttt{GrExcessPeak / GrExcessEpoch} &
+  $\GrExcessPeak$ at $\GrExcessEpoch$ & km/s; yr & fit \\
+\texttt{PrecSchw / PrecLT} & $\PrecSchw$ / $\PrecLT$ & arcmin/orbit &
+  \texttt{GRPrecession} \\
+\midrule
+\multicolumn{4}{l}{\emph{No-hair} (\texttt{phase5/s2\_fit.json};
+$\epsq$ in units of $10^{5}$)}\\
+\texttt{EpsQBest / EpsQSigma} & $\EpsQBest$ / $\EpsQSigma$ & $10^5$ &
+  profile \\
+\texttt{EpsQCiNinetyFive} & $\EpsQCiNinetyFive$ & $10^5$ (95\%) &
+  profile \\
+\texttt{EpsQForecastTenOrbits} & $\EpsQForecastTenOrbits$ & $10^5$ &
+  forecast \\
+\midrule
+\multicolumn{4}{l}{\emph{MCMC posteriors}
+(\texttt{thesis/mcmc\_*.json}; 16/50/84 percentiles)}\\
+\texttt{McmcMass\{Med,Lo,Hi\}} &
+  $\McmcMassMed{}^{+\McmcMassHi}_{-\McmcMassLo}$ & $10^6\,\msun$ &
+  chain \\
+\texttt{McmcDist\{Med,Lo,Hi\}} &
+  $\McmcDistMed{}^{+\McmcDistHi}_{-\McmcDistLo}$ & pc & chain \\
+\texttt{McmcEpsQ\{Med,Lo,Hi\}} &
+  $\McmcEpsQMed{}^{+\McmcEpsQHi}_{-\McmcEpsQLo}$ & $10^5$ & chain \\
+\texttt{McmcNWalkers / McmcNSteps / McmcTauMax} &
+  $\McmcNWalkers$ / $\McmcNSteps$ / $\McmcTauMax$ & --- & chain \\
+\midrule
+\multicolumn{4}{l}{\emph{Cluster joint fit}
+(\texttt{phase13/cluster\_fit.json})}\\
+\texttt{ClusterNStars} & $\ClusterNStars$ & stars & fit \\
+\texttt{ClusterMass(Err)} & $\ClusterMass\pm\ClusterMassErr$ &
+  $10^6\,\msun$ & fit \\
+\texttt{ClusterDist(Err)} & $\ClusterDist\pm\ClusterDistErr$ & pc &
+  fit \\
+\texttt{ClusterChiRed} & $\ClusterChiRed$ & --- & fit \\
+\texttt{ClusterMassErrSTwoOnly} & $\ClusterMassErrSTwoOnly$ &
+  $10^6\,\msun$ & S2-only \\
+\texttt{ClusterDistErrSTwoOnly} & $\ClusterDistErrSTwoOnly$ & pc &
+  S2-only \\
+\texttt{ClusterMassImprovePct / ClusterDistImprovePct} &
+  $\ClusterMassImprovePct$ / $\ClusterDistImprovePct$ & \% & fit \\
+\texttt{ClusterMassNSigma} & $\ClusterMassNSigma$ & $\sigma$ vs
+  GRAVITY & fit \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[p]
+\centering
+\caption{Complete macro inventory, part 2: imaging, disk, numerics,
+and performance.}
+\label{tab:macros2}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llll}
+\toprule
+Macro & Value & Units & Artefact \\
+\midrule
+\multicolumn{4}{l}{\emph{Shadow metrology}
+(\texttt{reference\_images/*.json})}\\
+\texttt{SchwDiamM / SchwSpreadPct} &
+  $\SchwDiamM$ / $\SchwSpreadPct$ & $M$; \% & boundary \\
+\texttt{KerrDiamM / KerrDiamUas} &
+  $\KerrDiamM$ / $\KerrDiamUas$ & $M$; $\muas$ & boundary \\
+\midrule
+\multicolumn{4}{l}{\emph{Disk and sub-rings}
+(\texttt{phase3/subring\_report.json})}\\
+\texttt{BeamRatio} & $\BeamRatio$ & limb ratio & render \\
+\texttt{GMin / GMax} & $\GMin$ / $\GMax$ & --- & render \\
+\texttt{FluxRatioZeroOne / FluxRatioOneTwo} &
+  $\FluxRatioZeroOne$ / $\FluxRatioOneTwo$ & --- & sub-rings \\
+\texttt{SubringRatioZeroOne\{Lo,Hi\}} &
+  $\SubringRatioZeroOneLo$--$\SubringRatioZeroOneHi$ & over spin &
+  \texttt{--sweep} \\
+\midrule
+\multicolumn{4}{l}{\emph{Calibration}
+(\texttt{phase10/calibration.json})}\\
+\texttt{CalDiamUas / CalDiamM} & $\CalDiamUas$ / $\CalDiamM$ &
+  $\muas$; $M$ & sweep \\
+\texttt{CalAxisRatio / UasPerM} & $\CalAxisRatio$ / $\UasPerM$ &
+  ---; $\muas/M$ & sweep \\
+\midrule
+\multicolumn{4}{l}{\emph{Energetics and photon shell}
+(\texttt{thesis/*.csv})}\\
+\texttt{EtaSchw / EtaSgrA / EtaNearExtremal} &
+  $\EtaSchw$ / $\EtaSgrA$ / $\EtaNearExtremal$ & \% &
+  \texttt{physics\_tables} \\
+\texttt{GammaPolarSgrA} & $\GammaPolarSgrA$ & per half-orbit &
+  \texttt{sweep\_tool} \\
+\texttt{GammaProSgrA / GammaRetroSgrA} &
+  $\GammaProSgrA$ / $\GammaRetroSgrA$ & per half-orbit &
+  \texttt{sweep\_tool} \\
+\midrule
+\multicolumn{4}{l}{\emph{Integrator studies}
+(\texttt{thesis/projection\_boundary.csv},
+\texttt{drift\_vs\_tol.csv})}\\
+\texttt{ProjOnWorstDev} & $\ProjOnWorstDev$ & rel.\ dev. &
+  \texttt{convergence\_tool} \\
+\texttt{ProjOffWorstPct / ProjOffBestDev} &
+  $\ProjOffWorstPct$ / $\ProjOffBestDev$ & \%; rel. &
+  \texttt{convergence\_tool} \\
+\midrule
+\multicolumn{4}{l}{\emph{GPU validation and performance}
+(\texttt{phase7}, \texttt{phase11})}\\
+\texttt{GpuMeanDiff / GpuMaxDiff / GpuOutliers} &
+  $\GpuMeanDiff$ / $\GpuMaxDiff$ / $\GpuOutliers$ & int.; int.; px &
+  \texttt{compare\_shadow} \\
+\texttt{BenchCpuNullStepsPerS} & \BenchCpuNullStepsPerS & steps/s/core &
+  bench \\
+\texttt{BenchCpuTimelikeStepsPerS} & \BenchCpuTimelikeStepsPerS &
+  steps/s/core & bench \\
+\texttt{BenchCpuChristoffelPerS} & \BenchCpuChristoffelPerS &
+  evals/s/core & bench \\
+\texttt{BenchGpuFpsHd / BenchGpuFpsFullhd} &
+  \BenchGpuFpsHd{} / \BenchGpuFpsFullhd & fps & bench \\
+\texttt{BenchGpuMegaraysPerSHd} & \BenchGpuMegaraysPerSHd & Mray/s &
+  bench \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 Table~\ref{tab:provthesis} extends the provenance map to the artefacts
 produced by the report's additional data tools.
 

@@ -55,3 +55,32 @@ The single command \texttt{make thesis} runs \texttt{figures} and
 compiles this document; the fetch of the multi-star data
 (\texttt{fetch\_gillessen\_data.py}) is a one-time network step run
 before the cluster fit.
+
+\section*{Environment}
+\addcontentsline{toc}{section}{Environment}
+
+The chain assumes: a C++20 toolchain with the vcpkg manifest
+dependencies (Eigen, Ceres, Catch2, spdlog, nlohmann-json; Vulkan SDK
+components only for the engine targets), CMake presets
+\texttt{core-rel}/\texttt{sci-rel}/\texttt{engine-rel}, Python~3.11
+with \texttt{numpy}, \texttt{matplotlib}, \texttt{emcee} and
+\texttt{pypdf}, and a \LaTeX{} distribution with \texttt{natbib}
+(TinyTeX suffices). No step requires a GPU except the engine renders
+and the CPU/GPU comparison; every scientific number in this report is
+reproducible on a CPU-only machine.
+
+\section*{Verifying this document}
+\addcontentsline{toc}{section}{Verifying this document}
+
+The document itself is checked by a text-level probe after each full
+build: the compiled PDF is read back with \texttt{pypdf} and scanned
+for (i) unresolved references (the doubled question mark \LaTeX{}
+prints for a missing label — spelt out here so the probe does not
+catch its own description), (ii) raw macro
+names (a backslash followed by a macro identifier surviving into the
+output, which would indicate a missing \texttt{numbers.tex}
+definition), (iii) the presence of every headline number, and (iv) the
+policy that the contested star S62 must carry its caveat at every
+mention. The probe, the zero-error requirement on the
+\LaTeX{} log, and the page-count band of the plan together define
+``compiles clean'' wherever this report uses the phrase.
