@@ -272,7 +272,7 @@ vec3 disk_emission(float r_x, float phi_x, float g, float fade) {
 // radiance is returned separately so main() can grade only the disk part.
 // Returns the remaining transmittance toward the background.
 float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
-                   out vec3 sky_out) {
+                   out vec3 sky_out, out float sq_out) {
     float a = pc.a_star;
     float r0 = pc.r_cam;
     float th0 = pc.incl_deg * PI / 180.0;
@@ -340,10 +340,17 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
                             // hard horizontal seam across the bowl
     int cross_step = -1;    // step index of the first crossing
     float esc_th = 0.0, esc_ph = 0.0;
-    float min_sth = abs(s0); // closest approach to the spin axis so far:
-                             // rays with small min|sinθ| went over a pole,
-                             // and their disk image is squeezed into the
-                             // axis column (the caustic)
+    float min_sth = 1.0;     // closest approach to the spin axis DURING
+                             // the flight near the hole (r < r_cam/2):
+                             // rays with small min|sinθ| went over a
+                             // pole and their disk image is squeezed
+                             // into the axis caustic. Seeded at 1 and
+                             // radius-gated: seeding with the CAMERA's
+                             // own sinθ classified every ray of a
+                             // near-polar view as "squeezed" from step
+                             // zero (the face-on "crayon" regression) —
+                             // sitting near the axis at the camera end
+                             // compresses nothing.
     int nturn = 0;           // polar turnings at high latitude: light that
                              // zig-zags over the pole repeatedly images the
                              // disk at flux ~e^(-2*pi*n) — real, but far
@@ -455,7 +462,7 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
         float Rp = radial_potential(cc, y[1]);
         if (Rp >= 0.0) y[4] = (y[4] >= 0.0) ? sqrt(Rp) : -sqrt(Rp);
         float sth = sin(y[2]), cth = cos(y[2]);
-        min_sth = min(min_sth, abs(sth));
+        if (y[1] < 0.5 * r0) min_sth = min(min_sth, abs(sth));
         if (y[5] * prev_p5 < 0.0 && abs(cth) > 0.5) ++nturn;
         prev_p5 = y[5];
         if (abs(sth) > 1e-6) {
@@ -560,10 +567,14 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
         // Radial quick-reject: only bisect crossings that can touch the
         // annulus. Without this, translucent grazing rays skimming the disk
         // plane pay the 18-step bisection on every oscillation and the
-        // frame rate collapses by an order of magnitude.
+        // frame rate collapses by an order of magnitude. Deeply
+        // axis-squeezed rays (display presets) bypass the reject: their
+        // crossings count as caustic coverage wherever they land (the
+        // band-limited hit test below).
         bool may_hit =
-            max(prev[1], y[1]) >= pc.disk_r_in - 0.5 &&
-            min(prev[1], y[1]) <= pc.disk_r_out + 0.5;
+            (max(prev[1], y[1]) >= pc.disk_r_in - 0.5 &&
+             min(prev[1], y[1]) <= pc.disk_r_out + 0.5) ||
+            (pc.shade_mode > 0u && min_sth < 0.006);
         if (may_hit && prev_c * cth < 0.0 &&
             (abs(prev_c) > 1e-7 || abs(cth) > 1e-7)) {
             float cr[6];
@@ -600,7 +611,23 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
                     cr[i] = mix(prev[i], y[i], tz);
             }
             float r_x = cr[1];
-            if (r_x >= pc.disk_r_in && r_x <= pc.disk_r_out &&
+            // Axis-squeeze depth: min_sth is radius-gated and seeded
+            // at 1 (see its declaration), so it measures genuine polar
+            // passages near the hole and the absolute thresholds below
+            // hold at every viewing inclination.
+            float u_ax = min_sth;
+            // For the DEEPEST squeeze the crossing radius sweeps the
+            // whole equatorial plane, so half the samples miss the
+            // annulus and no amount of averaging beats the binomial
+            // noise under the 24-stop display lift. Band-limit the hit
+            // test itself: any equator crossing counts as caustic
+            // coverage at fractional opacity (display presets only).
+            float deep = (pc.shade_mode > 0u)
+                ? 1.0 - smoothstep(0.003, 0.006, u_ax) : 0.0;
+            bool in_ann = r_x >= pc.disk_r_in && r_x <= pc.disk_r_out;
+            // coverage only near the annulus: a pole-passer crossing the
+            // far plane (r >> r_out) genuinely sees no disk there
+            if ((in_ann || (deep > 0.0 && r_x < 1.5 * pc.disk_r_out)) &&
                 nturn < 3) {
                 // The deepest pole-passers image the ENTIRE annulus
                 // inside one pixel: any point sample of F(r_x) is a
@@ -608,10 +635,18 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
                 // at a fixed representative radius instead — a stable
                 // stand-in for the annulus integral the pixel actually
                 // sees. Display presets only.
+                // GRADED pull, covering the whole squeezed family: at
+                // near-polar viewing the family is a wide image fan and
+                // any point-sampled or ordering structure inside it
+                // (sub-image rungs, annulus-edge lottery) is fp32 noise
+                // below the resolvable scale — the pulled radius gives
+                // the fan its smooth band-limited glow, and because the
+                // pulled radius is interior the first crossing opaquely
+                // dominates (no ordering rungs).
                 float rep = (pc.shade_mode > 0u)
-                    ? 1.0 - smoothstep(0.002, 0.008, min_sth) : 0.0;
+                    ? 1.0 - smoothstep(0.003, 0.05, u_ax) : 0.0;
                 float r_sh = mix(r_x,
-                                 mix(pc.disk_r_in, pc.disk_r_out, 0.35),
+                                 mix(pc.disk_r_in, pc.disk_r_out, 0.50),
                                  rep);
                 float Om = 1.0 / (r_sh * sqrt(r_sh) + a);
                 float sg = r_sh * r_sh;
@@ -653,7 +688,7 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
                 // garbage — fading the texture to its mean is both the
                 // honest band-limited average of a sub-pixel-squeezed
                 // image AND the cure for the dotted axis column.
-                fade *= smoothstep(0.015, 0.08, min_sth);
+                fade *= smoothstep(0.015, 0.08, u_ax);
                 // Soft annulus window for SQUEEZED images (display
                 // presets only; PHYSICAL keeps the raw model annulus).
                 // Squeezed = higher-order sub-image (demagnified ~e^-π
@@ -674,8 +709,12 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
                                       pc.disk_r_out, r_sh));
                 float squeeze = max(min(veil, 1.0),
                                     1.0 - smoothstep(0.015, 0.10,
-                                                     min_sth));
+                                                     u_ax));
                 if (pc.shade_mode > 0u) o *= mix(1.0, w_edge, squeeze);
+                // out-of-annulus caustic coverage: the crossing stands
+                // in for the fraction of the swept plane that carries
+                // disk light, not for a certain hit
+                if (!in_ann) o *= 0.35 * deep;
 #if DEBUG_CLASSIFY
                 acc = vec3(float(ncross) / 3.0,
                            1.0 - smoothstep(0.0, 0.15, min_sth),
@@ -705,6 +744,10 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
     }
     if (outcome == 0) outcome = 1;
 
+    // report the axis-squeeze depth so main() can supersample exactly
+    // the caustic-squeezed pixels, wherever they land on screen
+    sq_out = 1.0 - smoothstep(0.015, 0.15, min_sth);
+
     disk_out = acc;
     // camera azimuth rotates the whole sky with the orbit; the sky shines
     // through whatever transmittance the disk crossings left over
@@ -722,32 +765,28 @@ void main() {
     float px_f = float(pix.x) + 0.5;
     float py_f = float(pix.y) + 0.5;
 
-    // The spin axis projects onto the central image column, where the
-    // lensed polar caustic of the far-side disk is ~1 px wide and aliases
-    // badly at one ray per pixel. Supersample those columns (2×2), with
-    // the extra samples FEATHERED in over the outer 40% of the band: a
-    // hard band boundary changes the noise texture in one pixel step,
-    // which read as a blurry rectangle over bright structure at edge-on
-    // inclinations. The band scales with resolution so upscaled internal
-    // targets stay covered.
-    float ax_px = abs(px_f - 0.5 * float(pc.width));
-    float axis_halfwidth = max(6.0, 0.025 * float(pc.width));
-    float w_ex = 1.0 - smoothstep(0.6 * axis_halfwidth, axis_halfwidth,
-                                  ax_px);
-    vec3 disk_acc = vec3(0.0), sky_acc = vec3(0.0);
-    float wsum = 1.0;
+    // Adaptive supersampling, triggered by RAY GEOMETRY rather than a
+    // fixed screen band. The caustic-squeezed families — the axis
+    // columns at oblique views, the pole-caustic fan at near-polar
+    // views — image a huge swathe of disk into each pixel, and one ray
+    // per pixel point-samples that as speckle. The first sample reports
+    // its squeeze depth; squeezed pixels get 4 or 8 further jittered
+    // samples, everything else keeps single-sample cost. A screen-space
+    // band cannot do this job: the polar-view caustic fan does not sit
+    // on the image's central column.
+    vec3 disk_acc, sky_acc;
+    float sq0;
     {
         float jj = hash01(uint(pix.x) * 7919u ^ uint(pix.y) * 104729u);
         vec3 d, sk;
-        shade_sample(px_f, py_f, jj, d, sk);
+        shade_sample(px_f, py_f, jj, d, sk, sq0);
         disk_acc = d;
         sky_acc = sk;
     }
+    float wsum = 1.0;
+    float w_ex = smoothstep(0.02, 0.25, sq0);
     if (w_ex > 0.0) {
-        // the innermost columns get a second, rotated 2×2 lattice: the
-        // polar caustic sweeps the whole annulus across ~2 px there, and
-        // four samples cannot integrate that (grainy needle)
-        int ns_extra = (ax_px < 3.0) ? 7 : 3;
+        int ns_extra = (sq0 > 0.60) ? 7 : 3;
         for (int s = 1; s <= ns_extra; ++s) {
             vec2 o = (s < 4)
                 ? (vec2(float(s & 1), float(s >> 1)) - 0.5) * 0.5
@@ -755,7 +794,8 @@ void main() {
             float jj = hash01(uint(pix.x) * 7919u ^ uint(pix.y) * 104729u ^
                               uint(s) * 15485863u);
             vec3 d, sk;
-            shade_sample(px_f + o.x, py_f + o.y, jj, d, sk);
+            float sq_d;
+            shade_sample(px_f + o.x, py_f + o.y, jj, d, sk, sq_d);
             disk_acc += w_ex * d;
             sky_acc += w_ex * sk;
         }
@@ -783,6 +823,12 @@ void main() {
         // sky adds on top, so the translucent rim shows stars through it.
         float luma = dot(disk_c, vec3(0.2126, 0.7152, 0.0722));
         float lu = clamp(1.0 + log2(max(luma, 1e-9)) / 24.0, 0.0, 1.0);
+        // ±0.75-texel dither: at dim exposures whole disk regions live
+        // in the bottom few entries of the 256-entry ramp, and smooth
+        // gradients quantise into visible terraces ("crayon" bands) —
+        // per-pixel dither trades the bands for invisible grain
+        lu = clamp(lu + (hash01(pix.x * 2654435761u ^ pix.y * 40503u) -
+                         0.5) * 0.006, 0.0, 1.0);
         vec3 graded = texture(luts[pc.shade_mode], vec2(lu, 0.5)).rgb;
         vec3 sky_disp = pow(clamp(sky_c, 0.0, 1.0), vec3(1.0 / 2.2));
         imageStore(storage_images[pc.image_index], ivec2(pix),
