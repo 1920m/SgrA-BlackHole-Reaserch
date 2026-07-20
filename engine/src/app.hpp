@@ -46,6 +46,7 @@ struct AppOptions {
     int preset = 0;          // initial preset index (kDiskPresets)
     float t_peak_k = -1.0f;
     float render_scale = 1.0f; // live render target scale (perf knob)
+    float turb = -1.0f;        // turbulence / cloud density override (0..1)
 };
 
 // Push-constant block shared with the shaders (must match GLSL layout).

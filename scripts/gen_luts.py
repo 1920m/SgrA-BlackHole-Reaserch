@@ -115,6 +115,17 @@ def main() -> None:
         (0.68, (0.78, 0.22, 0.52)), (0.85, (1.0, 0.52, 0.52)),
         (1.00, (1.0, 0.86, 0.66)),
     ]))
+    # CINEMATIC SGR A* (slot 5): the Interstellar look — deep brown dust
+    # shadows, low-saturation amber body, pale-gold highlights rolling to
+    # warm white. Deliberately narrow hue range: the drama comes from the
+    # volumetric structure, not the palette.
+    save_lut("cinematic", ramp([
+        (0.00, (0.0, 0.0, 0.0)), (0.10, (0.008, 0.004, 0.002)),
+        (0.20, (0.055, 0.030, 0.014)),
+        (0.34, (0.19, 0.11, 0.05)), (0.50, (0.48, 0.31, 0.15)),
+        (0.66, (0.80, 0.58, 0.32)), (0.82, (0.97, 0.82, 0.58)),
+        (0.93, (1.0, 0.94, 0.82)), (1.00, (1.0, 0.99, 0.95)),
+    ]))
 
 
 if __name__ == "__main__":

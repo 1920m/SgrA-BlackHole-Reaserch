@@ -281,7 +281,7 @@ void SimHUD::draw_controls(double fps) {
                           "Auto mode adjusts this to hold ~13 fps.");
     ImGui::Separator();
     ImGui::Checkbox("Science Mode (S2 orbit + fit)", &lp.science_mode);
-    ImGui::TextDisabled("drag: orbit  |  wheel: zoom  |  keys 1-5: presets");
+    ImGui::TextDisabled("drag: orbit  |  wheel: zoom  |  keys 1-6: presets");
     ImGui::TextDisabled(app_->menu_enabled() ? "Esc: menu" : "Esc: quit");
     ImGui::End();
 }

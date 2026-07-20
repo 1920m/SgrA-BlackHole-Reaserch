@@ -144,6 +144,7 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 | 3 | **GARGANTUA** | Ice blue → pale gold — the *Interstellar* look, a\*=0.60 |
 | 4 | **ARCTIC** | Pale cyan → electric white, a\*=0.97, 12 000 K disk |
 | 5 | **NEBULA** | Violet → magenta → rose-gold, a\*=0.35, wide disk |
+| 6 | **CINEMATIC SGR A\*** | Volumetric orbiting dust banks over the exact geodesics — warm *Interstellar* white-gold; the `turbulence` slider sets cloud density |
 
 <div align="center">
 <img src="writeup/screenshots/phase_8/preset_gargantua.png" width="410" alt="GARGANTUA preset"/>
@@ -157,13 +158,14 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 --menu                boot to menu (default when run with no arguments)
 --shader disk --hud   skip the menu, go straight to the live renderer
 --science             open the Science window at startup
---preset N            start with preset N (0–4)
+--preset N            start with preset N (0–5)
 --panel NAME          open a menu panel at boot (about|nohair|scope|gallery|settings)
 --astar X --incl DEG  override physics parameters
 --width W --height H  window size          --scale S   render-resolution knob
 --frames N            exit after N frames  --screenshot out.png
 --no-mouse            disable orbit/zoom input (repeatable screenshots)
 --rot X               disk rotation speed in multiples of real time
+--rout R              disk outer radius [M]   --turb X   turbulence/cloud density 0–1
 --validation          Vulkan validation layers ON (exit code = error count)
 ```
 

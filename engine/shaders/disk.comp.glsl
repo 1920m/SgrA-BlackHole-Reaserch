@@ -34,6 +34,11 @@ layout(push_constant) uniform PC {
 
 const float PI = 3.14159265;
 
+// Temporary diagnostic: colour disk hits by ray classification instead of
+// physical shading (R = crossing order, G = pole proximity, B = feather
+// weight). Never enabled in a committed build.
+#define DEBUG_CLASSIFY 0
+
 // ---- Carter potentials (fp32) ----------------------------------------------
 struct Consts { float a, E, Lz, Q; };
 
@@ -59,7 +64,13 @@ float polar_potential_deriv(Consts cc, float sth, float cth) {
 
 void rhs(Consts cc, float y[6], out float dy[6]) {
     float sth = sin(y[2]), cth = cos(y[2]);
-    if (abs(sth) < 1e-6) sth = (sth >= 0.0) ? 1e-6 : -1e-6;
+    // fp32 polar clamp: the θ-force carries Lz²/sin³θ — at the fp64
+    // science path's 1e-8 clamp that is resolvable, at fp32 with a fixed
+    // step budget it detonates (1/s³ ~ 1e18) and scatters phantom
+    // crossings along the exact axis column. 2e-3 rad ≈ 0.1°: displacing
+    // the polar turning point of a near-axis ray by a tenth of a degree
+    // is invisible; the numerical blow-up was not.
+    if (abs(sth) < 2e-3) sth = (sth >= 0.0) ? 2e-3 : -2e-3;
     float r = y[1];
     float delta = r * r - 2.0 * r + cc.a * cc.a;
     float P = cc.E * (r * r + cc.a * cc.a) - cc.a * cc.Lz;
@@ -131,8 +142,16 @@ float vnoise(vec2 p, float per) {
                    u.x),
                u.y);
 }
-float turb_factor(float r, float phi) {
-    if (pc.turb <= 0.0) return 1.0;
+// `fade` band-limits the pattern where the lens map compresses the disk
+// image below the pixel footprint (higher-order sub-images; the polar
+// caustic column): fading toward the mean-1 disk IS the correct
+// band-limited average of the texture, not a blur hack. The lane depth
+// clamps at turb = 1 — beyond that the mix() extrapolates, lanes swing
+// negative before the square, and the pattern degenerates into the
+// high-contrast sawtooth the fade exists to prevent.
+float turb_factor(float r, float phi, float fade) {
+    float t = clamp(pc.turb, 0.0, 1.0) * clamp(fade, 0.0, 1.0);
+    if (t <= 0.0) return 1.0;
     float Om = 1.0 / (r * sqrt(r) + pc.a_star);   // Kerr circular orbit
     // Pattern phase = azimuth + STATIC shear winding + live advection.
     // The winding term (120·Ω, several turns at the ISCO tapering to a
@@ -159,7 +178,7 @@ float turb_factor(float r, float phi) {
     n /= wsum;                                      // mean 0.5
     // Lane depth ~3.5 stops: enough for strong streamlines, shallow enough
     // that the magnified caustic image of the lanes stays smooth.
-    float f = mix(1.0, 0.30 + 1.40 * n, pc.turb);   // mean stays 1
+    float f = mix(1.0, 0.30 + 1.40 * n, t);         // mean stays 1
     return f * f;
 }
 
@@ -196,9 +215,9 @@ vec3 shade_starfield(float theta, float phi) {
 
 // Linear-sRGB emission of the disk surface at BL radius r_x, azimuth phi_x,
 // redshift factor g (blackbody at g·T_eff; bolometric (gT)^4 brightness).
-vec3 disk_emission(float r_x, float phi_x, float g) {
+vec3 disk_emission(float r_x, float phi_x, float g, float fade) {
     float F = pt_flux(r_x, pc.a_star, pc.disk_r_in);
-    F *= turb_factor(r_x, phi_x);
+    F *= turb_factor(r_x, phi_x, fade);
     // Artistic presets: exponential (stops-based) emissivity taper over the
     // outer rim — a linear fade barely moves the logarithmic display grade.
     // (Display only; the PHYSICAL path keeps the sharp model annulus.)
@@ -220,7 +239,7 @@ vec3 disk_emission(float r_x, float phi_x, float g) {
 // so stars and lensed inner structure show through the faded edge); the sky
 // radiance is returned separately so main() can grade only the disk part.
 // Returns the remaining transmittance toward the background.
-float shade_sample(float px_f, float py_f, out vec3 disk_out,
+float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
                    out vec3 sky_out) {
     float a = pc.a_star;
     float r0 = pc.r_cam;
@@ -258,6 +277,14 @@ float shade_sample(float px_f, float py_f, out vec3 disk_out,
     float pth0 = sig * kth;
     cc.Q = pth0 * pth0 + c0 * c0 * (cc.Lz * cc.Lz / (s0 * s0) - a * a * cc.E * cc.E);
 
+    // Near-axial snap: a ray with |Lz| << sqrt(Q) skirts the spin axis at
+    // sin(theta_min) = |Lz|/sqrt(Q) — for |Lz| < 3% sqrt(Q) that detour is
+    // under 0.03 rad, far below a pixel, but its 1/sin^3(theta) wall is
+    // exactly what the fp32 fixed-budget integrator cannot resolve (the
+    // dashed-column artefact). Setting Lz = 0 removes the wall from the
+    // dynamics identically; the trajectory error is the sub-pixel detour.
+    if (abs(cc.Lz) < 0.03 * sqrt(max(cc.Q, 0.0))) cc.Lz = 0.0;
+
     float y[6];
     y[0] = 0.0; y[1] = r0; y[2] = th0; y[3] = 0.0;
     y[4] = sig * kr; y[5] = pth0;
@@ -272,6 +299,21 @@ float shade_sample(float px_f, float py_f, out vec3 disk_out,
     int ncross = 0;         // translucent crossings so far (bounded)
     int cross_step = -1;    // step index of the first crossing
     float esc_th = 0.0, esc_ph = 0.0;
+    float min_sth = abs(s0); // closest approach to the spin axis so far:
+                             // rays with small min|sinθ| went over a pole,
+                             // and their disk image is squeezed into the
+                             // axis column (the caustic)
+    int nturn = 0;           // polar turnings at high latitude: light that
+                             // zig-zags over the pole repeatedly images the
+                             // disk at flux ~e^(-2*pi*n) — real, but far
+                             // below one pixel and one display stop; kept
+                             // to two windings, suppressed beyond
+    float prev_p5 = pth0;
+    float turn_sth = 1.0;    // smallest |sinθ| at which the polar motion
+                             // REVERSED: rays that turn inside the axis
+                             // cone are the ones the fp32 path quantises
+                             // into the dashed column; rays that pass
+                             // over the pole without turning render fine
 
     float prev_c = c0;
     float prev[6];
@@ -280,25 +322,157 @@ float shade_sample(float px_f, float py_f, out vec3 disk_out,
         // After the first translucent crossing the ray only supplies the
         // background behind the veil — step twice as fast and stop caring
         // after 500 further steps (keeps rim-piercing rays from burning the
-        // whole budget at small radii).
-        float relax = (ncross > 0) ? 2.0 : 1.0;
+        // whole budget at small radii). The CINEMATIC volumetric mode
+        // never relaxes: coarse steps sample the fog in visible chunks.
+        float relax = (ncross > 0 && pc.shade_mode != 5u) ? 2.0 : 1.0;
         float h = relax * 0.04 * y[1] / (abs(y[4]) + 1e-4);
         h = min(h, relax * 0.10 / (abs(y[5]) + 1.0));
         h = min(h, relax * 0.08);
         // polar-axis guard: the θ-equation stiffens as sinθ → 0 (Lz²/sin³θ);
         // under-resolved steps there alias into a dotted column of phantom
-        // disk crossings on the spin axis
-        h = min(h, 0.015 + 0.25 * abs(sin(y[2])));
+        // disk crossings on the spin axis. The wall grows as 1/sin³θ, so
+        // the clamp must tighten QUADRATICALLY, not linearly.
+        {
+            float sguard = sin(y[2]), cguard = cos(y[2]);
+            float sa = abs(sguard);
+            h = min(h, 0.004 + 0.35 * sa * sa);
+            // Stiffness-adaptive polar clamp: the θ-force Θ' carries
+            // Lz²/sin³θ and can exceed the static clamp's resolving
+            // power by an order of magnitude for rays TURNING near the
+            // axis (the dashed-ladder artefact family). Bound the
+            // momentum change per step relative to the momentum scale:
+            // h ≲ |p_θ|/|Θ'|. The stiff segment is brief (~tens of
+            // steps), so the budget is unaffected.
+            if (sa < 0.35) {
+                float sc = (sa < 2e-3) ? ((sguard >= 0.0) ? 2e-3 : -2e-3)
+                                       : sguard;
+                float tp = abs(polar_potential_deriv(cc, sc, cguard));
+                h = min(h, 0.35 * (abs(y[5]) + 0.5) / (tp + 1.0));
+                // stochastic step phase: decorrelates any residual
+                // quantisation between neighbouring rays so the axis-band
+                // supersampling averages it smooth
+                h *= 0.80 + 0.40 * fract(jit + 0.6180339887 * float(step));
+            }
+        }
         rk4_step(cc, y, h);
-        if (cross_step >= 0 && step - cross_step > 500 && outcome == 0)
+        // Polar turning-point reflection: if the step tunnelled into the
+        // forbidden cone (Θ < 0 — the fp32 fixed-budget integrator cannot
+        // resolve the 1/sin³θ wall however small the step), reflect the
+        // polar motion at the wall instead of continuing with a corrupted
+        // trajectory. This is what produced the ladder of phantom
+        // crossings on the axis column: tunnelled rays re-crossed the
+        // equator at pseudo-random radii.
+        {
+            float sref = sin(y[2]), cref = cos(y[2]);
+            if (abs(sref) < 2e-3) sref = (sref >= 0.0) ? 2e-3 : -2e-3;
+            if (polar_potential(cc, sref, cref) < 0.0) {
+                y[2] = prev[2];
+                y[5] = -prev[5];
+            }
+        }
+        if (cross_step >= 0 && outcome == 0 &&
+            step - cross_step > (pc.shade_mode == 5u ? 900 : 500))
             outcome = 1; // background budget exhausted: fade to black
 
         float Rp = radial_potential(cc, y[1]);
         if (Rp >= 0.0) y[4] = (y[4] >= 0.0) ? sqrt(Rp) : -sqrt(Rp);
         float sth = sin(y[2]), cth = cos(y[2]);
+        min_sth = min(min_sth, abs(sth));
+        if (y[5] * prev_p5 < 0.0 && abs(cth) > 0.5) {
+            ++nturn;
+            turn_sth = min(turn_sth, abs(sth));
+        }
+        prev_p5 = y[5];
         if (abs(sth) > 1e-6) {
             float Tp = polar_potential(cc, sth, cth);
             if (Tp >= 0.0) y[5] = (y[5] >= 0.0) ? sqrt(Tp) : -sqrt(Tp);
+        }
+
+        // ---- CINEMATIC volumetric dust (shade_mode == 5; display only) ----
+        // A flared slab of procedural dust orbiting at the real Ω(r),
+        // sampled once per integrator step while the ray is inside it.
+        // Geodesics, redshift and the Page-Thorne midplane are untouched:
+        // the clouds are emissive fog composited front-to-back like the
+        // translucent rim, and deleting this block restores the exact
+        // thin-disk image.
+        if (pc.shade_mode == 5u && outcome == 0) {
+            float rm  = 0.5 * (prev[1] + y[1]);
+            float thm = 0.5 * (prev[2] + y[2]);
+            float zc  = rm * cos(thm);
+            float Rc  = max(rm * abs(sin(thm)), 1e-3);
+            float Hc  = 0.22 + 0.055 * Rc;              // flared height
+            if (Rc > pc.disk_r_in * 0.85 && Rc < pc.disk_r_out * 1.05 &&
+                abs(zc) < 2.5 * Hc) {
+                float env = exp(-0.5 * (zc / Hc) * (zc / Hc));
+                // radial containment: banks thin out toward the rim
+                // instead of combing past it edge-on
+                env *= smoothstep(pc.disk_r_in * 0.85,
+                                  pc.disk_r_in * 1.10, Rc) *
+                       (1.0 - smoothstep(pc.disk_r_out * 0.90,
+                                         pc.disk_r_out * 1.05, Rc));
+                // wisps: the equatorial filament lattice broken up by a
+                // second lattice in (log r, z/H) so the fog reads as 3-D
+                // cloud banks, not a painted plane; both advect with Ω.
+                float Om  = 1.0 / (Rc * sqrt(Rc) + pc.a_star);
+                float phv = (y[3] + pc.cam_phi) + 120.0 * Om -
+                            Om * pc.time_s * pc.time_scale;
+                const float kTwoPi2 = 6.28318530718;
+                // long azimuthal coherence (quarter-turn cells) and only
+                // two octaves: cloud BANKS, not confetti — the fine
+                // detail comes from the vertical breakup below. A small
+                // per-ray phase jitter decorrelates the lattice between
+                // neighbouring rays so edge-on rims do not comb.
+                float perv = 4.0;
+                vec2  pv   = vec2(log(Rc) * 9.0,
+                                  (phv + 0.05 * jit) * (perv / kTwoPi2));
+                float n1 = 0.0, wv = 0.60, wsumv = 0.0;
+                for (int i = 0; i < 2; ++i) {
+                    n1 += wv * vnoise(pv, perv);
+                    wsumv += wv;
+                    pv = vec2(pv.x * 1.93 + 17.13, pv.y * 2.0);
+                    perv *= 2.0; wv *= 0.55;
+                }
+                n1 /= wsumv;
+                float n2 = vnoise(vec2(log(Rc) * 7.0 + 31.7,
+                                       zc / Hc * 1.4 + 0.35 * phv), 1e6);
+                // steep threshold: separated cloud banks with real gaps
+                // (stars and disk visible between clumps), not uniform
+                // mist
+                float dens = clamp(pc.turb, 0.0, 1.0) * env *
+                             pow(max(2.2 * (0.9 * n1 + 0.5 * n2 - 0.45),
+                                     0.0), 1.8);
+                if (dens > 1e-4) {
+                    // local colour: blackbody at the orbiting gas's
+                    // redshifted temperature, exactly like the midplane
+                    float Fv = pt_flux(Rc, pc.a_star, pc.disk_r_in);
+                    float sg = Rc * Rc;
+                    float dl = Rc * Rc - 2.0 * Rc + a * a;
+                    float AA = (Rc * Rc + a * a) * (Rc * Rc + a * a) -
+                               a * a * dl;
+                    float gtt = -(1.0 - 2.0 * Rc / sg);
+                    float gtp = -2.0 * a * Rc / sg;
+                    float gpp = AA / sg;
+                    float dn = -(gtt + 2.0 * Om * gtp + Om * Om * gpp);
+                    if (dn > 0.0) {
+                        float g_v = 1.0 / ((1.0 / sqrt(dn)) *
+                                           (cc.E - Om * cc.Lz));
+                        float Tv = pc.t_peak_k *
+                                   pow(max(Fv, 0.0) / pc.flux_max, 0.25);
+                        float Tobs = clamp(g_v, 0.05, 4.0) * max(Tv, 900.0);
+                        float uu = clamp((log(max(Tobs, 501.0)) -
+                                          log(500.0)) /
+                                         (log(60000.0) - log(500.0)),
+                                         0.0, 1.0);
+                        vec3 huev = texture(luts[0], vec2(uu, 0.5)).rgb;
+                        float dtau = 0.8 * dens * h * rm;
+                        float em = 1.0 - exp(-dtau);
+                        acc += Tr * em * huev *
+                               pow(Tobs / 6500.0, 4.0) * 0.8;
+                        Tr *= exp(-0.7 * dtau);     // dust is semi-opaque
+                        if (Tr < 0.05) outcome = 3;
+                    }
+                }
+            }
         }
 
         // Radial quick-reject: only bisect crossings that can touch the
@@ -315,11 +489,16 @@ float shade_sample(float px_f, float py_f, out vec3 disk_out,
             if (abs(prev_c) > 5e-3 || abs(cth) > 5e-3) {
                 // bisect the equatorial crossing
                 float lo = 0.0, hi = 1.0; // fraction of the last step
-                // reconstruct the step size (same controller, prev state)
-                float hh = 0.04 * prev[1] / (abs(prev[4]) + 1e-4);
-                hh = min(hh, 0.10 / (abs(prev[5]) + 1.0));
-                hh = min(hh, 0.08);
-                hh = min(hh, 0.015 + 0.25 * abs(sin(prev[2])));
+                // reconstruct the step size (MUST mirror the controller
+                // above exactly, including the polar clamp, or the
+                // re-integrated fraction lands at the wrong state)
+                float hh = relax * 0.04 * prev[1] / (abs(prev[4]) + 1e-4);
+                hh = min(hh, relax * 0.10 / (abs(prev[5]) + 1.0));
+                hh = min(hh, relax * 0.08);
+                {
+                    float sg2 = abs(sin(prev[2]));
+                    hh = min(hh, 0.004 + 0.35 * sg2 * sg2);
+                }
                 for (int it = 0; it < 12; ++it) {
                     float mid = 0.5 * (lo + hi);
                     float tr[6];
@@ -333,7 +512,8 @@ float shade_sample(float px_f, float py_f, out vec3 disk_out,
             // step accuracy; bisecting every oscillation is what used to
             // collapse the frame rate on rim-skimming rays
             float r_x = cr[1];
-            if (r_x >= pc.disk_r_in && r_x <= pc.disk_r_out) {
+            if (r_x >= pc.disk_r_in && r_x <= pc.disk_r_out &&
+                nturn < 3) {
                 float Om = 1.0 / (r_x * sqrt(r_x) + a);
                 float sg = r_x * r_x;
                 float dl = r_x * r_x - 2.0 * r_x + a * a;
@@ -354,8 +534,60 @@ float shade_sample(float px_f, float py_f, out vec3 disk_out,
                                max(pc.disk_r_out - pc.disk_r_in, 1e-3);
                     o = smoothstep(0.98, 0.60, rn);
                 }
-                acc += Tr * o * disk_emission(r_x, cr[3] + pc.cam_phi, g_x);
+                // De-aliasing of squeezed images (the axis-column rungs
+                // and the dotted sub-image patches). Two mechanisms:
+                //  - TEXTURE: pixels there span a huge swathe of disk
+                //    surface, so the filament pattern must fade toward
+                //    its mean (the correct band-limited average);
+                //  - GEOMETRY: the crossing radius sweeps the whole
+                //    annulus across a few pixel rows, so the hard
+                //    r_in/r_out edges image as a hit/miss barcode —
+                //    soften the annulus window for those rays only.
+                // "Squeezed" = the ray went over a pole (its image is
+                // compressed into the axis column) or is a higher-order
+                // sub-image (demagnified ~e^-pi per extra crossing).
+                float fade = (ncross == 0) ? 1.0
+                             : ((ncross == 1) ? 0.30 : 0.0);
+                // Polar-cone feather (display presets only): rays that
+                // dove within ~7 degrees of the spin axis take a polar
+                // detour the fp32 fixed-budget integrator quantises into
+                // a dashed axis column. The genuine flux of those images
+                // is orders below the disk (the fp64 reference shows no
+                // visible column at these geometries in linear display);
+                // it only reads here because the 24-stop log grade lifts
+                // it. Feather it out rather than display its noise.
+                // Every near-axis ray is one of three kinds: snapped
+                // axial (Lz -> 0 above; integrates cleanly, KEEPS its
+                // light — it paints the arch continuously across the
+                // axis), a turning ray whose polar turning point sits in
+                // the numerically fragile cone (suppressed — these are
+                // the quantised dash makers), or a ray turning farther
+                // out (untouched). Pass-over rays have turn_sth = 1, so
+                // feathering on the TURNING latitude never dims them.
+                float w_pole = 1.0;
+                if (ncross >= 1) {
+                    // higher-order sub-images: keep, but band-limit the
+                    // texture (demagnified ~e^-pi per extra crossing)
+                    float span =
+                        max(pc.disk_r_out - pc.disk_r_in, 1e-3);
+                    float w_edge =
+                        smoothstep(pc.disk_r_in,
+                                   pc.disk_r_in + 0.10 * span, r_x) *
+                        (1.0 - smoothstep(pc.disk_r_out - 0.30 * span,
+                                          pc.disk_r_out, r_x));
+                    o *= w_edge;
+                }
+                o *= w_pole;
+#if DEBUG_CLASSIFY
+                acc = vec3(float(ncross) / 3.0,
+                           1.0 - smoothstep(0.0, 0.15, min_sth),
+                           w_pole);
+                outcome = 3;
+#else
+                acc += Tr * o *
+                       disk_emission(r_x, cr[3] + pc.cam_phi, g_x, fade);
                 Tr *= 1.0 - o;
+#endif
                 ++ncross;
                 if (cross_step < 0) cross_step = step;
                 // stop when effectively opaque, or after enough translucent
@@ -393,21 +625,58 @@ void main() {
 
     // The spin axis projects onto the central image column, where the
     // lensed polar caustic of the far-side disk is ~1 px wide and aliases
-    // badly at one ray per pixel. Supersample just those columns (2×2).
-    const float axis_halfwidth = 6.0;
-    bool near_axis =
-        abs(px_f - 0.5 * float(pc.width)) < axis_halfwidth;
+    // badly at one ray per pixel. Supersample those columns (2×2); the
+    // band scales with resolution so upscaled internal targets stay
+    // covered.
+    float ax_px = abs(px_f - 0.5 * float(pc.width));
+    float axis_halfwidth = max(6.0, 0.025 * float(pc.width));
+    bool near_axis = ax_px < axis_halfwidth;
 
+    // With the stiffness-adaptive polar clamp the axis columns integrate
+    // cleanly except for the exactly-axial (Lz-snapped) family, whose
+    // remaining 1-2 px trace the display presets bridge from the first
+    // clean column each side. PHYSICAL stays raw by policy.
+    const float kBridge = 10.0;
+    bool bridging = (pc.shade_mode > 0u) && (ax_px < kBridge);
     vec3 disk_acc = vec3(0.0), sky_acc = vec3(0.0);
     int ns = near_axis ? 4 : 1;
-    for (int s = 0; s < ns; ++s) {
-        vec2 o = (ns == 1) ? vec2(0.0)
-                           : (vec2(float(s & 1), float(s >> 1)) - 0.5) * 0.5;
-        vec3 d, sk;
-        shade_sample(px_f + o.x, py_f + o.y, d, sk);
-        disk_acc += d;
-        sky_acc += sk;
+    if (bridging) {
+        vec3 dl = vec3(0.0), dr = vec3(0.0);
+        vec3 sl = vec3(0.0), sr = vec3(0.0);
+        float xl = 0.5 * float(pc.width) - kBridge;
+        float xr = 0.5 * float(pc.width) + kBridge;
+        for (int s = 0; s < 4; ++s) {
+            vec2 o = (vec2(float(s & 1), float(s >> 1)) - 0.5) * 0.5;
+            float jl = hash01(uint(pix.x) * 7919u ^ uint(pix.y) * 104729u ^
+                              uint(s) * 15485863u);
+            vec3 d, sk;
+            shade_sample(xl + o.x, py_f + o.y, jl, d, sk);
+            dl += d; sl += sk;
+            shade_sample(xr + o.x, py_f + o.y, fract(jl + 0.5), d, sk);
+            dr += d; sr += sk;
+        }
+        float t = clamp(0.5 + 0.5 * (px_f - 0.5 * float(pc.width)) /
+                        kBridge, 0.0, 1.0);
+        disk_acc = mix(dl, dr, t);
+        sky_acc = mix(sl, sr, t);
+        ns = 4;
+    } else {
+        for (int s = 0; s < ns; ++s) {
+            vec2 o = (ns == 1) ? vec2(0.0)
+                     : (vec2(float(s & 1), float(s >> 1)) - 0.5) * 0.5;
+            float jj = hash01(uint(pix.x) * 7919u ^ uint(pix.y) * 104729u ^
+                              uint(s) * 15485863u);
+            vec3 d, sk;
+            shade_sample(px_f + o.x, py_f + o.y, jj, d, sk);
+            disk_acc += d;
+            sky_acc += sk;
+        }
     }
+#if DEBUG_CLASSIFY
+    imageStore(storage_images[pc.image_index], ivec2(pix),
+               vec4(clamp(disk_acc / float(ns), 0.0, 1.0), 1.0));
+    if (true) return;
+#endif
     float ev = exp2(pc.exposure_ev);
     vec3 disk_c = disk_acc / float(ns) * ev;
     vec3 sky_c = sky_acc / float(ns) * ev;

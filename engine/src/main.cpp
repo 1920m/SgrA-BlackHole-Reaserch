@@ -50,6 +50,8 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--fov")) opts.fov = static_cast<float>(std::atof(next("--fov")));
         else if (!std::strcmp(argv[i], "--tpeak")) opts.t_peak_k = static_cast<float>(std::atof(next("--tpeak")));
         else if (!std::strcmp(argv[i], "--rcam")) opts.r_cam = static_cast<float>(std::atof(next("--rcam")));
+        else if (!std::strcmp(argv[i], "--rout")) opts.disk_r_out = static_cast<float>(std::atof(next("--rout")));
+        else if (!std::strcmp(argv[i], "--turb")) opts.turb = static_cast<float>(std::atof(next("--turb")));
         else {
             std::fprintf(stderr, "unknown arg: %s\n", argv[i]);
             return 2;

@@ -54,6 +54,7 @@ App::App(const AppOptions& opts) : opts_(opts) {
     if (opts_.exposure_ev > -900.0f) live_.exposure_ev = opts_.exposure_ev;
     if (opts_.t_peak_k > 0.0f) live_.t_peak_k = opts_.t_peak_k;
     if (opts_.rot_speed >= 0.0f) live_.rot_speed = opts_.rot_speed;
+    if (opts_.turb >= 0.0f) live_.turb = opts_.turb;
 
     live_.science_mode = opts_.science;
 
@@ -219,7 +220,7 @@ App::Texture App::create_texture_png(const std::string& path,
 
 void App::load_luts() {
     const char* names[] = {"disk_colormap", "firestorm", "gargantua", "arctic",
-                           "nebula"};
+                           "nebula", "cinematic"};
     VkSamplerCreateInfo sci{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     sci.magFilter = VK_FILTER_LINEAR;
     sci.minFilter = VK_FILTER_LINEAR;
@@ -229,7 +230,7 @@ void App::load_luts() {
     check(vkCreateSampler(ctx_->device(), &sci, nullptr, &lut_sampler_),
           "vkCreateSampler(lut)");
 
-    for (uint32_t slot = 0; slot < 5; ++slot) {
+    for (uint32_t slot = 0; slot < 6; ++slot) {
         const std::string path = std::string(SGR_ASSET_DIR) + "/luts/" +
                                  names[slot] + ".png";
         const Texture lut = create_texture_png(
@@ -645,7 +646,7 @@ int App::run() {
         }
 
         if (mode_ == UiMode::Simulation) {
-            for (int k = 0; k < 5; ++k)
+            for (int k = 0; k < 6; ++k)
                 if (glfwGetKey(ctx_->window(), GLFW_KEY_1 + k) == GLFW_PRESS)
                     apply_preset(k);
 
