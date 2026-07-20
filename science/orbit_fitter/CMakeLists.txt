@@ -2,12 +2,11 @@
 find_package(Ceres CONFIG REQUIRED)
 
 add_library(sgr_orbit_fitter STATIC
-    SkyProjection.cpp
     OrbitFitter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../spectral_fitter/SpectralLineFitter.cpp
 )
 target_include_directories(sgr_orbit_fitter PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
-target_link_libraries(sgr_orbit_fitter PUBLIC sgr_physics Ceres::ceres)
+target_link_libraries(sgr_orbit_fitter PUBLIC sgr_s2_model sgr_physics Ceres::ceres)
 
 add_executable(fit_s2_tool fit_s2_tool.cpp)
 target_link_libraries(fit_s2_tool PRIVATE sgr_orbit_fitter nlohmann_json::nlohmann_json)

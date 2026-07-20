@@ -5,10 +5,14 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+
+#include <nlohmann/json.hpp>
 
 #include "app.hpp"
 #include "modes/MenuMode.hpp"
@@ -107,6 +111,7 @@ SimHUD::SimHUD(vk::Context& ctx, App& app) : ctx_(&ctx), app_(&app) {
     ImGui_ImplVulkan_Init(&ii);
 
     load_science_artifacts();
+    load_cluster_orbits();
     if (menu_) menu_->load_artifacts(*app_);
 }
 
@@ -203,6 +208,71 @@ void SimHUD::load_science_artifacts() {
     science_available_ = true;
 }
 
+void SimHUD::load_cluster_orbits() {
+    namespace fs = std::filesystem;
+    const fs::path p = "validation/phase13/cluster_fit.json";
+    if (!fs::exists(p)) return;
+    nlohmann::json j;
+    try {
+        std::ifstream(p) >> j;
+    } catch (...) {
+        return;
+    }
+    if (!j.contains("joint_elements")) return;
+    const double M = j["M_msun"], R0 = j["R0_pc"];
+    // per-star orbit-line colours (the balls are coloured by redshift)
+    static const uint32_t kCols[] = {
+        IM_COL32(130, 185, 255, 255), // S2  ice blue
+        IM_COL32(95, 220, 190, 255),  // S1  teal
+        IM_COL32(235, 125, 120, 255), // S8  soft red
+        IM_COL32(195, 145, 255, 255), // S12 violet
+        IM_COL32(255, 185, 95, 255),  // S13 amber
+    };
+    int ci = 0;
+    for (const auto& e : j["joint_elements"]) {
+        ClusterStar st;
+        st.name = e["star"].get<std::string>();
+        S2Parameters prm;
+        prm.M_msun = M;
+        prm.R0_pc = R0;
+        prm.a_mas = e["a_mas"];
+        prm.e = e["e"];
+        prm.incl_deg = e["incl_deg"];
+        prm.Omega_deg = e["Omega_deg"];
+        prm.omega_deg = e["omega_deg"];
+        prm.t_peri_yr = e["t_peri_yr"];
+        // BH-centred view: the instrumental frame offsets/drift are zeroed
+        prm.x0_mas = prm.y0_mas = 0.0;
+        prm.vx_masyr = prm.vy_masyr = 0.0;
+        prm.vz_kms = 0.0;
+        st.period_yr = e["period_yr"];
+        st.t0 = 1992.0;
+        st.t1 = 1992.0 + std::max(160.0, st.period_yr * 1.05);
+        if (!st.model.integrate(prm, st.t0, st.t1)) continue;
+        st.mas_per_M = st.model.mas_per_M(prm);
+        st.line_col = kCols[ci++ % 5];
+        // dense display track (index subsampling keeps the adaptive
+        // pericentre resolution of the integrator)
+        const auto& tr = st.model.trajectory();
+        const size_t stride = std::max<size_t>(1, tr.size() / 1400);
+        for (size_t i = 0; i < tr.size(); i += stride)
+            st.track.push_back(
+                {static_cast<float>(tr[i].pos_M[0] * st.mas_per_M),
+                 static_cast<float>(tr[i].pos_M[1] * st.mas_per_M),
+                 static_cast<float>(tr[i].pos_M[2] * st.mas_per_M)});
+        cluster_.push_back(std::move(st));
+    }
+    if (cluster_.size() < 2) {
+        cluster_.clear();
+        return;
+    }
+    clu_end_ = 1e9;
+    for (const auto& st : cluster_) clu_end_ = std::min(clu_end_, st.t1);
+    clu_end_ -= 1.0;
+    clu_M_ = M;
+    cluster_available_ = true;
+}
+
 bool SimHUD::wants_mouse() const {
     return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse;
 }
@@ -215,10 +285,208 @@ void SimHUD::new_frame(double fps) {
         if (menu_->draw(*app_)) draw_controls(fps);
     } else {
         draw_controls(fps);
-        if (app_->live_.science_mode) draw_science();
+        if (app_->live_.science_mode) {
+            draw_science();
+            draw_cluster3d();
+        }
         if (app_->live_.scope_mode) draw_scope_overlay();
     }
     ImGui::Render();
+}
+
+void SimHUD::draw_cluster3d() {
+    const ImVec2 ds = ImGui::GetIO().DisplaySize;
+    ImGui::SetNextWindowPos({ds.x - 560, 12}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({545, 640}, ImGuiCond_FirstUseEver);
+    ImGui::Begin("S-star cluster - 3D orbits");
+    if (!cluster_available_) {
+        ImGui::TextWrapped(
+            "Phase-13 artefacts not found (or missing joint elements). Run "
+            "fit_cluster to generate validation/phase13/cluster_fit.json.");
+        ImGui::End();
+        return;
+    }
+
+    // ---- time controls ------------------------------------------------------
+    if (ImGui::Button(clu_play_ ? "pause" : "play")) clu_play_ = !clu_play_;
+    ImGui::SameLine();
+    if (ImGui::SmallButton("1995")) clu_epoch_ = 1995.0;
+    ImGui::SameLine();
+    if (ImGui::SmallButton("today")) clu_epoch_ = 2026.55;
+    ImGui::SameLine();
+    ImGui::Text("epoch %.2f", clu_epoch_);
+    ImGui::SetNextItemWidth(220.0f);
+    ImGui::SliderFloat("time [x real]", &clu_speed_, 1.0e4f, 1.0e8f, "%.0f",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::SameLine();
+    ImGui::TextDisabled("= %.2f yr/s", clu_speed_ / 3.1557e7);
+    if (clu_play_) {
+        clu_epoch_ +=
+            ImGui::GetIO().DeltaTime * clu_speed_ / 3.1557e7;
+        if (clu_epoch_ > clu_end_) clu_epoch_ = 1992.0; // wrap the span
+    }
+
+    // ---- 3-D canvas ---------------------------------------------------------
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImVec2 origin = ImGui::GetCursorScreenPos();
+    const float W = ImGui::GetContentRegionAvail().x;
+    const float H = std::max(ImGui::GetContentRegionAvail().y - 42.0f, 120.0f);
+    ImGui::InvisibleButton("cluster_canvas", {W, H});
+    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+        clu_yaw_ += ImGui::GetIO().MouseDelta.x * 0.008f;
+        clu_pitch_ += ImGui::GetIO().MouseDelta.y * 0.008f;
+        clu_pitch_ = std::clamp(clu_pitch_, -1.55f, 1.55f);
+    }
+    if (ImGui::IsItemHovered()) {
+        const float wheel = ImGui::GetIO().MouseWheel;
+        if (wheel != 0.0f)
+            clu_zoom_ = std::clamp(clu_zoom_ * std::pow(1.18f, wheel),
+                                   0.15f, 40.0f);
+        if (ImGui::IsMouseDoubleClicked(0)) { // reset to the Earth view
+            clu_yaw_ = clu_pitch_ = 0.0f;
+            clu_zoom_ = 1.0f;
+        }
+    }
+    dl->PushClipRect(origin, {origin.x + W, origin.y + H}, true);
+    dl->AddRectFilled(origin, {origin.x + W, origin.y + H},
+                      IM_COL32(6, 7, 12, 255));
+
+    const float cx = origin.x + W * 0.5f, cy = origin.y + H * 0.5f;
+    float maxext = 1.0f;
+    for (const auto& st : cluster_)
+        for (const auto& q : st.track)
+            maxext = std::max({maxext, std::abs(q[0]), std::abs(q[1])});
+    const float scale = 0.46f * std::min(W, H) / maxext * clu_zoom_;
+
+    // Sky frame: x = dRA (East, LEFT on screen), y = dDec (North, up),
+    // z = away from the observer. yaw rotates about North, pitch about
+    // East; yaw = pitch = 0 is exactly the view from Earth.
+    const float cyw = std::cos(clu_yaw_), syw = std::sin(clu_yaw_);
+    const float cpt = std::cos(clu_pitch_), spt = std::sin(clu_pitch_);
+    auto project = [&](float x, float y, float z) {
+        const float X = x * cyw + z * syw;
+        const float Zr = -x * syw + z * cyw;
+        const float Y = y * cpt - Zr * spt;
+        return ImVec2(cx - X * scale, cy - Y * scale);
+    };
+
+    // orientation gizmo (bottom left): E / N / line of sight
+    {
+        const ImVec2 gz{origin.x + 34.0f, origin.y + H - 30.0f};
+        auto tip = [&](float x, float y, float z) {
+            const float X = x * cyw + z * syw;
+            const float Zr = -x * syw + z * cyw;
+            const float Y = y * cpt - Zr * spt;
+            return ImVec2(gz.x - X * 22.0f, gz.y - Y * 22.0f);
+        };
+        dl->AddLine(gz, tip(1, 0, 0), IM_COL32(230, 140, 140, 200), 1.5f);
+        dl->AddText(tip(1.25f, 0, 0), IM_COL32(230, 140, 140, 220), "E");
+        dl->AddLine(gz, tip(0, 1, 0), IM_COL32(140, 230, 150, 200), 1.5f);
+        dl->AddText(tip(0, 1.25f, 0), IM_COL32(140, 230, 150, 220), "N");
+        dl->AddLine(gz, tip(0, 0, 1), IM_COL32(150, 170, 255, 200), 1.5f);
+        dl->AddText(tip(0, 0, 1.35f), IM_COL32(150, 170, 255, 220), "los");
+    }
+
+    // Sgr A* at the origin
+    {
+        const ImVec2 c = project(0, 0, 0);
+        dl->AddCircleFilled(c, 3.0f, IM_COL32(255, 255, 255, 230));
+        dl->AddCircle(c, 6.0f, IM_COL32(255, 255, 255, 90));
+        dl->AddText({c.x + 8, c.y - 6}, IM_COL32(255, 255, 255, 170),
+                    "Sgr A*");
+    }
+
+    for (auto& st : cluster_) {
+        // orbit line (full integrated GR track — S2's pericentre advance
+        // draws its rosette by itself)
+        const uint32_t lc = (st.line_col & 0x00ffffffu) | (110u << 24);
+        ImVec2 prev{};
+        bool first = true;
+        for (const auto& q : st.track) {
+            const ImVec2 s = project(q[0], q[1], q[2]);
+            if (!first) dl->AddLine(prev, s, lc, 1.2f);
+            prev = s;
+            first = false;
+        }
+
+        // current state from the SAME integrated geodesic
+        const double t = std::clamp(clu_epoch_, st.t0 + 1e-3, st.t1 - 1e-3);
+        const TrajectorySample smp = st.model.sample_at(t);
+        const float px = static_cast<float>(smp.pos_M[0] * st.mas_per_M);
+        const float py = static_cast<float>(smp.pos_M[1] * st.mas_per_M);
+        const float pz = static_cast<float>(smp.pos_M[2] * st.mas_per_M);
+
+        // trail (recent world positions; cleared on scrubs/wraps)
+        if (std::abs(t - st.trail_last_t) > st.period_yr * 0.05)
+            st.trail.clear();
+        if (clu_play_ && t != st.trail_last_t) {
+            st.trail.push_back({px, py, pz});
+            if (st.trail.size() > 220)
+                st.trail.erase(st.trail.begin());
+            st.trail_last_t = t;
+        }
+        for (size_t i = 1; i < st.trail.size(); ++i) {
+            const float a = 150.0f * static_cast<float>(i) /
+                            static_cast<float>(st.trail.size());
+            const uint32_t tc = (st.line_col & 0x00ffffffu) |
+                                (static_cast<uint32_t>(a) << 24);
+            dl->AddLine(project(st.trail[i - 1][0], st.trail[i - 1][1],
+                                st.trail[i - 1][2]),
+                        project(st.trail[i][0], st.trail[i][1],
+                                st.trail[i][2]),
+                        tc, 2.0f);
+        }
+
+        // ---- the shining ball: colour = EXACT line-of-sight redshift ----
+        // (smp.redshift is the fitter's 1+z: full Doppler + gravitational.)
+        // white (blueshifted, approaching) -> warm gold (at rest) ->
+        // bronze (redshifted, receding); signed-sqrt scaling keeps the
+        // slow outer stars visibly coloured too.
+        const double v_kms = (smp.redshift - 1.0) * 299792.458;
+        const float u = std::clamp(
+            static_cast<float>((v_kms < 0 ? -1.0 : 1.0) *
+                               std::sqrt(std::abs(v_kms) / 4000.0)),
+            -1.0f, 1.0f);
+        float r, g, b;
+        if (u <= 0.0f) { // gold -> white with blueshift
+            r = 1.00f;
+            g = 0.82f - 0.18f * u; // u negative: g,b rise toward 1
+            b = 0.55f - 0.45f * u;
+        } else {         // gold -> bronze -> dark orange with redshift
+            r = 1.00f - 0.42f * u;
+            g = 0.82f - 0.55f * u;
+            b = 0.55f - 0.48f * u;
+        }
+        const ImVec2 s = project(px, py, pz);
+        const float rad =
+            4.0f + 2.0f * std::min(1.0f,
+                                   static_cast<float>(std::abs(v_kms)) /
+                                       2500.0f);
+        auto col = [&](float a) {
+            return IM_COL32(static_cast<int>(r * 255),
+                            static_cast<int>(g * 255),
+                            static_cast<int>(b * 255),
+                            static_cast<int>(a));
+        };
+        dl->AddCircleFilled(s, rad * 3.1f, col(28.0f));
+        dl->AddCircleFilled(s, rad * 1.8f, col(76.0f));
+        dl->AddCircleFilled(s, rad, col(255.0f));
+        dl->AddCircleFilled(s, rad * 0.45f,
+                            IM_COL32(255, 255, 255, 210));
+        dl->AddText({s.x + rad + 4, s.y - 7},
+                    (st.line_col & 0x00ffffffu) | (220u << 24),
+                    st.name.c_str());
+    }
+    dl->PopClipRect();
+
+    ImGui::TextDisabled(
+        "tracks: full-GR geodesics at the joint cluster fit (M = %.2fe6 "
+        "Msun)",
+        clu_M_ / 1e6);
+    ImGui::TextDisabled(
+        "ball colour = LOS redshift: white (approaching) - gold - bronze "
+        "(receding)  |  drag: rotate, wheel: zoom, double-click: Earth view");
+    ImGui::End();
 }
 
 void SimHUD::draw_scope_overlay() {

@@ -390,6 +390,25 @@ int main(int argc, char** argv) {
                            {"converged", r.converged}});
         if (n == stars.size()) {
             // ---- final joint fit: report + dense tracks ---------------------
+            // Full per-star osculating elements at the JOINT best fit — the
+            // engine's live 3-D cluster viewer re-integrates the same GR
+            // geodesics from exactly these numbers. Period from Kepler III
+            // at the joint (M, R0): P² = a_AU³/M_Msun.
+            nlohmann::json joint_elements = nlohmann::json::array();
+            for (size_t k = 0; k < stars.size(); ++k) {
+                const auto& e = r.elem[k];
+                const double a_au = e[0] * 1e-3 * r.g[1];
+                const double period_yr =
+                    std::sqrt(a_au * a_au * a_au / r.g[0]);
+                joint_elements.push_back({{"star", stars[k].name},
+                                          {"a_mas", e[0]},
+                                          {"e", e[1]},
+                                          {"incl_deg", e[2]},
+                                          {"Omega_deg", e[3]},
+                                          {"omega_deg", e[4]},
+                                          {"t_peri_yr", e[5]},
+                                          {"period_yr", period_yr}});
+            }
             nlohmann::json j{{"stars", names},
                              {"M_msun", r.g[0]},
                              {"sigma_M_msun", r.sigma_M},
@@ -406,6 +425,7 @@ int main(int argc, char** argv) {
                              {"chi2_red", r.chi2_red},
                              {"converged", r.converged},
                              {"per_star", per_star},
+                             {"joint_elements", joint_elements},
                              {"subsets", subsets}};
             std::ofstream(out_dir / "cluster_fit.json") << j.dump(2) << "\n";
             spdlog::info("wrote cluster_fit.json");

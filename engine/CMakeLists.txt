@@ -15,6 +15,7 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(unofficial-shaderc CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # The Vulkan backend is compiled into this target (vendored from the exact
 # imgui source vcpkg built, see third_party/) so it shares our VK_NO_PROTOTYPES
@@ -39,6 +40,8 @@ target_compile_definitions(sgr_engine PRIVATE
 )
 target_link_libraries(sgr_engine PRIVATE
     sgr_physics
+    sgr_s2_model
+    nlohmann_json::nlohmann_json
     volk::volk
     vk-bootstrap::vk-bootstrap
     GPUOpen::VulkanMemoryAllocator

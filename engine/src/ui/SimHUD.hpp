@@ -7,9 +7,13 @@
 
 #include <volk.h>
 
+#include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "orbit_fitter/SkyProjection.hpp" // S2Model (Ceres-free GR orbit model)
 
 namespace sgr {
 
@@ -42,8 +46,10 @@ private:
     void create_framebuffers();
     void destroy_framebuffers();
     void load_science_artifacts();
+    void load_cluster_orbits();
     void draw_controls(double fps);
     void draw_science();
+    void draw_cluster3d();
     void draw_scope_overlay();
 
     vk::Context* ctx_;
@@ -61,6 +67,29 @@ private:
     Points ast_;
     std::string fit_summary_;
     bool science_available_ = false;
+
+    // 3-D S-star cluster viewer: the Phase-13 joint-fit elements
+    // re-integrated through the SAME full-GR geodesic model the fitter
+    // uses (sgr_s2_model); the viewer animates those cached trajectories.
+    struct ClusterStar {
+        std::string name;
+        S2Model model{0.0, 0.0};
+        double period_yr = 0.0;
+        double t0 = 1992.0, t1 = 2152.0; // integrated epoch span [yr]
+        double mas_per_M = 1.0;          // BH-frame [M] -> sky [mas]
+        uint32_t line_col = 0xffffffff;
+        std::vector<std::array<float, 3>> track;  // one dense orbit [mas]
+        std::vector<std::array<float, 3>> trail;  // recent positions [mas]
+        double trail_last_t = -1.0;
+    };
+    std::vector<ClusterStar> cluster_;
+    bool cluster_available_ = false;
+    double clu_M_ = 0.0;          // joint-fit mass [Msun] (caption)
+    double clu_epoch_ = 2026.5;   // displayed epoch [Julian yr]
+    double clu_end_ = 2150.0;     // common end of the integrated spans
+    float clu_speed_ = 3.0e6f;    // wall-clock multiplier (~0.1 yr/s)
+    bool clu_play_ = true;
+    float clu_yaw_ = 0.0f, clu_pitch_ = 0.0f, clu_zoom_ = 1.0f;
 };
 
 } // namespace sgr

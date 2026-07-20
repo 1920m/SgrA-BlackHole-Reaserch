@@ -124,7 +124,7 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 | Menu item | What it does |
 |---|---|
 | **ENTER SIMULATION** | Live GPU Kerr renderer. Sliders for spin a\*, inclination, camera radius, field of view, disk size, exposure, disk temperature — all live. |
-| **SCIENCE MODE** | Live renderer + the fitted S2 orbit plotted over the real Gillessen+2017 astrometry, with the fit summary (M, R₀, χ²/dof). |
+| **SCIENCE MODE** | Live renderer + the fitted S2 orbit plotted over the real Gillessen+2017 astrometry, with the fit summary (M, R₀, χ²/dof) — plus a **3D S-star orbit theatre**: S2, S1, S8, S12 and S13 animated along their integrated full-GR geodesics at the joint cluster fit, each star a glowing ball coloured by its exact line-of-sight redshift (white = approaching → gold → bronze = receding). Drag to rotate, wheel to zoom, double-click for the view from Earth; time slider up to 10⁸× real. |
 | **NO-HAIR TEST** | The Hartle–Thorne quadrupole slider ε_q: predicted extra S2 precession live, beside the 95% confidence interval fitted from the data. |
 | **PHOTON RING SCOPE** | Measured photon sub-ring flux ratios (n=0/1/2) + a live narrow-field camera that isolates the n=1 ring at the shadow edge. |
 | **SETTINGS** | The controls window, from the menu. |
