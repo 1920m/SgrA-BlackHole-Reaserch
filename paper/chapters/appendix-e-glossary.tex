@@ -3,13 +3,29 @@
 
 Every recurring symbol, with the section where it is defined.
 
-\begin{table}[h]
-\centering
+% longtable, not a floating table: the full symbol list is taller than
+% one page, and a fixed float silently overflowed the text block and
+% printed its last rows over the running footer (the page number
+% landed inside a row). longtable breaks cleanly with a repeated
+% header instead.
+\begingroup
 \footnotesize
-\begin{tabular}{llp{0.52\textwidth}}
+\setlength\LTleft{0pt plus 1fill}
+\setlength\LTright{0pt plus 1fill}
+\begin{longtable}{llp{0.52\textwidth}}
 \toprule
 Symbol & Defined & Meaning \\
 \midrule
+\endfirsthead
+\toprule
+Symbol & Defined & Meaning \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r}{\emph{continued on the next page}} \\
+\endfoot
+\bottomrule
+\endlastfoot
 $M$ & \S\ref{sec:kerrmetric} & black-hole mass; also the geometric
 length/time unit ($G=c=1$) \\
 $a$, $\astar$ & \S\ref{sec:kerrmetric} & spin parameter $J/M$;
@@ -77,6 +93,5 @@ $1 - 2M/r$ (Hartle--Thorne context) \\
 $F_1, F_2$ & \S\ref{sec:ht} & quasi-Kerr radial structure functions \\
 $e_{\hat\mu}$ & eq.~\eqref{eq:zamotetrad} & ZAMO orthonormal tetrad
 legs \\
-\bottomrule
-\end{tabular}
-\end{table}
+\end{longtable}
+\endgroup
