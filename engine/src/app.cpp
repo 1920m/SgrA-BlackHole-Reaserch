@@ -54,7 +54,9 @@ App::App(const AppOptions& opts) : opts_(opts) {
     if (opts_.exposure_ev > -900.0f) live_.exposure_ev = opts_.exposure_ev;
     if (opts_.t_peak_k > 0.0f) live_.t_peak_k = opts_.t_peak_k;
     if (opts_.rot_speed >= 0.0f) live_.rot_speed = opts_.rot_speed;
-    if (opts_.turb >= 0.0f) live_.turb = opts_.turb;
+    // design range is 0-1 (the shader clamps too; beyond 1 the filament
+    // mix() extrapolates into harsh negative-depth lanes)
+    if (opts_.turb >= 0.0f) live_.turb = std::min(opts_.turb, 1.0f);
 
     live_.science_mode = opts_.science;
 
