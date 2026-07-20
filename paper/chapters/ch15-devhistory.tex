@@ -4,7 +4,7 @@
 An instrument is only as credible as its validation record. This
 chapter documents how the simulator was built — twelve gated phases, no
 phase entered while any earlier gate was red — catalogues the complete
-automated test suite with its exact tolerances, and retells the six
+automated test suite with its exact tolerances, and retells the ten
 significant bug hunts as methods lessons, because what a validation
 system \emph{caught} is the best evidence for what it would catch.
 
@@ -228,6 +228,107 @@ non-periodic domain. Replaced with azimuthally periodic noise; a
 regression eye-check at four azimuths entered the render checklist.
 \emph{Lesson: any function of an angle must be built periodic, not
 wrapped after the fact.}
+
+\subsection{The dashed polar column}
+\label{sec:polarcolumn}
+In live use the fp32 renderer developed dashed, sawtooth columns on
+the image projection of the spin axis, flanked by dotted patches —
+reported from interactive exploration, not caught by any gate, because
+the science paths (fp64 GPU, CPU reference) do not show them: in a
+linear display the light involved is invisibly faint, and only the
+live path's 24-stop logarithmic window lifts it into view together
+with its noise. The mechanism is the polar term
+$L_z^2/\sin^3\theta$ in $\Theta'(\theta)$: for rays passing near the
+spin axis the $\theta$-equation stiffens beyond what the fixed-budget
+RK4 can resolve, so they either tunnelled into the forbidden
+polar cone or had their polar detours quantised into a few discrete
+step outcomes, and the disk annulus's hard edges imaged that
+quantisation as a hit/miss barcode. The cure is a stiffness-adaptive
+polar step clamp $h \lesssim |p_\theta|/|\Theta'|$ — floored, so that
+near the turning wall the analytic reflection guard takes over rather
+than letting microscopic steps burn the budget — plus a raised fp32
+$\sin\theta$ clamp and a golden-ratio step-phase jitter.
+\emph{Lesson: a fixed-budget single-precision integrator needs its
+step law derived from the stiffest term it must cross; and a
+logarithmic display grade will surface numerical noise that
+physics-grade linear output never shows.}
+
+\subsection{The edge-on staircases — when the patch is the artefact}
+\label{sec:edgeonstaircase}
+The first polar-column patch shipped two screen-space band-aids: a
+bridge that interpolated the central image columns from their clean
+neighbours, and a near-axial $L_z$ snap wide enough to rewrite a
+$\sim$30-pixel family of rays. At near-edge-on inclination and high
+exposure these band-aids \emph{became} the dominant artefacts —
+blurry rectangles over bright structure, starlight smeared into grey
+pillars — alongside a new one: checkerboard staircase blocks on the
+rims of the lensed lower bowl. The blocks were diagnosed with a
+$3\times$ global step-refinement probe (they vanished, proving pure
+step-resolution error): neighbouring rays share an \emph{identical}
+deterministic step sequence, so every marginal decision — a grazing
+dip through the disk plane detected or missed, a step-budget cliff —
+flips at the same place for whole patches of pixels and organises
+into coherent blocks. The final fix deleted both band-aids (the snap
+returned at a sub-pixel $2.5\times10^{-3}\sqrt{Q}$), reused the exact
+step length inside the crossing bisection, replaced raw step
+endpoints with a linear $\cos\theta$ zero for grazing crossings,
+added a per-ray $\pm10$ per cent step dither so residual quantisation
+decorrelates into per-pixel noise, and ramped the base step down with
+viewing inclination so only near-plane cameras pay for the harder
+geometry. \emph{Lesson: a cosmetic patch that does not remove the
+mechanism becomes the next artefact; prove a resolution error with a
+refinement probe before designing anything cleverer; and dither —
+decorrelating neighbouring rays — is both diagnostic and cure,
+because quantisation that cannot organise across pixels cannot be
+seen.}
+
+\subsection{The face-on crayon drawing}
+\label{sec:crayon}
+The edge-on campaign introduced de-aliasing keyed on each ray's
+closest approach to the spin axis, $\min|\sin\theta|$ — and promptly
+broke the opposite viewing regime: near-polar inclinations rendered
+as a flat, posterised ``crayon drawing'', filament texture gone,
+with a fuzzy wedge below the shadow. The PHYSICAL preset was
+untouched, which was the diagnostic gift: every squeezed-ray shaping
+step is gated to the display presets, so the failure had to live in
+that machinery. The root cause was observer contamination: the
+tracker was \emph{seeded with the camera's own} $\sin\theta_0$, so
+with the camera near the axis every ray in the frame classified as
+caustic-squeezed from step zero. Seeding at 1 and counting only
+approaches near the hole ($r < r_{\rm cam}/2$) restored honest
+classification at every inclination; supersampling moved from a fixed
+screen band to a ray-property trigger (the polar-view caustic fan
+does not sit on the image centreline); and the deepest pole-passers
+now shade at a band-limited representative radius with a fractional
+coverage term, because no affordable sample count beats binomial
+speckle under a 24-stop lift. A $\pm0.75$-texel dither on the
+256-entry display-LUT lookup removed the remaining posterisation of
+dim smooth gradients. \emph{Lesson: a classification feature must
+measure the trajectory, not the observer — an observer-contaminated
+feature fails exactly when the observer moves; and the strict
+display-gating of every cosmetic subsystem is what made the physics
+output provably untouched through three rounds of display surgery.}
+
+\subsection{The cloud banks that could only draw lines}
+\label{sec:cloudlines}
+The CINEMATIC volumetric dust layer (Chapter~\ref{ch:instrument})
+first rendered its clouds as circumferential streaks — lines, not
+banks. Two causes compounded: the noise lattice had quarter-turn
+azimuthal cells against $\sim$10-per-cent-of-radius radial cells
+($\sim$15:1 anisotropy — such a lattice \emph{cannot} draw anything
+but lines), and advection by the exact differential $\Omega(r)$
+shears any fixed pattern into strings within a few relative turns —
+seconds of wall clock at the demonstration time scales. The rebuild
+samples isotropic 3-D value-noise fBm at the orbiting world position
+(round cells from any viewpoint, azimuthally seam-free by
+construction), and runs the field as two staggered, periodically
+re-forming phases that cross-fade — flow noise — each advected by
+the exact $\Omega(r)$ over its own age only, so the banks orbit and
+shear indefinitely without ever reaching a stringified steady state.
+\emph{Lesson: the anisotropy of a texture lattice is a shape prior —
+round features need round cells; and a differentially sheared flow
+needs re-forming phases, because no static pattern survives
+unbounded shear.}
 
 \section{The convergence evidence}
 

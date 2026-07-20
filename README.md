@@ -118,6 +118,8 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 - **auto resolution** (on by default) adjusts the internal render scale to
   hold ~13 fps at any window size; the **render scale** slider overrides it
   manually (0.25×–2×; above 1× = supersampled anti-aliasing)
+- **black background** hides the starfield for a fully black backdrop —
+  display only, the lensed disk is untouched
 
 | Menu item | What it does |
 |---|---|
@@ -166,6 +168,7 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 --no-mouse            disable orbit/zoom input (repeatable screenshots)
 --rot X               disk rotation speed in multiples of real time
 --rout R              disk outer radius [M]   --turb X   turbulence/cloud density 0–1
+--blacksky            start with the starfield hidden (fully black background)
 --validation          Vulkan validation layers ON (exit code = error count)
 ```
 

@@ -30,6 +30,7 @@ layout(push_constant) uniform PC {
     float turb;        // artistic turbulence amount 0..1 (0 = pure analytic)
     float cam_phi;     // camera orbit azimuth [rad]
     float time_scale;  // filament advection: Ω [1/M] per wall-clock second
+    uint sky_off;      // 1 = fully black background (starfield hidden)
 } pc;
 
 const float PI = 3.14159265;
@@ -809,6 +810,7 @@ void main() {
     float ev = exp2(pc.exposure_ev);
     vec3 disk_c = disk_acc / wsum * ev;
     vec3 sky_c = sky_acc / wsum * ev;
+    if (pc.sky_off != 0u) sky_c = vec3(0.0); // black-background toggle
 
     // artistic preset grade (display only; §9 — physics untouched)
     if (pc.shade_mode > 0u) {

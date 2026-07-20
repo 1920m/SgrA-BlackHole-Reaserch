@@ -47,6 +47,7 @@ struct AppOptions {
     float t_peak_k = -1.0f;
     float render_scale = 1.0f; // live render target scale (perf knob)
     float turb = -1.0f;        // turbulence / cloud density override (0..1)
+    bool black_sky = false;    // start with the starfield hidden
 };
 
 // Push-constant block shared with the shaders (must match GLSL layout).
@@ -63,6 +64,7 @@ struct PushConstants {
     float turb;       // artistic turbulence amount 0..1 (0 = pure analytic)
     float cam_phi;    // camera azimuth [rad] (axisymmetric: rotates the disk)
     float time_scale; // filament advection: Ω [1/M] per wall-clock second
+    uint32_t sky_off; // 1 = fully black background (starfield hidden)
 };
 static_assert(sizeof(PushConstants) <= 128);
 
@@ -154,6 +156,7 @@ public:
         bool auto_res = true;      // hold ~13 fps by adjusting render_scale
         uint32_t lut_slot = 0;
         int preset = 0;
+        bool black_sky = false; // hide the starfield: fully black backdrop
         bool science_mode = false;
         bool scope_mode = false; // photon-ring scope framing active
     } live_{};

@@ -57,6 +57,7 @@ App::App(const AppOptions& opts) : opts_(opts) {
     // design range is 0-1 (the shader clamps too; beyond 1 the filament
     // mix() extrapolates into harsh negative-depth lanes)
     if (opts_.turb >= 0.0f) live_.turb = std::min(opts_.turb, 1.0f);
+    live_.black_sky = opts_.black_sky;
 
     live_.science_mode = opts_.science;
 
@@ -526,6 +527,7 @@ PushConstants App::make_push_constants(float t) const {
     // 1.0 on the slider = real Sgr A* wall-clock: one geometric time unit
     // (GM/c³) is 21.17 s for M = 4.297e6 Msun.
     pc.time_scale = live_.rot_speed / 21.17f;
+    pc.sky_off = live_.black_sky ? 1u : 0u;
 
     // Page-Thorne normalisation, cached against the parameters it depends on.
     static thread_local double cached_a = -10.0, cached_rout = -1.0,

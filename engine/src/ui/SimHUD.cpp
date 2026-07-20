@@ -279,6 +279,11 @@ void SimHUD::draw_controls(double fps) {
         ImGui::SetTooltip("Internal render resolution vs window size.\n"
                           "Above 1.0 = supersampled anti-aliasing.\n"
                           "Auto mode adjusts this to hold ~13 fps.");
+    ImGui::Checkbox("black background", &lp.black_sky);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Hide the starfield backdrop: fully black sky.\n"
+                          "Display only - the disk and lensing are\n"
+                          "unchanged.");
     ImGui::Separator();
     ImGui::Checkbox("Science Mode (S2 orbit + fit)", &lp.science_mode);
     ImGui::TextDisabled("drag: orbit  |  wheel: zoom  |  keys 1-6: presets");
