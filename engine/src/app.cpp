@@ -58,6 +58,7 @@ App::App(const AppOptions& opts) : opts_(opts) {
     // mix() extrapolates into harsh negative-depth lanes)
     if (opts_.turb >= 0.0f) live_.turb = std::min(opts_.turb, 1.0f);
     live_.black_sky = opts_.black_sky;
+    live_.show_stars = opts_.show_stars;
 
     live_.science_mode = opts_.science;
 

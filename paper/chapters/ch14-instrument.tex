@@ -116,6 +116,24 @@ toggle blanks the starfield backdrop entirely (display only; the
 lensed disk image is unchanged) for silhouette study and clean
 composites.
 
+The same five fitted S-star orbits can also be drawn \emph{into the
+live scene} rather than in a separate window. Each star's position
+comes from the identical integrated geodesic, projected through the
+exact inverse of the compute shader's camera model — the same ZAMO
+triad, field of view and aspect convention — so the stars track the
+mouse orbit and zoom for free and sit precisely where that camera
+would see them; a star passing behind the silhouette is faded using
+the Schwarzschild critical impact parameter $3\sqrt3\,M$ as the
+occultation test. One honest caveat is displayed permanently in the
+control panel: the fitted orbits are $\sim\!2\times10^{4}\,M$ across
+while the modelled disk is $\sim\!20\,M$, so the \emph{radial scale}
+is compressed by a labelled factor (typically $1\!:\!10^{3}$) to bring
+both into one frame, exactly as published cluster renderings do.
+Orbit shape, orientation, phase, period and the redshift colour are
+the unmodified fit; only the overall size is a display choice, and
+starlight bending is not applied to the star sprites, since at a
+compressed radius it would not correspond to any real geometry.
+
 \section{The control surface and the auto-resolution loop}
 \label{sec:controls}
 

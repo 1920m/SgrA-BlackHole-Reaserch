@@ -48,6 +48,7 @@ struct AppOptions {
     float render_scale = 1.0f; // live render target scale (perf knob)
     float turb = -1.0f;        // turbulence / cloud density override (0..1)
     bool black_sky = false;    // start with the starfield hidden
+    bool show_stars = false;   // draw the S-stars into the live scene
 };
 
 // Push-constant block shared with the shaders (must match GLSL layout).
@@ -157,6 +158,13 @@ public:
         uint32_t lut_slot = 0;
         int preset = 0;
         bool black_sky = false; // hide the starfield: fully black backdrop
+        // S-stars drawn into the live scene (projected through the same
+        // camera model the compute shader uses). The orbits are ~24000 M
+        // across against a ~20 M disk, so the display compresses them
+        // radially by a labelled factor: star_scale_M is where S2's
+        // semi-major axis lands, and every star scales with it.
+        bool show_stars = false;
+        float star_scale_M = 35.0f;
         bool science_mode = false;
         bool scope_mode = false; // photon-ring scope framing active
     } live_{};

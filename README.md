@@ -120,6 +120,13 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
   manually (0.25×–2×; above 1× = supersampled anti-aliasing)
 - **black background** hides the starfield for a fully black backdrop —
   display only, the lensed disk is untouched
+- **S-stars in view** draws S2, S1, S8, S12 and S13 orbiting *in the scene*,
+  on their fitted full-GR geodesics, each a glowing ball coloured by its
+  line-of-sight redshift. They project through the same camera as the ray
+  tracer, so mouse orbit/zoom just works. Note the real orbits are
+  ~24 000 M across against a ~20 M disk, so the radius is compressed by a
+  clearly labelled factor (`fit` re-frames the whole cluster); orbit shape,
+  phase, period and colour are the unmodified fit
 
 | Menu item | What it does |
 |---|---|
@@ -169,6 +176,7 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 --rot X               disk rotation speed in multiples of real time
 --rout R              disk outer radius [M]   --turb X   turbulence/cloud density 0–1
 --blacksky            start with the starfield hidden (fully black background)
+--stars               draw the S-stars orbiting in the live scene
 --validation          Vulkan validation layers ON (exit code = error count)
 ```
 

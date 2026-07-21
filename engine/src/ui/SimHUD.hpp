@@ -47,9 +47,11 @@ private:
     void destroy_framebuffers();
     void load_science_artifacts();
     void load_cluster_orbits();
+    void update_cluster_time();
     void draw_controls(double fps);
     void draw_science();
     void draw_cluster3d();
+    void draw_stars_overlay();
     void draw_scope_overlay();
 
     vk::Context* ctx_;
@@ -77,13 +79,19 @@ private:
         double period_yr = 0.0;
         double t0 = 1992.0, t1 = 2152.0; // integrated epoch span [yr]
         double mas_per_M = 1.0;          // BH-frame [M] -> sky [mas]
+        double a_M = 0.0;                // semi-major axis in geometric M
         uint32_t line_col = 0xffffffff;
-        std::vector<std::array<float, 3>> track;  // one dense orbit [mas]
-        std::vector<std::array<float, 3>> trail;  // recent positions [mas]
+        // Trajectory samples in BH-frame geometric units [M] — the same
+        // units the renderer's camera works in, so the in-scene overlay
+        // and the 3-D window share one source.
+        std::vector<std::array<float, 3>> track;  // one dense orbit
+        std::vector<std::array<float, 3>> trail;  // recent positions
         double trail_last_t = -1.0;
     };
     std::vector<ClusterStar> cluster_;
     bool cluster_available_ = false;
+    double clu_rmax_M_ = 0.0;   // largest apoapsis in the set [true M]
+    bool stars_fitted_ = false; // auto-fit the scale on first enable
     double clu_M_ = 0.0;          // joint-fit mass [Msun] (caption)
     double clu_epoch_ = 2026.5;   // displayed epoch [Julian yr]
     double clu_end_ = 2150.0;     // common end of the integrated spans

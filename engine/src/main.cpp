@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--rout")) opts.disk_r_out = static_cast<float>(std::atof(next("--rout")));
         else if (!std::strcmp(argv[i], "--turb")) opts.turb = static_cast<float>(std::atof(next("--turb")));
         else if (!std::strcmp(argv[i], "--blacksky")) opts.black_sky = true;
+        else if (!std::strcmp(argv[i], "--stars")) opts.show_stars = true;
         else {
             std::fprintf(stderr, "unknown arg: %s\n", argv[i]);
             return 2;

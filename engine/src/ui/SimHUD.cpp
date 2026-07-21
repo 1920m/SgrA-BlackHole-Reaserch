@@ -22,6 +22,37 @@ namespace sgr {
 
 using vk::check;
 
+namespace {
+// S-star ball colour from the EXACT line-of-sight redshift carried by the
+// trajectory sample (1+z: full Doppler + gravitational, as fitted).
+// White when approaching, warm gold at rest, bronze when receding; the
+// signed square root keeps the slow outer stars visibly tinted.
+struct StarShade {
+    float r, g, b, u;   // u = signed, normalised LOS velocity
+};
+StarShade star_shade(double one_plus_z) {
+    const double v_kms = (one_plus_z - 1.0) * 299792.458;
+    const float u = std::clamp(
+        static_cast<float>((v_kms < 0 ? -1.0 : 1.0) *
+                           std::sqrt(std::abs(v_kms) / 4000.0)),
+        -1.0f, 1.0f);
+    StarShade s{1.0f, 0.82f, 0.55f, u};
+    if (u <= 0.0f) {                 // gold -> white (approaching)
+        s.g = 0.82f - 0.18f * u;
+        s.b = 0.55f - 0.45f * u;
+    } else {                         // gold -> bronze (receding)
+        s.r = 1.00f - 0.42f * u;
+        s.g = 0.82f - 0.55f * u;
+        s.b = 0.55f - 0.48f * u;
+    }
+    return s;
+}
+ImU32 star_col(const StarShade& s, float alpha) {
+    return IM_COL32(static_cast<int>(s.r * 255), static_cast<int>(s.g * 255),
+                    static_cast<int>(s.b * 255), static_cast<int>(alpha));
+}
+} // namespace
+
 SimHUD::SimHUD(vk::Context& ctx, App& app) : ctx_(&ctx), app_(&app) {
     // Render pass: single colour attachment (swapchain image), LOAD the
     // blitted compute output, end in PRESENT_SRC.
@@ -250,16 +281,18 @@ void SimHUD::load_cluster_orbits() {
         st.t1 = 1992.0 + std::max(160.0, st.period_yr * 1.05);
         if (!st.model.integrate(prm, st.t0, st.t1)) continue;
         st.mas_per_M = st.model.mas_per_M(prm);
+        // semi-major axis in geometric units (mas_per_M is the exact
+        // conversion at this (M, R0) — nothing is assumed here)
+        st.a_M = (st.mas_per_M > 0.0) ? prm.a_mas / st.mas_per_M : 0.0;
         st.line_col = kCols[ci++ % 5];
-        // dense display track (index subsampling keeps the adaptive
-        // pericentre resolution of the integrator)
+        // dense display track in BH-frame M (index subsampling keeps the
+        // adaptive pericentre resolution of the integrator)
         const auto& tr = st.model.trajectory();
         const size_t stride = std::max<size_t>(1, tr.size() / 1400);
         for (size_t i = 0; i < tr.size(); i += stride)
-            st.track.push_back(
-                {static_cast<float>(tr[i].pos_M[0] * st.mas_per_M),
-                 static_cast<float>(tr[i].pos_M[1] * st.mas_per_M),
-                 static_cast<float>(tr[i].pos_M[2] * st.mas_per_M)});
+            st.track.push_back({static_cast<float>(tr[i].pos_M[0]),
+                                static_cast<float>(tr[i].pos_M[1]),
+                                static_cast<float>(tr[i].pos_M[2])});
         cluster_.push_back(std::move(st));
     }
     if (cluster_.size() < 2) {
@@ -270,6 +303,14 @@ void SimHUD::load_cluster_orbits() {
     for (const auto& st : cluster_) clu_end_ = std::min(clu_end_, st.t1);
     clu_end_ -= 1.0;
     clu_M_ = M;
+    // largest apoapsis actually reached, straight off the integrated
+    // tracks (no assumed ellipse) — drives the in-scene "fit to view"
+    for (const auto& st : cluster_)
+        for (const auto& q : st.track)
+            clu_rmax_M_ = std::max(
+                clu_rmax_M_,
+                static_cast<double>(std::sqrt(q[0] * q[0] + q[1] * q[1] +
+                                              q[2] * q[2])));
     cluster_available_ = true;
 }
 
@@ -284,6 +325,10 @@ void SimHUD::new_frame(double fps) {
     if (menu_ && app_->mode() == App::UiMode::Menu) {
         if (menu_->draw(*app_)) draw_controls(fps);
     } else {
+        if (app_->live_.show_stars || app_->live_.science_mode)
+            update_cluster_time();
+        // background draw list: over the rendered scene, under the panels
+        if (app_->live_.show_stars) draw_stars_overlay();
         draw_controls(fps);
         if (app_->live_.science_mode) {
             draw_science();
@@ -292,6 +337,126 @@ void SimHUD::new_frame(double fps) {
         if (app_->live_.scope_mode) draw_scope_overlay();
     }
     ImGui::Render();
+}
+
+void SimHUD::update_cluster_time() {
+    if (!cluster_available_ || !clu_play_) return;
+    clu_epoch_ += ImGui::GetIO().DeltaTime * clu_speed_ / 3.1557e7;
+    if (clu_epoch_ > clu_end_) clu_epoch_ = 1992.0; // wrap the span
+}
+
+// The S-stars drawn INTO the live scene, projected through the exact
+// inverse of the compute shader's camera model (same ZAMO tetrad, same
+// fov and aspect convention), so a star sits precisely where that camera
+// would see it and tracks the mouse orbit/zoom for free.
+//
+// Scale caveat, stated in the UI: the fitted orbits are ~2e4 M across
+// against a ~20 M disk, so the radius is compressed by the labelled
+// factor. Orbit SHAPE, phase, period and the redshift colour are the
+// unmodified fitted geodesics; only the overall radial scale is a
+// display choice (as in the published NCSA/UCLA cluster renderings).
+// Starlight bending is not applied to the sprites — with a compressed
+// radius it would not correspond to any real geometry either.
+void SimHUD::draw_stars_overlay() {
+    if (!cluster_available_) return;
+    const auto& lp = app_->live_;
+    const ImVec2 ds = ImGui::GetIO().DisplaySize;
+    const float W = ds.x, H = ds.y;
+    if (W < 16.0f || H < 16.0f) return;
+
+    double a_ref = 0.0;
+    for (const auto& st : cluster_)
+        if (st.name == "S2") a_ref = st.a_M;
+    if (a_ref <= 0.0) a_ref = cluster_.front().a_M;
+    if (a_ref <= 0.0) return;
+    const double k = static_cast<double>(lp.star_scale_M) / a_ref;
+
+    // camera frame: position + the (ê_r, ê_θ, ê_φ) triad the shader uses
+    const double th0 = lp.incl_deg * 3.14159265358979 / 180.0;
+    const double ph0 = lp.cam_phi;
+    const double s0 = std::sin(th0), c0 = std::cos(th0);
+    const double sp = std::sin(ph0), cp = std::cos(ph0);
+    const double er[3] = {s0 * cp, s0 * sp, c0};
+    const double eth[3] = {c0 * cp, c0 * sp, -s0};
+    const double eph[3] = {-sp, cp, 0.0};
+    const double cam[3] = {lp.r_cam * er[0], lp.r_cam * er[1],
+                           lp.r_cam * er[2]};
+    const double thalf = std::tan(0.5 * lp.fov);
+    const double aspect = static_cast<double>(H) / static_cast<double>(W);
+    // Schwarzschild critical impact parameter: the display occultation
+    // test for a star passing behind the silhouette.
+    const double b_crit = 3.0 * std::sqrt(3.0);
+
+    struct Proj { ImVec2 p; float vis; bool ok; };
+    auto project = [&](double x, double y, double z) {
+        Proj o{ImVec2(0, 0), 1.0f, false};
+        const double d[3] = {x - cam[0], y - cam[1], z - cam[2]};
+        const double dr = d[0] * er[0] + d[1] * er[1] + d[2] * er[2];
+        if (dr >= -1e-9) return o;                    // behind the camera
+        const double dth = d[0] * eth[0] + d[1] * eth[1] + d[2] * eth[2];
+        const double dph = d[0] * eph[0] + d[1] * eph[1] + d[2] * eph[2];
+        const double sx = (-dph / dr) / thalf;
+        const double sy = (dth / dr) / (thalf * aspect);
+        if (std::abs(sx) > 6.0 || std::abs(sy) > 6.0) return o; // far off
+        o.p = ImVec2(static_cast<float>((sx + 1.0) * 0.5 * W),
+                     static_cast<float>((1.0 - sy) * 0.5 * H));
+        // occultation: closest approach of the camera->star segment to
+        // the hole, faded rather than switched so it does not pop
+        const double len = std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        if (len > 1e-9) {
+            const double u[3] = {d[0] / len, d[1] / len, d[2] / len};
+            const double tstar = -(cam[0] * u[0] + cam[1] * u[1] +
+                                   cam[2] * u[2]);
+            if (tstar > 0.0 && tstar < len) {
+                const double q[3] = {cam[0] + tstar * u[0],
+                                     cam[1] + tstar * u[1],
+                                     cam[2] + tstar * u[2]};
+                const double b = std::sqrt(q[0] * q[0] + q[1] * q[1] +
+                                           q[2] * q[2]);
+                o.vis = static_cast<float>(
+                    std::clamp((b - b_crit) / (0.45 * b_crit), 0.0, 1.0));
+            }
+        }
+        o.ok = true;
+        return o;
+    };
+
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
+    for (auto& st : cluster_) {
+        // orbit line (the full integrated GR track — S2's pericentre
+        // advance draws its own rosette)
+        Proj prev{};
+        for (const auto& q : st.track) {
+            const Proj cur = project(q[0] * k, q[1] * k, q[2] * k);
+            if (cur.ok && prev.ok) {
+                const float a = 60.0f * std::min(cur.vis, prev.vis);
+                if (a > 3.0f)
+                    dl->AddLine(prev.p, cur.p,
+                                (st.line_col & 0x00ffffffu) |
+                                    (static_cast<uint32_t>(a) << 24),
+                                1.1f);
+            }
+            prev = cur;
+        }
+
+        const double t = std::clamp(clu_epoch_, st.t0 + 1e-3, st.t1 - 1e-3);
+        const TrajectorySample smp = st.model.sample_at(t);
+        const Proj cur = project(smp.pos_M[0] * k, smp.pos_M[1] * k,
+                                 smp.pos_M[2] * k);
+        if (!cur.ok || cur.vis <= 0.02f) continue;
+        const StarShade sh = star_shade(smp.redshift);
+        const float rad = 3.2f + 2.2f * std::min(1.0f, std::abs(sh.u));
+        dl->AddCircleFilled(cur.p, rad * 4.0f, star_col(sh, 22.0f * cur.vis));
+        dl->AddCircleFilled(cur.p, rad * 2.1f, star_col(sh, 60.0f * cur.vis));
+        dl->AddCircleFilled(cur.p, rad, star_col(sh, 255.0f * cur.vis));
+        dl->AddCircleFilled(cur.p, rad * 0.45f,
+                            IM_COL32(255, 255, 255,
+                                     static_cast<int>(220 * cur.vis)));
+        dl->AddText({cur.p.x + rad + 5.0f, cur.p.y - 7.0f},
+                    (st.line_col & 0x00ffffffu) |
+                        (static_cast<uint32_t>(200 * cur.vis) << 24),
+                    st.name.c_str());
+    }
 }
 
 void SimHUD::draw_cluster3d() {
@@ -320,11 +485,6 @@ void SimHUD::draw_cluster3d() {
                        ImGuiSliderFlags_Logarithmic);
     ImGui::SameLine();
     ImGui::TextDisabled("= %.2f yr/s", clu_speed_ / 3.1557e7);
-    if (clu_play_) {
-        clu_epoch_ +=
-            ImGui::GetIO().DeltaTime * clu_speed_ / 3.1557e7;
-        if (clu_epoch_ > clu_end_) clu_epoch_ = 1992.0; // wrap the span
-    }
 
     // ---- 3-D canvas ---------------------------------------------------------
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -412,9 +572,9 @@ void SimHUD::draw_cluster3d() {
         // current state from the SAME integrated geodesic
         const double t = std::clamp(clu_epoch_, st.t0 + 1e-3, st.t1 - 1e-3);
         const TrajectorySample smp = st.model.sample_at(t);
-        const float px = static_cast<float>(smp.pos_M[0] * st.mas_per_M);
-        const float py = static_cast<float>(smp.pos_M[1] * st.mas_per_M);
-        const float pz = static_cast<float>(smp.pos_M[2] * st.mas_per_M);
+        const float px = static_cast<float>(smp.pos_M[0]);
+        const float py = static_cast<float>(smp.pos_M[1]);
+        const float pz = static_cast<float>(smp.pos_M[2]);
 
         // trail (recent world positions; cleared on scrubs/wraps)
         if (std::abs(t - st.trail_last_t) > st.period_yr * 0.05)
@@ -438,36 +598,10 @@ void SimHUD::draw_cluster3d() {
         }
 
         // ---- the shining ball: colour = EXACT line-of-sight redshift ----
-        // (smp.redshift is the fitter's 1+z: full Doppler + gravitational.)
-        // white (blueshifted, approaching) -> warm gold (at rest) ->
-        // bronze (redshifted, receding); signed-sqrt scaling keeps the
-        // slow outer stars visibly coloured too.
-        const double v_kms = (smp.redshift - 1.0) * 299792.458;
-        const float u = std::clamp(
-            static_cast<float>((v_kms < 0 ? -1.0 : 1.0) *
-                               std::sqrt(std::abs(v_kms) / 4000.0)),
-            -1.0f, 1.0f);
-        float r, g, b;
-        if (u <= 0.0f) { // gold -> white with blueshift
-            r = 1.00f;
-            g = 0.82f - 0.18f * u; // u negative: g,b rise toward 1
-            b = 0.55f - 0.45f * u;
-        } else {         // gold -> bronze -> dark orange with redshift
-            r = 1.00f - 0.42f * u;
-            g = 0.82f - 0.55f * u;
-            b = 0.55f - 0.48f * u;
-        }
+        const StarShade sh = star_shade(smp.redshift);
         const ImVec2 s = project(px, py, pz);
-        const float rad =
-            4.0f + 2.0f * std::min(1.0f,
-                                   static_cast<float>(std::abs(v_kms)) /
-                                       2500.0f);
-        auto col = [&](float a) {
-            return IM_COL32(static_cast<int>(r * 255),
-                            static_cast<int>(g * 255),
-                            static_cast<int>(b * 255),
-                            static_cast<int>(a));
-        };
+        const float rad = 4.0f + 2.0f * std::min(1.0f, std::abs(sh.u));
+        auto col = [&](float a) { return star_col(sh, a); };
         dl->AddCircleFilled(s, rad * 3.1f, col(28.0f));
         dl->AddCircleFilled(s, rad * 1.8f, col(76.0f));
         dl->AddCircleFilled(s, rad, col(255.0f));
@@ -552,6 +686,52 @@ void SimHUD::draw_controls(double fps) {
         ImGui::SetTooltip("Hide the starfield backdrop: fully black sky.\n"
                           "Display only - the disk and lensing are\n"
                           "unchanged.");
+    ImGui::Checkbox("S-stars in view", &lp.show_stars);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Draw S2/S1/S8/S12/S13 orbiting in the scene,\n"
+                          "on their fitted full-GR geodesics, coloured by\n"
+                          "line-of-sight redshift. The real orbits are\n"
+                          "~24000 M across (the disk is ~20 M), so the\n"
+                          "radius is compressed by the factor shown -\n"
+                          "shape, phase, period and colour are unmodified.");
+    if (lp.show_stars && cluster_available_) {
+        double a_ref = 0.0;
+        for (const auto& st : cluster_)
+            if (st.name == "S2") a_ref = st.a_M;
+        if (a_ref <= 0.0) a_ref = cluster_.front().a_M;
+        // Fit the whole cluster into the current frame: the outermost
+        // apoapsis lands at ~60 % of the frame half-width at the hole's
+        // distance (r_cam * tan(fov/2)) — the margin absorbs perspective,
+        // since orbit arcs on the camera side project wider than that.
+        auto fit = [&] {
+            if (clu_rmax_M_ <= 0.0 || a_ref <= 0.0) return;
+            const double half = lp.r_cam * std::tan(0.5 * lp.fov);
+            lp.star_scale_M = static_cast<float>(
+                std::clamp(a_ref * 0.60 * half / clu_rmax_M_, 1.0, 300.0));
+        };
+        if (!stars_fitted_) {
+            fit();
+            stars_fitted_ = true;
+        }
+        ImGui::SetNextItemWidth(126.0f);
+        ImGui::SliderFloat("S2 orbit [M]", &lp.star_scale_M, 1.0f, 300.0f,
+                           "%.1f", ImGuiSliderFlags_Logarithmic);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("fit")) fit();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Scale the cluster so every orbit fits the\n"
+                              "current camera framing.");
+        if (a_ref > 0.0)
+            ImGui::TextDisabled("scale 1 : %.0f (true a_S2 = %.0f M)",
+                                a_ref / std::max(lp.star_scale_M, 1e-3f),
+                                a_ref);
+        ImGui::SetNextItemWidth(126.0f);
+        ImGui::SliderFloat("star time [x real]", &clu_speed_, 1.0e4f, 1.0e8f,
+                           "%.0f", ImGuiSliderFlags_Logarithmic);
+        ImGui::SameLine();
+        if (ImGui::SmallButton(clu_play_ ? "||" : ">")) clu_play_ = !clu_play_;
+        ImGui::TextDisabled("epoch %.2f", clu_epoch_);
+    }
     ImGui::Separator();
     ImGui::Checkbox("Science Mode (S2 orbit + fit)", &lp.science_mode);
     ImGui::TextDisabled("drag: orbit  |  wheel: zoom  |  keys 1-6: presets");
