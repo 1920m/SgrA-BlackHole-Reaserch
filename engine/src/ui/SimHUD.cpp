@@ -14,6 +14,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "sgr_physics/constants.hpp"
+
 #include "app.hpp"
 #include "modes/MenuMode.hpp"
 #include "vk/context.hpp"
@@ -277,6 +279,13 @@ void SimHUD::load_cluster_orbits() {
         prm.vx_masyr = prm.vy_masyr = 0.0;
         prm.vz_kms = 0.0;
         st.period_yr = e["period_yr"];
+        st.base_period_yr = st.period_yr;
+        st.base = prm;
+        // Display limits: the instrument integrates hypothetical orbits
+        // shrunk by up to ~2000x. They are ordinary bound GR orbits, so the
+        // fitter's floors (5 mas / 100 M / 50 M plunge) are lowered HERE
+        // only — the fitting path keeps the strict defaults untouched.
+        st.model.set_limits(1e-4, 20.0, 3.0);
         st.t0 = 1992.0;
         st.t1 = 1992.0 + std::max(160.0, st.period_yr * 1.05);
         if (!st.model.integrate(prm, st.t0, st.t1)) continue;
@@ -303,15 +312,139 @@ void SimHUD::load_cluster_orbits() {
     for (const auto& st : cluster_) clu_end_ = std::min(clu_end_, st.t1);
     clu_end_ -= 1.0;
     clu_M_ = M;
+    // metres per geometric M for THIS fitted mass (no hardcoded constant)
+    clu_rg_m_ = M * constants::GM_sun_si /
+                (constants::c_si * constants::c_si);
     // largest apoapsis actually reached, straight off the integrated
-    // tracks (no assumed ellipse) — drives the in-scene "fit to view"
+    // tracks (no assumed ellipse) — drives the in-scene "fly out"
     for (const auto& st : cluster_)
         for (const auto& q : st.track)
             clu_rmax_M_ = std::max(
                 clu_rmax_M_,
                 static_cast<double>(std::sqrt(q[0] * q[0] + q[1] * q[1] +
                                               q[2] * q[2])));
+    for (auto& st : cluster_) st.peri_M = st.a_M * (1.0 - st.base.e);
     cluster_available_ = true;
+    load_stellar_parameters();
+
+    // boot-time focus (--focus S2 [--ride]) for repeatable screenshots
+    const std::string& want = app_->focus_star();
+    if (!want.empty()) {
+        for (size_t i = 0; i < cluster_.size(); ++i)
+            if (cluster_[i].name == want) {
+                app_->live_.focus_index = static_cast<int>(i) + 1;
+                app_->live_.focus_dist = static_cast<float>(
+                    std::clamp(cluster_[i].radius_M * 40.0, 0.5, 400.0));
+            }
+    }
+}
+
+// Habibi et al. (2017), Table 2 — measured Teff, log g and mass. The stellar
+// RADIUS is derived here from the paper's own quantities, R = sqrt(G M*/g),
+// rather than taken from anywhere: the paper does not tabulate it. The tidal
+// radius then follows as r_t = eta * R* * (M_BH/M*)^(1/3), with M_BH from our
+// own cluster fit, so no constant is smuggled in.
+void SimHUD::load_stellar_parameters() {
+    namespace fs = std::filesystem;
+    const fs::path p = "data/habibi_2017/s_star_parameters.csv";
+    if (!fs::exists(p) || clu_rg_m_ <= 0.0) return;
+    std::ifstream f(p);
+    std::string line;
+    while (std::getline(f, line)) {
+        if (line.empty() || line[0] == '#' || line.rfind("star,", 0) == 0)
+            continue;
+        std::stringstream ss(line);
+        std::vector<std::string> v;
+        std::string tok;
+        while (std::getline(ss, tok, ',')) v.push_back(tok);
+        if (v.size() < 8) continue;
+        for (auto& st : cluster_) {
+            if (st.name != v[0]) continue;
+            st.teff_k = std::stod(v[1]);
+            st.logg = std::stod(v[3]);
+            st.mass_msun = std::stod(v[5]);
+            st.assumed = (std::stoi(v[7]) != 0);
+            // g: log10(cm/s^2) -> m/s^2 ; R = sqrt(G M*/g) [m] -> units of M
+            const double g_si = std::pow(10.0, st.logg) * 0.01;
+            const double m_kg = st.mass_msun * constants::M_sun_kg;
+            const double R_m = std::sqrt(constants::G_si * m_kg / g_si);
+            st.radius_M = R_m / clu_rg_m_;
+            st.r_tidal_M = st.radius_M *
+                           std::cbrt(clu_M_ / std::max(st.mass_msun, 1e-6));
+            st.has_params = true;
+        }
+    }
+}
+
+// The 1:N control is a REAL orbit shrink, not a drawing trick: the orbit is
+// re-integrated with a -> a/N through the same validated S2Model, so the
+// period follows Kepler III (P/N^1.5) and relativistic precession grows on
+// its own. N = 1 restores the fitted orbit exactly.
+void SimHUD::rescale_cluster(float ratio) {
+    const double N = std::max(1.0, static_cast<double>(ratio));
+    if (std::abs(N - clu_scale_applied_) < 1e-9) return;
+    clu_rmax_M_ = 0.0;
+    for (auto& st : cluster_) {
+        S2Parameters prm = st.base;
+        prm.a_mas = st.base.a_mas / N;
+        // Anchor pericentre at the start of the display span. The fitted
+        // t_peri (2002) is meaningless for a hypothetical orbit whose period
+        // is now hours, and integrating from 2002 back to 1992 would cost
+        // hundreds of orbits per star for nothing. At N = 1 the fitted epoch
+        // is kept exactly.
+        if (N > 1.0) prm.t_peri_yr = 1992.0;
+        st.phase = ClusterStar::Phase::Intact;
+        st.stretch = 0.0;
+        st.trail.clear();
+        st.track.clear();
+        // Kepler III: P scales as a^{3/2}, so the shrunken star genuinely
+        // races round instead of keeping its 16-year period.
+        st.period_yr = st.base_period_yr / std::pow(N, 1.5);
+        st.t0 = 1992.0;
+        // integrate a few periods (and never a silly-long span for the
+        // fast shrunken orbits)
+        st.t1 = st.t0 + std::clamp(st.period_yr * 6.0, 0.05, 160.0);
+        st.valid = st.model.integrate(prm, st.t0, st.t1);
+        if (!st.valid) {
+            // The orbit could not be integrated at this scale — report that
+            // honestly rather than dressing it up as a disruption.
+            st.a_M = st.base.a_mas / N / st.mas_per_M;
+            st.peri_M = st.a_M * (1.0 - st.base.e);
+            continue;
+        }
+        st.a_M = prm.a_mas / st.mas_per_M;
+        st.peri_M = st.a_M * (1.0 - prm.e);
+        const auto& tr = st.model.trajectory();
+        const size_t stride = std::max<size_t>(1, tr.size() / 1400);
+        for (size_t i = 0; i < tr.size(); i += stride) {
+            st.track.push_back({static_cast<float>(tr[i].pos_M[0]),
+                                static_cast<float>(tr[i].pos_M[1]),
+                                static_cast<float>(tr[i].pos_M[2])});
+            clu_rmax_M_ = std::max(
+                clu_rmax_M_,
+                std::sqrt(tr[i].pos_M[0] * tr[i].pos_M[0] +
+                          tr[i].pos_M[1] * tr[i].pos_M[1] +
+                          tr[i].pos_M[2] * tr[i].pos_M[2]));
+        }
+    }
+    clu_scale_applied_ = N;
+    // The integrated span collapses with the period, so re-derive the wrap
+    // point and put the clock back at the start of it.
+    clu_end_ = 1e9;
+    double p_fast = 1e9;
+    for (const auto& st : cluster_) {
+        if (st.track.empty()) continue;
+        clu_end_ = std::min(clu_end_, st.t1);
+        p_fast = std::min(p_fast, st.period_yr);
+    }
+    if (clu_end_ > 1e8) clu_end_ = 2152.0;
+    clu_epoch_ = 1992.0;
+    // Keep it watchable: one orbit of the fastest star in ~8 s of wall
+    // clock. Without this a 1:1000 orbit (period ~4 h) would flicker past
+    // hundreds of times a second at the default multiplier.
+    if (p_fast < 1e8 && p_fast > 0.0)
+        clu_speed_ = static_cast<float>(
+            std::clamp(p_fast * constants::yr_s / 8.0, 1.0e4, 1.0e8));
 }
 
 bool SimHUD::wants_mouse() const {
@@ -325,10 +458,18 @@ void SimHUD::new_frame(double fps) {
     if (menu_ && app_->mode() == App::UiMode::Menu) {
         if (menu_->draw(*app_)) draw_controls(fps);
     } else {
-        if (app_->live_.show_stars || app_->live_.science_mode)
+        if (app_->live_.show_stars || app_->live_.science_mode) {
+            rescale_cluster(app_->live_.star_scale_ratio);
             update_cluster_time();
+        }
+        // camera first: the overlays project through the same frame the
+        // ray tracer is about to use this frame
+        update_focus_camera();
         // background draw list: over the rendered scene, under the panels
-        if (app_->live_.show_stars) draw_stars_overlay();
+        if (app_->live_.show_stars) {
+            draw_stars_overlay();
+            draw_focus_list();
+        }
         draw_controls(fps);
         if (app_->live_.science_mode) {
             draw_science();
@@ -343,6 +484,232 @@ void SimHUD::update_cluster_time() {
     if (!cluster_available_ || !clu_play_) return;
     clu_epoch_ += ImGui::GetIO().DeltaTime * clu_speed_ / 3.1557e7;
     if (clu_epoch_ > clu_end_) clu_epoch_ = 1992.0; // wrap the span
+}
+
+// Target list: Sgr A* plus every star, with the live state that decides
+// whether it survives the current (hypothetical) orbit shrink.
+void SimHUD::draw_focus_list() {
+    if (!cluster_available_) return;
+    auto& lp = app_->live_;
+    const ImVec2 ds = ImGui::GetIO().DisplaySize;
+    ImGui::SetNextWindowPos({ds.x - 330, 12}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({315, 0}, ImGuiCond_FirstUseEver);
+    ImGui::Begin("Focus");
+    const double k = 1.0 / std::max(lp.star_scale_ratio, 1.0f);
+    const double N = std::max(1.0f, lp.star_scale_ratio);
+
+    if (ImGui::RadioButton("Sgr A* (free camera)", lp.focus_index == 0))
+        lp.focus_index = 0;
+    ImGui::Separator();
+    for (size_t i = 0; i < cluster_.size(); ++i) {
+        ClusterStar& st = cluster_[i];
+        const int idx = static_cast<int>(i) + 1;
+        ImGui::PushID(idx);
+        const bool gone = st.phase == ClusterStar::Phase::Disrupted ||
+                          !st.valid;
+        if (gone) ImGui::BeginDisabled();
+        if (ImGui::RadioButton(st.name.c_str(), lp.focus_index == idx)) {
+            lp.focus_index = idx;
+            // frame the star at a few stellar radii, or a sane minimum
+            lp.focus_dist = static_cast<float>(
+                std::clamp(st.radius_M * k * 40.0, 0.5, 400.0));
+        }
+        if (gone) ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (st.has_params) {
+            const double rt = clu_eta_ * st.r_tidal_M;
+            const bool doomed = st.peri_M <= rt;
+            const char* verdict =
+                !st.valid ? "orbit n/a"
+                          : (st.phase == ClusterStar::Phase::Disrupted
+                                 ? "disrupted"
+                                 : (doomed ? "DISRUPTS" : "survives"));
+            ImGui::TextColored(
+                gone ? ImVec4(0.85f, 0.35f, 0.30f, 1.0f)
+                     : (doomed ? ImVec4(0.95f, 0.65f, 0.25f, 1.0f)
+                               : ImVec4(0.55f, 0.75f, 0.55f, 1.0f)),
+                "%s", verdict);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(
+                    "M* = %.1f Msun%s, R* = %.2f Rsun (derived from log g)\n"
+                    "r_t = %.1f M   pericentre now = %.1f M\n"
+                    "Habibi+2017 spectroscopy; r_t = eta R* (M_BH/M*)^(1/3)",
+                    st.mass_msun, st.assumed ? " (ASSUMED)" : "",
+                    st.radius_M * clu_rg_m_ / 6.957e8, rt, st.peri_M);
+        } else {
+            ImGui::TextDisabled("no spectroscopy");
+        }
+        ImGui::PopID();
+    }
+    ImGui::Separator();
+    ImGui::Checkbox("ride the star", &lp.focus_ride);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Sit on the star and look back at Sgr A*.\n"
+                          "Unticked: orbit the star (drag/scroll).");
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::SliderFloat("eta", &clu_eta_, 1.0f, 2.44f, "%.2f");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("1.00 = classic tidal radius R*(M_BH/M*)^(1/3)\n"
+                          "2.44 = fluid Roche limit (Roche's coefficient)");
+    ImGui::SameLine();
+    ImGui::Checkbox("disruption", &clu_disruption_);
+    if (ImGui::Button("reset stars")) {
+        for (auto& st : cluster_) {
+            st.phase = ClusterStar::Phase::Intact;
+            st.stretch = 0.0;
+        }
+        debris_.clear();
+        clu_epoch_ = 1992.0;
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("%zu debris", debris_.size());
+    if (N > 1.0)
+        ImGui::TextColored(ImVec4(0.95f, 0.75f, 0.35f, 1.0f),
+                           "HYPOTHETICAL: orbits shrunk %.0fx (P/N^1.5)",
+                           N);
+    else
+        ImGui::TextDisabled("true fitted orbits");
+    ImGui::End();
+}
+
+Vec3 SimHUD::focus_target(int index, double k) const {
+    if (index <= 0 || index > static_cast<int>(cluster_.size()))
+        return {0.0, 0.0, 0.0};
+    const ClusterStar& st = cluster_[index - 1];
+    if (st.track.empty()) return {0.0, 0.0, 0.0};
+    const double span = std::max(st.t1 - st.t0, 1e-9);
+    const double t = std::clamp(clu_epoch_, st.t0 + 1e-4 * span,
+                                st.t1 - 1e-4 * span);
+    const TrajectorySample s = st.model.sample_at(t);
+    return {s.pos_M[0] * k, s.pos_M[1] * k, s.pos_M[2] * k};
+}
+
+// Places the camera for this frame and publishes the basis the ray tracer
+// will use. With no focus this is exactly the historical configuration
+// (camera at (r_cam, incl, cam_phi), aimed at the hole); with a star focused
+// the camera either orbits it or rides it, and the aim follows the star.
+void SimHUD::update_focus_camera() {
+    auto& lp = app_->live_;
+    const double k = 1.0 / std::max(lp.star_scale_ratio, 1.0f);
+    int idx = lp.focus_index;
+    if (idx > static_cast<int>(cluster_.size())) idx = 0;
+    // A disrupted (or unintegrable) star is no longer there to look at: drop
+    // the lock for good and leave the camera where it was, rather than
+    // snapping it somewhere arbitrary.
+    if (idx > 0 && (cluster_[idx - 1].phase == ClusterStar::Phase::Disrupted ||
+                    !cluster_[idx - 1].valid)) {
+        idx = 0;
+        lp.focus_index = 0;
+    }
+
+    if (idx <= 0 || !cluster_available_) {
+        cam_frame_ = camera_frame(lp.r_cam, lp.incl_deg, lp.cam_phi);
+    } else {
+        const Vec3 tgt = focus_target(idx, k);
+        Vec3 cam{};
+        if (lp.focus_ride) {
+            // sit at the star (offset by a hair so the aim is well defined)
+            // and look back at the hole
+            const double L = std::max(v_len(tgt), 1e-6);
+            const double off = std::max(0.002 * L, 0.05);
+            cam = {tgt[0] * (1.0 + off / L), tgt[1] * (1.0 + off / L),
+                   tgt[2] * (1.0 + off / L)};
+        } else {
+            const double cy = std::cos(lp.focus_yaw), sy = std::sin(lp.focus_yaw);
+            const double cp = std::cos(lp.focus_pitch),
+                         sp = std::sin(lp.focus_pitch);
+            const double d = std::max(lp.focus_dist, 0.05f);
+            cam = {tgt[0] + d * cp * cy, tgt[1] + d * cp * sy,
+                   tgt[2] + d * sp};
+        }
+        // keep the camera outside the hole and inside the supported range
+        double r = v_len(cam);
+        if (r < 15.0) {
+            const double s = 15.0 / std::max(r, 1e-9);
+            cam = {cam[0] * s, cam[1] * s, cam[2] * s};
+            r = 15.0;
+        }
+        double rc = lp.r_cam, inc = lp.incl_deg, phi = lp.cam_phi;
+        cartesian_to_camera(cam, rc, inc, phi);
+        lp.r_cam = static_cast<float>(std::min(rc, 1.0e6));
+        lp.incl_deg = static_cast<float>(std::clamp(inc, 0.05, 179.95));
+        lp.cam_phi = static_cast<float>(phi);
+        cam_frame_ = camera_frame(lp.r_cam, lp.incl_deg, lp.cam_phi,
+                                  lp.focus_ride ? Vec3{0.0, 0.0, 0.0} : tgt);
+    }
+    lp.fwd_r = static_cast<float>(cam_frame_.fwd[0]);
+    lp.fwd_th = static_cast<float>(cam_frame_.fwd[1]);
+    lp.fwd_ph = static_cast<float>(cam_frame_.fwd[2]);
+    lp.rgt_r = static_cast<float>(cam_frame_.rgt[0]);
+    lp.rgt_th = static_cast<float>(cam_frame_.rgt[1]);
+    lp.rgt_ph = static_cast<float>(cam_frame_.rgt[2]);
+    lp.up_r = static_cast<float>(cam_frame_.up[0]);
+    lp.up_th = static_cast<float>(cam_frame_.up[1]);
+    lp.up_ph = static_cast<float>(cam_frame_.up[2]);
+}
+
+// Tidal debris, frozen-in approximation (Rees 1988): at disruption every
+// fragment keeps the star's orbital plane and pericentre direction but
+// carries a spread in specific binding energy
+//     dE = G M_BH R* / r_t^2   ->   1/a_i = 1/a -+ 2 dE      (G = M_BH = 1)
+// so the fragments fan out into orbits of different period — the classic
+// TDE "fallback" stream. Only the BOUND half is drawn; the other half is
+// unbound and leaves the scene (stated in the panel). Each fragment is an
+// ordinary orbit in the SAME validated S2Model, so nothing here re-derives
+// physics.
+void SimHUD::spawn_debris(size_t star_index) {
+    if (star_index >= cluster_.size()) return;
+    ClusterStar& st = cluster_[star_index];
+    if (!st.has_params || st.a_M <= 0.0) return;
+    if (debris_.size() > 400) return;   // several stars may disrupt in turn
+    const double rt = std::max(clu_eta_ * st.r_tidal_M, 1e-9);
+    const double dE = st.radius_M / (rt * rt);       // geometric units
+    const double inv_a = 1.0 / st.a_M;
+    const double r_p = std::max(st.peri_M, 1e-6);
+    const int N = 48;
+    for (int i = 0; i < N; ++i) {
+        const double u = -1.0 + 2.0 * (i + 0.5) / N;   // -1..1
+        const double inv_ai = inv_a + 2.0 * dE * u;
+        if (inv_ai <= 1e-9) continue;                  // unbound half
+        const double a_i = 1.0 / inv_ai;
+        if (a_i <= r_p) continue;
+        DebrisParticle d;
+        d.model.set_limits(1e-4, 20.0, 3.0);
+        S2Parameters prm = st.base;
+        prm.a_mas = a_i * st.mas_per_M;
+        prm.e = std::clamp(1.0 - r_p / a_i, 0.0, 0.995);
+        // the fragment leaves pericentre at the moment of disruption
+        prm.t_peri_yr = st.disrupt_epoch;
+        const double P_i = st.base_period_yr *
+                           std::pow(a_i / (st.base.a_mas / st.mas_per_M), 1.5);
+        d.t0 = st.disrupt_epoch;
+        d.t1 = d.t0 + std::clamp(P_i * 3.0, 1e-3, 200.0);
+        if (!d.model.integrate(prm, d.t0, d.t1)) continue;
+        d.ok = true;
+        d.col = st.line_col;
+        debris_.push_back(std::move(d));
+    }
+}
+
+void SimHUD::draw_debris(ImDrawList* dl, double k, float W, float H) {
+    if (debris_.empty()) return;
+    const auto& lp = app_->live_;
+    for (const auto& d : debris_) {
+        if (!d.ok) continue;
+        const double span = std::max(d.t1 - d.t0, 1e-9);
+        double t = clu_epoch_;
+        if (t < d.t0) continue;
+        t = std::clamp(t, d.t0 + 1e-4 * span, d.t1 - 1e-4 * span);
+        const TrajectorySample s = d.model.sample_at(t);
+        const Projected q = project_point(
+            cam_frame_, Vec3{s.pos_M[0] * k, s.pos_M[1] * k, s.pos_M[2] * k},
+            lp.fov, W, H);
+        if (!q.ok || q.vis <= 0.02) continue;
+        const StarShade sh = star_shade(s.redshift);
+        const ImVec2 p(static_cast<float>(q.x), static_cast<float>(q.y));
+        dl->AddCircleFilled(p, 2.6f, star_col(sh, 40.0f * float(q.vis)));
+        dl->AddCircleFilled(p, 1.3f, star_col(sh, 220.0f * float(q.vis)));
+    }
 }
 
 // The S-stars drawn INTO the live scene, projected through the exact
@@ -369,54 +736,15 @@ void SimHUD::draw_stars_overlay() {
     // larger ratios pull the orbits inward by that factor only.
     const double k = 1.0 / std::max(lp.star_scale_ratio, 1.0f);
 
-    // camera frame: position + the (ê_r, ê_θ, ê_φ) triad the shader uses
-    const double th0 = lp.incl_deg * 3.14159265358979 / 180.0;
-    const double ph0 = lp.cam_phi;
-    const double s0 = std::sin(th0), c0 = std::cos(th0);
-    const double sp = std::sin(ph0), cp = std::cos(ph0);
-    const double er[3] = {s0 * cp, s0 * sp, c0};
-    const double eth[3] = {c0 * cp, c0 * sp, -s0};
-    const double eph[3] = {-sp, cp, 0.0};
-    const double cam[3] = {lp.r_cam * er[0], lp.r_cam * er[1],
-                           lp.r_cam * er[2]};
-    const double thalf = std::tan(0.5 * lp.fov);
-    const double aspect = static_cast<double>(H) / static_cast<double>(W);
-    // Schwarzschild critical impact parameter: the display occultation
-    // test for a star passing behind the silhouette.
-    const double b_crit = 3.0 * std::sqrt(3.0);
-
-    struct Proj { ImVec2 p; float vis; bool ok; };
+    // One camera frame, shared with the ray tracer: cam_frame_ is what
+    // update_focus_camera() pushed into the shader this frame, so a sprite
+    // and its ray-traced surroundings can never disagree (CameraBasis.hpp).
+    const CameraFrame& cf = cam_frame_;
+    struct Proj { ImVec2 p; float vis; bool ok; double dist; };
     auto project = [&](double x, double y, double z) {
-        Proj o{ImVec2(0, 0), 1.0f, false};
-        const double d[3] = {x - cam[0], y - cam[1], z - cam[2]};
-        const double dr = d[0] * er[0] + d[1] * er[1] + d[2] * er[2];
-        if (dr >= -1e-9) return o;                    // behind the camera
-        const double dth = d[0] * eth[0] + d[1] * eth[1] + d[2] * eth[2];
-        const double dph = d[0] * eph[0] + d[1] * eph[1] + d[2] * eph[2];
-        const double sx = (-dph / dr) / thalf;
-        const double sy = (dth / dr) / (thalf * aspect);
-        if (std::abs(sx) > 6.0 || std::abs(sy) > 6.0) return o; // far off
-        o.p = ImVec2(static_cast<float>((sx + 1.0) * 0.5 * W),
-                     static_cast<float>((1.0 - sy) * 0.5 * H));
-        // occultation: closest approach of the camera->star segment to
-        // the hole, faded rather than switched so it does not pop
-        const double len = std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
-        if (len > 1e-9) {
-            const double u[3] = {d[0] / len, d[1] / len, d[2] / len};
-            const double tstar = -(cam[0] * u[0] + cam[1] * u[1] +
-                                   cam[2] * u[2]);
-            if (tstar > 0.0 && tstar < len) {
-                const double q[3] = {cam[0] + tstar * u[0],
-                                     cam[1] + tstar * u[1],
-                                     cam[2] + tstar * u[2]};
-                const double b = std::sqrt(q[0] * q[0] + q[1] * q[1] +
-                                           q[2] * q[2]);
-                o.vis = static_cast<float>(
-                    std::clamp((b - b_crit) / (0.45 * b_crit), 0.0, 1.0));
-            }
-        }
-        o.ok = true;
-        return o;
+        const Projected q = project_point(cf, Vec3{x, y, z}, lp.fov, W, H);
+        return Proj{ImVec2(static_cast<float>(q.x), static_cast<float>(q.y)),
+                    static_cast<float>(q.vis), q.ok, q.dist};
     };
 
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
@@ -439,24 +767,89 @@ void SimHUD::draw_stars_overlay() {
                 prev = cur;
             }
 
-        const double t = std::clamp(clu_epoch_, st.t0 + 1e-3, st.t1 - 1e-3);
+        if (st.phase == ClusterStar::Phase::Disrupted || !st.valid ||
+            st.track.empty())
+            continue;
+
+        const double span = std::max(st.t1 - st.t0, 1e-9);
+        const double t = std::clamp(clu_epoch_, st.t0 + 1e-4 * span,
+                                    st.t1 - 1e-4 * span);
         const TrajectorySample smp = st.model.sample_at(t);
+        const double r_now = std::sqrt(smp.pos_M[0] * smp.pos_M[0] +
+                                       smp.pos_M[1] * smp.pos_M[1] +
+                                       smp.pos_M[2] * smp.pos_M[2]);
+
+        // ---- tidal state (display-layer what-if; see the panel caption) ---
+        // r_t = eta * R* * (M_BH/M*)^(1/3) from the Habibi+2017 spectroscopy.
+        // The strain that stretches the star goes as (r_t/r)^3, so the visual
+        // elongation follows the same law rather than an arbitrary ramp.
+        if (clu_disruption_ && st.has_params && st.r_tidal_M > 0.0) {
+            const double rt = clu_eta_ * st.r_tidal_M;
+            if (r_now <= rt) {
+                st.phase = ClusterStar::Phase::Disrupted;
+                st.disrupt_epoch = t;
+                spawn_debris(static_cast<size_t>(&st - cluster_.data()));
+                continue;
+            }
+            const double x = rt / std::max(r_now, 1e-9);
+            st.stretch = std::clamp(x * x * x, 0.0, 1.0);
+            st.phase = (st.stretch > 0.02) ? ClusterStar::Phase::Stretching
+                                           : ClusterStar::Phase::Intact;
+        }
+
+        // riding this star: you are ON it, so it must not block the view
+        const int my_idx = static_cast<int>(&st - cluster_.data()) + 1;
+        if (lp.focus_ride && lp.focus_index == my_idx) continue;
+
         const Proj cur = project(smp.pos_M[0] * k, smp.pos_M[1] * k,
                                  smp.pos_M[2] * k);
         if (!cur.ok || cur.vis <= 0.02f) continue;
         const StarShade sh = star_shade(smp.redshift);
-        const float rad = 3.2f + 2.2f * std::min(1.0f, std::abs(sh.u));
-        dl->AddCircleFilled(cur.p, rad * 4.0f, star_col(sh, 22.0f * cur.vis));
-        dl->AddCircleFilled(cur.p, rad * 2.1f, star_col(sh, 60.0f * cur.vis));
-        dl->AddCircleFilled(cur.p, rad, star_col(sh, 255.0f * cur.vis));
-        dl->AddCircleFilled(cur.p, rad * 0.45f,
+        // angular size from the DERIVED stellar radius, so flying close in
+        // focus mode grows the star honestly instead of holding a fixed dot
+        float rad = 3.2f + 2.2f * std::min(1.0f, std::abs(sh.u));
+        if (st.radius_M > 0.0 && cur.dist > 1e-9) {
+            const double ang = st.radius_M * k / cur.dist;   // radians
+            const double px = ang / std::max<double>(lp.fov, 1e-3) * W;
+            rad = static_cast<float>(std::max<double>(rad, px));
+        }
+        const float a_glow = 255.0f * cur.vis;
+        if (st.stretch > 0.02) {
+            // spaghettification cue: an ellipse elongated along the radial
+            // direction, drawn as a short streak toward/away from the hole
+            const Proj inward = project(smp.pos_M[0] * k * 0.94,
+                                        smp.pos_M[1] * k * 0.94,
+                                        smp.pos_M[2] * k * 0.94);
+            if (inward.ok) {
+                const float ex = inward.p.x - cur.p.x, ey = inward.p.y - cur.p.y;
+                const float L = std::sqrt(ex * ex + ey * ey) + 1e-3f;
+                const float s = static_cast<float>(st.stretch) * 6.0f * rad;
+                const ImVec2 p0{cur.p.x - ex / L * s, cur.p.y - ey / L * s};
+                const ImVec2 p1{cur.p.x + ex / L * s, cur.p.y + ey / L * s};
+                dl->AddLine(p0, p1, star_col(sh, a_glow * 0.75f),
+                            rad * 1.4f);
+            }
+        }
+        // Unresolved stars get a wide point-source glow; once the disc is
+        // actually resolved (flying up to it in focus mode) the halo tightens
+        // so it reads as a sphere instead of concentric rings.
+        rad = std::min(rad, 0.45f * std::min(W, H));
+        const bool resolved = rad > 6.0f;
+        const float g1 = resolved ? 1.9f : 4.0f;
+        const float g2 = resolved ? 1.32f : 2.1f;
+        dl->AddCircleFilled(cur.p, rad * g1, star_col(sh, 22.0f * cur.vis));
+        dl->AddCircleFilled(cur.p, rad * g2, star_col(sh, 60.0f * cur.vis));
+        dl->AddCircleFilled(cur.p, rad, star_col(sh, a_glow));
+        dl->AddCircleFilled(cur.p, rad * (resolved ? 0.72f : 0.45f),
                             IM_COL32(255, 255, 255,
-                                     static_cast<int>(220 * cur.vis)));
+                                     static_cast<int>((resolved ? 90 : 220) *
+                                                      cur.vis)));
         dl->AddText({cur.p.x + rad + 5.0f, cur.p.y - 7.0f},
                     (st.line_col & 0x00ffffffu) |
                         (static_cast<uint32_t>(200 * cur.vis) << 24),
                     st.name.c_str());
     }
+    draw_debris(dl, k, W, H);
 }
 
 void SimHUD::draw_cluster3d() {

@@ -60,6 +60,7 @@ App::App(const AppOptions& opts) : opts_(opts) {
     live_.black_sky = opts_.black_sky;
     live_.show_stars = opts_.show_stars;
     live_.show_star_paths = opts_.star_paths;
+    live_.focus_ride = opts_.focus_ride;
     live_.star_scale_ratio = std::max(opts_.star_scale, 1.0f);
 
     live_.science_mode = opts_.science;
@@ -77,6 +78,13 @@ App::App(const AppOptions& opts) : opts_(opts) {
         // the cluster at TRUE scale means flying the camera out past
         // them. The fp32 live path stays clean out there (steps are
         // logarithmic in r; the hole simply becomes a lensed dot).
+        if (app->live_.focus_index > 0) {
+            // focused on a star: zoom means distance FROM THE STAR
+            app->live_.focus_dist = std::clamp(
+                app->live_.focus_dist * std::pow(0.90f, static_cast<float>(dy)),
+                0.05f, 20000.0f);
+            return;
+        }
         app->live_.r_cam = std::clamp(
             app->live_.r_cam * std::pow(0.90f, static_cast<float>(dy)),
             15.0f, 1000000.0f);
@@ -535,6 +543,15 @@ PushConstants App::make_push_constants(float t) const {
     // (GM/c³) is 21.17 s for M = 4.297e6 Msun.
     pc.time_scale = live_.rot_speed / 21.17f;
     pc.sky_off = live_.black_sky ? 1u : 0u;
+    pc.fwd_r = live_.fwd_r;
+    pc.fwd_th = live_.fwd_th;
+    pc.fwd_ph = live_.fwd_ph;
+    pc.rgt_r = live_.rgt_r;
+    pc.rgt_th = live_.rgt_th;
+    pc.rgt_ph = live_.rgt_ph;
+    pc.up_r = live_.up_r;
+    pc.up_th = live_.up_th;
+    pc.up_ph = live_.up_ph;
 
     // Page-Thorne normalisation, cached against the parameters it depends on.
     static thread_local double cached_a = -10.0, cached_rout = -1.0,
@@ -671,7 +688,16 @@ int App::run() {
                                                     GLFW_MOUSE_BUTTON_LEFT) ==
                                  GLFW_PRESS;
                 const bool ui_mouse = hud_ && hud_->wants_mouse();
-                if (lmb && dragging_) {
+                if (lmb && dragging_ && live_.focus_index > 0) {
+                    // focused: orbit the STAR, not the hole (SimHUD derives
+                    // r_cam/incl/cam_phi from these each frame)
+                    live_.focus_yaw -=
+                        static_cast<float>(mx - drag_x_) * 0.006f;
+                    live_.focus_pitch = std::clamp(
+                        live_.focus_pitch +
+                            static_cast<float>(my - drag_y_) * 0.006f,
+                        -1.45f, 1.45f);
+                } else if (lmb && dragging_) {
                     live_.cam_phi += static_cast<float>(mx - drag_x_) * 0.005f;
                     float incl = live_.incl_deg +
                                  static_cast<float>(my - drag_y_) * 0.20f;

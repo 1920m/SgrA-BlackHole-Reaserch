@@ -13,7 +13,10 @@
 #include <string>
 #include <vector>
 
+#include "CameraBasis.hpp"
 #include "orbit_fitter/SkyProjection.hpp" // S2Model (Ceres-free GR orbit model)
+
+struct ImDrawList;
 
 namespace sgr {
 
@@ -47,11 +50,20 @@ private:
     void destroy_framebuffers();
     void load_science_artifacts();
     void load_cluster_orbits();
+    void load_stellar_parameters();
+    void rescale_cluster(float ratio);   // re-integrate at 1:N (real shrink)
     void update_cluster_time();
     void draw_controls(double fps);
     void draw_science();
     void draw_cluster3d();
     void draw_stars_overlay();
+    void draw_focus_list();
+    void update_focus_camera();
+    void spawn_debris(size_t star_index);
+    void draw_debris(ImDrawList* dl, double k, float W, float H);
+    // BH-frame position of a focus target: 0 = Sgr A*, i>0 = cluster_[i-1],
+    // already multiplied by the display scale k.
+    Vec3 focus_target(int index, double k) const;
     void draw_scope_overlay();
 
     vk::Context* ctx_;
@@ -76,10 +88,26 @@ private:
     struct ClusterStar {
         std::string name;
         S2Model model{0.0, 0.0};
-        double period_yr = 0.0;
+        S2Parameters base{};             // fitted elements at scale 1
+        double period_yr = 0.0;          // at the CURRENT scale
+        double base_period_yr = 0.0;     // fitted, at scale 1
         double t0 = 1992.0, t1 = 2152.0; // integrated epoch span [yr]
         double mas_per_M = 1.0;          // BH-frame [M] -> sky [mas]
         double a_M = 0.0;                // semi-major axis in geometric M
+        double peri_M = 0.0;             // pericentre at the CURRENT scale
+        // Habibi+2017 spectroscopy (measured) and what follows from it.
+        double mass_msun = 0.0, teff_k = 0.0, logg = 0.0;
+        bool assumed = false;            // not in the paper's sample
+        double radius_M = 0.0;           // derived: sqrt(G M*/g), in units of M
+        double r_tidal_M = 0.0;          // eta * R* * (M_BH/M*)^(1/3)
+        bool has_params = false;
+        // disruption state machine (display-layer what-if)
+        enum class Phase { Intact, Stretching, Disrupted };
+        Phase phase = Phase::Intact;
+        bool valid = true;   // false = orbit could not be integrated at this
+                             // scale (NOT a disruption claim)
+        double stretch = 0.0;            // 0..1 tidal elongation cue
+        double disrupt_epoch = 0.0;
         uint32_t line_col = 0xffffffff;
         // Trajectory samples in BH-frame geometric units [M] — the same
         // units the renderer's camera works in, so the in-scene overlay
@@ -88,9 +116,25 @@ private:
         std::vector<std::array<float, 3>> trail;  // recent positions
         double trail_last_t = -1.0;
     };
+    // Tidal debris: bound fragments after a disruption, each an orbit in the
+    // same validated S2Model with the frozen-in energy spread applied
+    // (Rees 1988). Display-layer what-if, like everything scale-related.
+    struct DebrisParticle {
+        S2Model model{0.0, 0.0};
+        double t0 = 0.0, t1 = 0.0;
+        uint32_t col = 0xffffffff;
+        bool ok = false;
+    };
+    std::vector<DebrisParticle> debris_;
+
+    CameraFrame cam_frame_{};   // this frame's camera, shared with the shader
     std::vector<ClusterStar> cluster_;
     bool cluster_available_ = false;
     double clu_rmax_M_ = 0.0;   // largest apoapsis in the set [true M]
+    double clu_scale_applied_ = 1.0;  // ratio the cached orbits were built at
+    float clu_eta_ = 1.0f;      // 1 = tidal radius, 2.44 = fluid Roche limit
+    bool clu_disruption_ = true;      // allow stars to break up
+    double clu_rg_m_ = 0.0;     // metres per M for the fitted mass
     double clu_M_ = 0.0;          // joint-fit mass [Msun] (caption)
     double clu_epoch_ = 2026.5;   // displayed epoch [Julian yr]
     double clu_end_ = 2150.0;     // common end of the integrated spans

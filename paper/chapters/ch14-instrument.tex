@@ -147,6 +147,63 @@ zooming. Orbit shape, orientation, phase, period and the redshift
 colour are the unmodified fit in every case, and starlight bending is
 not applied to the star sprites.
 
+\subsection*{Focus camera}
+
+Any star can be selected as the camera target. The ray basis of
+Section~\ref{sec:instrumentarch} is no longer hard-wired to point at
+the hole: an orthonormal triad built on the CPU is handed to the shader
+as push constants, so the camera can orbit a chosen star (mouse drag
+and scroll re-parameterised about it) or ride it and look back at
+Sgr~A*. The default basis reproduces the historical aim, and the star
+sprites are sized by the true angular diameter $R_\star/d$, so
+approaching S2 resolves it into a disc instead of holding a fixed dot.
+
+\subsection*{Hypothetical shrunken orbits and the tidal limit}
+\label{sec:tidaldemo}
+
+Because the instrument works in true geometric units, the ratio control
+that pulls the orbits inward is implemented as a genuine re-integration
+with $a \to a/N$ rather than a redrawing: the period then follows
+Kepler's third law ($P/N^{3/2}$) and relativistic pericentre advance
+grows with it, so the shrunken star visibly races round a precessing
+rosette. Every such state is labelled \emph{hypothetical} in the panel.
+
+This makes a real threshold reachable. Using the spectroscopic masses
+and surface gravities of \citet{Habibi2017} — from which the stellar
+radius follows as $R_\star=\sqrt{GM_\star/g}$, giving $5.4\,R_\odot$
+for S2, consistent with its B0--B3V classification — the tidal radius
+\begin{equation}
+r_{\rm t} \;=\; \eta\,R_\star\left(\frac{M_{\rm BH}}{M_\star}\right)^{1/3},
+\label{eq:tidalradius}
+\end{equation}
+with $\eta=1$ for the classical tidal radius and $\eta=2.44$ for the
+fluid Roche limit, evaluates to $r_{\rm t}\simeq40\,M$ for S2 against a
+true pericentre of $2845\,M$. The star therefore survives by a factor
+of $\sim$$72$, and the instrument disrupts it once the shrink factor
+passes that value. The prediction is per-star and ordered — S2 at
+$N\simeq72$, S8 at $96$, S12 at $182$ — which makes the feature a check
+rather than an effect: the thresholds were computed independently from
+the cited data and the fitted mass, and the instrument reproduces them
+(all five stars intact at $N=60$; S2 alone destroyed at $N=80$; S2 gone
+and S8 surviving at $N=90$).
+
+Beyond the threshold the star is replaced by tidal debris under the
+frozen-in approximation \citep{Rees1988}: fragments retain the orbital
+plane and pericentre but carry a spread in specific binding energy
+$\Delta E \simeq GM_{\rm BH}R_\star/r_{\rm t}^2$, so
+$1/a_i = 1/a \mp 2\Delta E$ fans them into orbits of differing period —
+the bound half returns as a fallback stream and is drawn, the unbound
+half escapes. Each fragment is integrated as an ordinary orbit in the
+same validated model, so the debris obey the same GR dynamics as the
+star did; the black hole's spin acts on them physically, through frame
+dragging, rather than as a playback control. Approaching disruption the
+sprite elongates as $(r_{\rm t}/r)^3$, the tidal-strain scaling.
+
+None of this touches a fitted quantity: the demonstration lives
+entirely in the display layer, and the validity floors inside the orbit
+model that permit these small orbits are parameters whose defaults —
+the values every fit uses — are unchanged.
+
 \section{The control surface and the auto-resolution loop}
 \label{sec:controls}
 

@@ -129,8 +129,20 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
   past the cluster (~5×10⁵ M) and see the real proportions, with the hole
   correctly shrinking to a lensed dot. The `scale 1:N` slider optionally
   pulls the orbits inward by a labelled factor for a close-up overview and
-  is *camera-independent* — it never rescales while you zoom. **orbit
-  paths** toggles the ellipses off to watch the stars alone
+  genuinely re-integrates the orbit (`a → a/N`), so the period follows
+  Kepler III and the star races round a precessing rosette — every such
+  state is labelled *hypothetical*. **orbit paths** toggles the ellipses off
+  to watch the stars alone
+- the **Focus** window lists Sgr A\* and every star: click one and the camera
+  locks onto it — **orbit** it with drag/scroll, or tick **ride the star** to
+  sit on it and look back at Sgr A\*
+- **tidal disruption ("Roche limit")**: each star carries the spectroscopic
+  mass and surface gravity of [Habibi et al. 2017](data/habibi_2017/), from
+  which its radius and tidal radius `r_t = η R★(M_BH/M★)^⅓` follow. Shrink the
+  orbits past that and the star stretches as `(r_t/r)³` and breaks up into a
+  bound debris stream (frozen-in energy spread, Rees 1988), each fragment an
+  ordinary GR orbit. The thresholds are per-star predictions — S2 at N≈72,
+  S8 at 96, S12 at 182 — and the simulator reproduces them
 
 | Menu item | What it does |
 |---|---|
@@ -182,7 +194,9 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 --blacksky            start with the starfield hidden (fully black background)
 --stars               draw the S-stars orbiting in the live scene
 --nopaths             ... without their orbit ellipses
---starscale N         pull the orbits in by N (1 = true distance, default)
+--starscale N         shrink the orbits by N (1 = true distance, default)
+--focus NAME          lock the camera to a star (e.g. --focus S2)
+--ride                ... riding it, looking back at Sgr A*
 --validation          Vulkan validation layers ON (exit code = error count)
 ```
 

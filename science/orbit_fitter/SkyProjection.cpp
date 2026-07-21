@@ -89,14 +89,20 @@ double S2Model::yr_per_M(const S2Parameters& p) const {
 
 bool S2Model::integrate(const S2Parameters& p, double t_min_yr, double t_max_yr) {
     traj_.clear();
+    // Sanity guards against runaway fit parameter space. The defaults (5 mas,
+    // 100 M, and the 50 M floor below) sit orders of magnitude below the real
+    // S-star scales and are what every fit uses — unchanged. They are
+    // configurable only so the interactive instrument can integrate its
+    // hypothetical *shrunken* orbits, which are legitimate GR orbits merely
+    // far smaller than anything a fit explores. See set_limits().
     if (p.M_msun < 1e5 || p.R0_pc < 1000.0 || p.e <= 0.0 || p.e >= 0.999 ||
-        p.a_mas < 5.0)
+        p.a_mas < lim_a_mas_)
         return false;
 
     const double masM = mas_per_M(p);
     const double a_M = p.a_mas / masM;
     yrM_ = yr_per_M(p);
-    if (a_M < 100.0) return false;
+    if (a_M < lim_a_M_) return false;
 
     // --- Keplerian pericenter initial conditions ----------------------------
     const double i = p.incl_deg * kDeg, Om = p.Omega_deg * kDeg,
@@ -183,7 +189,7 @@ bool S2Model::integrate(const S2Parameters& p, double t_min_yr, double t_max_yr)
             } catch (const std::exception&) {
                 return false;
             }
-            if (y[1] < 50.0 || y[1] > 1e7) return false; // plunged/escaped
+            if (y[1] < lim_r_min_ || y[1] > 1e7) return false; // plunged/escaped
             push_sample(y);
             if (++guard > 400000) return false;
         }

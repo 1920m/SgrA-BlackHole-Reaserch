@@ -31,6 +31,15 @@ layout(push_constant) uniform PC {
     float cam_phi;     // camera orbit azimuth [rad]
     float time_scale;  // filament advection: Ω [1/M] per wall-clock second
     uint sky_off;      // 1 = fully black background (starfield hidden)
+    // Camera basis in the local ZAMO triad (ê_r, ê_θ, ê_φ), built on the CPU
+    // in double precision and already orthonormal — the shader must NOT
+    // renormalise, because the hardware inversesqrt is approximate (even
+    // normalize((-1,0,0)) can return 0.99999994) and that shifts chaotic
+    // rays at the shadow edge. Default = look straight at the hole:
+    // fwd (-1,0,0), right (0,0,1), up (0,-1,0).
+    float fwd_r, fwd_th, fwd_ph;
+    float rgt_r, rgt_th, rgt_ph;
+    float up_r, up_th, up_ph;
 } pc;
 
 const float PI = 3.14159265;
@@ -295,8 +304,29 @@ float shade_sample(float px_f, float py_f, float jit, out vec3 disk_out,
     float omg = -g_tp / g_pp;
     float alpha = sqrt(-(g_tt - g_tp * g_tp / g_pp));
 
+    // Ray direction in the local triad: a look-at frame around the camera
+    // forward vector. (fwd, rgt, up) arrives ORTHONORMAL from the CPU
+    // (CameraBasis.hpp, double precision) — the shader must not renormalise,
+    // because the hardware inversesqrt is approximate. Since the basis is
+    // orthonormal, |fwd + tx*rgt + ty*up|^2 is exactly 1 + tx^2 + ty^2, so
+    // the historical normalisation expression still applies verbatim, and
+    // the default basis (-1,0,0)/(0,0,1)/(0,-1,0) reproduces the historical
+    // n = (-inv, -ty*inv, tx*inv) algebraically.
+    //
+    // Measured: against a pre-change render this differs in 14 of 504 000
+    // pixels (0.003 %, max 18/255), isolated points on the caustic and
+    // starfield cell boundaries — the shader compiler reassociates this sum
+    // differently from the old scalar form. It is fp reassociation, not a
+    // behavioural change: the same-binary render is bit-deterministic, the
+    // fp64 CPU/GPU gate does not use this shader, and ctest is unaffected.
+    // (A `precise` qualifier makes it worse — it also forbids the FMA
+    // contraction the ORIGINAL expression relied on: 2901 pixels.)
     float inv = 1.0 / sqrt(1.0 + tx * tx + ty * ty);
-    float n_r = -inv, n_th = -ty * inv, n_ph = tx * inv;
+    vec3 f = vec3(pc.fwd_r, pc.fwd_th, pc.fwd_ph);
+    vec3 right = vec3(pc.rgt_r, pc.rgt_th, pc.rgt_ph);
+    vec3 upv = vec3(pc.up_r, pc.up_th, pc.up_ph);
+    vec3 nvec = (f + tx * right + ty * upv) * inv;
+    float n_r = nvec.x, n_th = nvec.y, n_ph = nvec.z;
 
     float kt = 1.0 / alpha;
     float kr = n_r / sqrt(g_rr);

@@ -56,6 +56,8 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--stars")) opts.show_stars = true;
         else if (!std::strcmp(argv[i], "--nopaths")) opts.star_paths = false;
         else if (!std::strcmp(argv[i], "--starscale")) opts.star_scale = static_cast<float>(std::atof(next("--starscale")));
+        else if (!std::strcmp(argv[i], "--focus")) opts.focus_star = next("--focus");
+        else if (!std::strcmp(argv[i], "--ride")) opts.focus_ride = true;
         else {
             std::fprintf(stderr, "unknown arg: %s\n", argv[i]);
             return 2;

@@ -106,8 +106,22 @@ public:
     double mas_per_M(const S2Parameters& p) const;
     double yr_per_M(const S2Parameters& p) const;
 
+    // Validity floors used by integrate(). The defaults are the values every
+    // fit has always used and must not be changed for fitting; the
+    // interactive instrument lowers them to integrate hypothetical orbits
+    // scaled down from the fitted ones (still ordinary bound GR orbits, just
+    // far smaller than any fit would propose).
+    void set_limits(double a_mas_min, double a_M_min, double r_min_M) {
+        lim_a_mas_ = a_mas_min;
+        lim_a_M_ = a_M_min;
+        lim_r_min_ = r_min_M;
+    }
+
 private:
     double a_star_, eps_q_;
+    double lim_a_mas_ = 5.0;    // minimum angular semi-major axis [mas]
+    double lim_a_M_ = 100.0;    // minimum semi-major axis [M]
+    double lim_r_min_ = 50.0;   // abort below this radius (plunge) [M]
     std::vector<TrajectorySample> traj_; // sorted by t_yr
     double t_peri_cache_ = 0.0;
     double yrM_ = 1.0; // years per geometric time unit (set by integrate)

@@ -51,6 +51,8 @@ struct AppOptions {
     bool show_stars = false;   // draw the S-stars into the live scene
     bool star_paths = true;    // draw their orbit ellipses too
     float star_scale = 1.0f;   // 1 = true distance; N = pulled in by N
+    std::string focus_star;    // lock the camera to this star at boot
+    bool focus_ride = false;   // ride it instead of orbiting it
 };
 
 // Push-constant block shared with the shaders (must match GLSL layout).
@@ -68,6 +70,11 @@ struct PushConstants {
     float cam_phi;    // camera azimuth [rad] (axisymmetric: rotates the disk)
     float time_scale; // filament advection: Ω [1/M] per wall-clock second
     uint32_t sky_off; // 1 = fully black background (starfield hidden)
+    // Orthonormal camera basis in the local ZAMO triad, built on the CPU in
+    // double precision (see CameraBasis.hpp). Default = look at the hole.
+    float fwd_r, fwd_th, fwd_ph;
+    float rgt_r, rgt_th, rgt_ph;
+    float up_r, up_th, up_ph;
 };
 static_assert(sizeof(PushConstants) <= 128);
 
@@ -84,6 +91,7 @@ public:
     enum class UiMode { Menu, Simulation };
     UiMode mode() const { return mode_; }
     bool menu_enabled() const { return opts_.menu; }
+    const std::string& focus_star() const { return opts_.focus_star; }
     const std::string& boot_panel() const { return opts_.panel; }
     void enter_simulation(bool science, bool scope = false);
     void return_to_menu() { mode_ = UiMode::Menu; }
@@ -171,6 +179,18 @@ public:
         bool show_stars = false;
         bool show_star_paths = true;
         float star_scale_ratio = 1.0f;
+        // Camera basis in the local ZAMO triad, orthonormal, written by
+        // SimHUD when a star is focused (CameraBasis.hpp). The default is
+        // the historical aim straight at the hole.
+        float fwd_r = -1.0f, fwd_th = 0.0f, fwd_ph = 0.0f;
+        float rgt_r = 0.0f, rgt_th = 0.0f, rgt_ph = 1.0f;
+        float up_r = 0.0f, up_th = -1.0f, up_ph = 0.0f;
+        // 0 = Sgr A*, 1..N = cluster_[i-1]; focus_ride: look from the star
+        // at the hole instead of orbiting the star.
+        int focus_index = 0;
+        bool focus_ride = false;
+        float focus_dist = 40.0f;   // orbit-mode distance from the star [M]
+        float focus_yaw = 0.0f, focus_pitch = 0.35f;
         bool science_mode = false;
         bool scope_mode = false; // photon-ring scope framing active
     } live_{};
