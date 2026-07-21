@@ -10,6 +10,7 @@ geodesics to a reproducible research paper.**
 
 ![tests](https://img.shields.io/badge/physics_tests-32%2F32_passing-brightgreen)
 ![vulkan](https://img.shields.io/badge/Vulkan-1.2_·_0_validation_errors-red)
+![thesis](https://img.shields.io/badge/thesis-203_pages-8a2be2)
 ![paper](https://img.shields.io/badge/paper-MNRAS_style_·_11_pages-blue)
 ![reproducible](https://img.shields.io/badge/every_number-reproducible-purple)
 
@@ -26,6 +27,7 @@ unchanged physics.*
 **[🕳 What is this?](#-what-is-this)** ·
 **[🎛 The modes](#-the-modes)** ·
 **[🔬 The science](#-the-science)** ·
+**[📕 The thesis](#-the-thesis)** ·
 **[📄 The paper](#-the-research-paper)**
 
 </div>
@@ -248,11 +250,42 @@ pixel. The command-line instruments (in `build\sci-rel\...`):
 
 ---
 
+## 📕 The thesis
+
+**[`paper/thesis.pdf`](paper/thesis.pdf) — 203 pages, the full report.** The
+same physics as the paper below, but at length and from the ground up: it
+opens with six primer chapters that assume no relativity background, then
+derives everything used by the code, and ends with the engineering and
+validation record.
+
+| Part | Chapters | What's in it |
+|---|---|---|
+| **I — Foundations for the non-specialist** | 6 primers | Gravity, spacetime, spin & the shadow, light & colour, orbits, and the numerical toolkit — written so the rest is readable without a GR course |
+| **II — Theory and methods** | 1–4 | Kerr geometry, Carter-separated geodesics, and the numerical machinery (RK45, turning points, constraint projection) |
+| **III — Results** | 5–11 | Shadow metrology, the Novikov–Thorne disk, photon sub-rings, the S2 forward model, the orbit fit, the 5-star cluster fit, and the no-hair ε_q limit |
+| **IV — Engineering & validation** | 12–17 | The GPU port and its pixel-level cross-check, Sgr A\* calibration, the interactive instrument, the **development history with its ten bug hunts**, discussion, conclusions |
+| **Appendices** | A–E | Algebra, pseudocode, number provenance, the reproduction pipeline, and a notation glossary |
+
+Two things make it more than a write-up. Every quantity in the text is a
+LaTeX macro generated from simulation JSON, so the prose cannot drift from
+the code. And Chapter 15 documents the failures honestly — the
+tolerance-dependent shadow, the quadrupole sign error, the vanishing mass
+uncertainty, the render artefacts and the regressions the first fixes caused
+— because what a validation system *caught* is the best evidence for what it
+would catch.
+
+```bash
+make thesis      # figures + compile paper/thesis.pdf (pdflatex ×2 + bibtex)
+```
+
+---
+
 ## 📄 The research paper
 
-**`paper/main.pdf`** — an 11-page, MNRAS-style research paper covering the
-full theory, the numerical methods, and all results, with three appendices
-(verification gates, reproduction pipeline, number provenance).
+**[`paper/main.pdf`](paper/main.pdf)** — an 11-page, MNRAS-style research
+paper covering the full theory, the numerical methods, and all results, with
+three appendices (verification gates, reproduction pipeline, number
+provenance). The condensed, journal-shaped version of the thesis above.
 
 ```bash
 make figures     # regenerate all 10 paper figures from simulation output
@@ -261,14 +294,10 @@ make reproduce   # re-run the ENTIRE science chain: tests → renders →
                  # sub-rings → S2 fits → calibration + sweep → figures
 ```
 
-Alongside it, **`paper/thesis.pdf`** is the full 203-page report — the same
-physics at length, with the primer chapters, the development history and its
-bug hunts, and the notation glossary.
-
-Every number in both is a LaTeX macro generated from the simulation's JSON
-artefacts — nothing is typed by hand, so they cannot silently drift from the
-code. The final verification run regenerated **all 92 macros
-bit-identically**.
+Every number in both documents is a LaTeX macro generated from the
+simulation's JSON artefacts — nothing is typed by hand, so they cannot
+silently drift from the code. The final verification run regenerated **all 92
+macros bit-identically**.
 
 ---
 
@@ -281,7 +310,8 @@ science/     Ceres S2 orbit fitter, redshift model, photon sub-ring extractor
 engine/      Vulkan 1.2 app: compute shaders, presets, ImGui HUD, menu
 validation/  reference renders, CPU-vs-GPU comparison, calibration artefacts
 data/        Gillessen et al. (2017) S2 astrometry + radial velocities (VizieR)
-paper/       the research paper (main.pdf) + auto-generated figures/numbers
+paper/       the thesis (thesis.pdf, 203 pp) and journal paper (main.pdf),
+             their chapters/ sources + auto-generated figures and numbers
 scripts/     build wrapper, figure/number generators, benchmarks, LUT baker
 writeup/     per-phase evidence screenshots and the build plan
 ```
