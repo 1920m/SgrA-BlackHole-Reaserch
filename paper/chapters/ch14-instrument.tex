@@ -124,15 +124,28 @@ triad, field of view and aspect convention — so the stars track the
 mouse orbit and zoom for free and sit precisely where that camera
 would see them; a star passing behind the silhouette is faded using
 the Schwarzschild critical impact parameter $3\sqrt3\,M$ as the
-occultation test. One honest caveat is displayed permanently in the
-control panel: the fitted orbits are $\sim\!2\times10^{4}\,M$ across
-while the modelled disk is $\sim\!20\,M$, so the \emph{radial scale}
-is compressed by a labelled factor (typically $1\!:\!10^{3}$) to bring
-both into one frame, exactly as published cluster renderings do.
-Orbit shape, orientation, phase, period and the redshift colour are
-the unmodified fit; only the overall size is a display choice, and
-starlight bending is not applied to the star sprites, since at a
-compressed radius it would not correspond to any real geometry.
+occultation test.
+
+The stars are drawn at their \emph{true} geometric distances by
+default, which is worth stating plainly because it is a scale
+statement about the whole instrument: the renderer works in units of
+$M = GM/c^2$ throughout, so the shadow is $\sim\!5\,M$, the modelled
+disk $\sim\!20\,M$, and S2's semi-major axis $2.38\times10^{4}\,M$
+($\approx\!1050$~AU) — the S-star cluster is three orders of
+magnitude larger than the entire imaged region, and no view can hold
+both at once at a useful magnification. The instrument therefore
+resolves the conflict by moving the \emph{camera} rather than the
+stars: a control flies the viewpoint out past the cluster
+($\sim\!5\times10^{5}\,M$, where the fp32 live path remains clean
+because its step law is logarithmic in $r$), and the hole duly
+shrinks to a lensed point — the honest picture of how empty the
+intervening volume is. A separate, camera-independent ratio control
+can pull the orbits inward by a labelled factor purely for close-up
+overviews, in the manner of published cluster renderings; it never
+rescales with the camera, so proportions never shift silently while
+zooming. Orbit shape, orientation, phase, period and the redshift
+colour are the unmodified fit in every case, and starlight bending is
+not applied to the star sprites.
 
 \section{The control surface and the auto-resolution loop}
 \label{sec:controls}

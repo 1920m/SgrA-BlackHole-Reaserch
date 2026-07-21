@@ -49,6 +49,8 @@ struct AppOptions {
     float turb = -1.0f;        // turbulence / cloud density override (0..1)
     bool black_sky = false;    // start with the starfield hidden
     bool show_stars = false;   // draw the S-stars into the live scene
+    bool star_paths = true;    // draw their orbit ellipses too
+    float star_scale = 1.0f;   // 1 = true distance; N = pulled in by N
 };
 
 // Push-constant block shared with the shaders (must match GLSL layout).
@@ -159,12 +161,16 @@ public:
         int preset = 0;
         bool black_sky = false; // hide the starfield: fully black backdrop
         // S-stars drawn into the live scene (projected through the same
-        // camera model the compute shader uses). The orbits are ~24000 M
-        // across against a ~20 M disk, so the display compresses them
-        // radially by a labelled factor: star_scale_M is where S2's
-        // semi-major axis lands, and every star scales with it.
+        // camera model the compute shader uses). The renderer works in
+        // true geometric units, so at star_scale_ratio = 1 the stars sit
+        // at their real distances (S2's orbit ~2.4e4 M against a ~20 M
+        // disk) — fly the camera out to see them. Larger ratios pull the
+        // orbits inward by that labelled factor for an overview; the
+        // ratio is camera-INDEPENDENT so the cluster never rescales
+        // under you while you zoom.
         bool show_stars = false;
-        float star_scale_M = 35.0f;
+        bool show_star_paths = true;
+        float star_scale_ratio = 1.0f;
         bool science_mode = false;
         bool scope_mode = false; // photon-ring scope framing active
     } live_{};

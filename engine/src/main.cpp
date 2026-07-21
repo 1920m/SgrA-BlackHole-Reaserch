@@ -54,6 +54,8 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--turb")) opts.turb = static_cast<float>(std::atof(next("--turb")));
         else if (!std::strcmp(argv[i], "--blacksky")) opts.black_sky = true;
         else if (!std::strcmp(argv[i], "--stars")) opts.show_stars = true;
+        else if (!std::strcmp(argv[i], "--nopaths")) opts.star_paths = false;
+        else if (!std::strcmp(argv[i], "--starscale")) opts.star_scale = static_cast<float>(std::atof(next("--starscale")));
         else {
             std::fprintf(stderr, "unknown arg: %s\n", argv[i]);
             return 2;

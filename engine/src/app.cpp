@@ -59,6 +59,8 @@ App::App(const AppOptions& opts) : opts_(opts) {
     if (opts_.turb >= 0.0f) live_.turb = std::min(opts_.turb, 1.0f);
     live_.black_sky = opts_.black_sky;
     live_.show_stars = opts_.show_stars;
+    live_.show_star_paths = opts_.star_paths;
+    live_.star_scale_ratio = std::max(opts_.star_scale, 1.0f);
 
     live_.science_mode = opts_.science;
 
@@ -71,9 +73,13 @@ App::App(const AppOptions& opts) : opts_(opts) {
         if (!app || app->opts_.no_mouse || app->mode_ != UiMode::Simulation)
             return;
         if (app->hud_ && app->hud_->wants_mouse()) return;
+        // Upper limit 1e6 M: the S-star orbits reach ~1.5e5 M, so viewing
+        // the cluster at TRUE scale means flying the camera out past
+        // them. The fp32 live path stays clean out there (steps are
+        // logarithmic in r; the hole simply becomes a lensed dot).
         app->live_.r_cam = std::clamp(
             app->live_.r_cam * std::pow(0.90f, static_cast<float>(dy)),
-            15.0f, 400.0f);
+            15.0f, 1000000.0f);
     });
 
     if (opts_.shader == "disk") load_luts();

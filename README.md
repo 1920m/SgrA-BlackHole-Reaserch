@@ -123,10 +123,14 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 - **S-stars in view** draws S2, S1, S8, S12 and S13 orbiting *in the scene*,
   on their fitted full-GR geodesics, each a glowing ball coloured by its
   line-of-sight redshift. They project through the same camera as the ray
-  tracer, so mouse orbit/zoom just works. Note the real orbits are
-  ~24 000 M across against a ~20 M disk, so the radius is compressed by a
-  clearly labelled factor (`fit` re-frames the whole cluster); orbit shape,
-  phase, period and colour are the unmodified fit
+  tracer, so mouse orbit/zoom just works. **At true scale by default** —
+  the renderer is already in real geometric units, so S2 really is 23 800 M
+  out (≈1050 AU) against a ~20 M disk; press **fly out** to send the camera
+  past the cluster (~5×10⁵ M) and see the real proportions, with the hole
+  correctly shrinking to a lensed dot. The `scale 1:N` slider optionally
+  pulls the orbits inward by a labelled factor for a close-up overview and
+  is *camera-independent* — it never rescales while you zoom. **orbit
+  paths** toggles the ellipses off to watch the stars alone
 
 | Menu item | What it does |
 |---|---|
@@ -177,6 +181,8 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 --rout R              disk outer radius [M]   --turb X   turbulence/cloud density 0–1
 --blacksky            start with the starfield hidden (fully black background)
 --stars               draw the S-stars orbiting in the live scene
+--nopaths             ... without their orbit ellipses
+--starscale N         pull the orbits in by N (1 = true distance, default)
 --validation          Vulkan validation layers ON (exit code = error count)
 ```
 

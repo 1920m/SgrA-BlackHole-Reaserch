@@ -364,12 +364,10 @@ void SimHUD::draw_stars_overlay() {
     const float W = ds.x, H = ds.y;
     if (W < 16.0f || H < 16.0f) return;
 
-    double a_ref = 0.0;
-    for (const auto& st : cluster_)
-        if (st.name == "S2") a_ref = st.a_M;
-    if (a_ref <= 0.0) a_ref = cluster_.front().a_M;
-    if (a_ref <= 0.0) return;
-    const double k = static_cast<double>(lp.star_scale_M) / a_ref;
+    // Camera-independent scale: 1 = true geometric distance (the renderer
+    // already works in real M, so this is the physical configuration);
+    // larger ratios pull the orbits inward by that factor only.
+    const double k = 1.0 / std::max(lp.star_scale_ratio, 1.0f);
 
     // camera frame: position + the (ê_r, ê_θ, ê_φ) triad the shader uses
     const double th0 = lp.incl_deg * 3.14159265358979 / 180.0;
@@ -424,20 +422,22 @@ void SimHUD::draw_stars_overlay() {
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
     for (auto& st : cluster_) {
         // orbit line (the full integrated GR track — S2's pericentre
-        // advance draws its own rosette)
+        // advance draws its own rosette); optional, so the stars can be
+        // watched as plain points of light
         Proj prev{};
-        for (const auto& q : st.track) {
-            const Proj cur = project(q[0] * k, q[1] * k, q[2] * k);
-            if (cur.ok && prev.ok) {
-                const float a = 60.0f * std::min(cur.vis, prev.vis);
-                if (a > 3.0f)
-                    dl->AddLine(prev.p, cur.p,
-                                (st.line_col & 0x00ffffffu) |
-                                    (static_cast<uint32_t>(a) << 24),
-                                1.1f);
+        if (lp.show_star_paths)
+            for (const auto& q : st.track) {
+                const Proj cur = project(q[0] * k, q[1] * k, q[2] * k);
+                if (cur.ok && prev.ok) {
+                    const float a = 60.0f * std::min(cur.vis, prev.vis);
+                    if (a > 3.0f)
+                        dl->AddLine(prev.p, cur.p,
+                                    (st.line_col & 0x00ffffffu) |
+                                        (static_cast<uint32_t>(a) << 24),
+                                    1.1f);
+                }
+                prev = cur;
             }
-            prev = cur;
-        }
 
         const double t = std::clamp(clu_epoch_, st.t0 + 1e-3, st.t1 - 1e-3);
         const TrajectorySample smp = st.model.sample_at(t);
@@ -652,7 +652,10 @@ void SimHUD::draw_controls(double fps) {
     }
     ImGui::SliderFloat("a* (spin)", &lp.a_star, 0.0f, 0.998f, "%.3f");
     ImGui::SliderFloat("inclination [deg]", &lp.incl_deg, 1.0f, 179.0f, "%.1f");
-    ImGui::SliderFloat("camera r [M]", &lp.r_cam, 15.0f, 400.0f, "%.0f");
+    // log range out to 1e6 M: true-scale S-star viewing needs the camera
+    // beyond their orbits (S8/S1 reach ~1.5e5 M at apoapsis)
+    ImGui::SliderFloat("camera r [M]", &lp.r_cam, 15.0f, 1000000.0f, "%.0f",
+                       ImGuiSliderFlags_Logarithmic);
     ImGui::SliderFloat("fov [rad]", &lp.fov, 0.2f, 1.4f, "%.2f");
     ImGui::SliderFloat("disk r_out [M]", &lp.disk_r_out, 8.0f, 30.0f, "%.1f");
     ImGui::SliderFloat("exposure [EV]", &lp.exposure_ev, -3.0f, 4.0f, "%.1f");
@@ -699,32 +702,42 @@ void SimHUD::draw_controls(double fps) {
         for (const auto& st : cluster_)
             if (st.name == "S2") a_ref = st.a_M;
         if (a_ref <= 0.0) a_ref = cluster_.front().a_M;
-        // Fit the whole cluster into the current frame: the outermost
-        // apoapsis lands at ~60 % of the frame half-width at the hole's
-        // distance (r_cam * tan(fov/2)) — the margin absorbs perspective,
-        // since orbit arcs on the camera side project wider than that.
-        auto fit = [&] {
-            if (clu_rmax_M_ <= 0.0 || a_ref <= 0.0) return;
-            const double half = lp.r_cam * std::tan(0.5 * lp.fov);
-            lp.star_scale_M = static_cast<float>(
-                std::clamp(a_ref * 0.60 * half / clu_rmax_M_, 1.0, 300.0));
-        };
-        if (!stars_fitted_) {
-            fit();
-            stars_fitted_ = true;
-        }
-        ImGui::SetNextItemWidth(126.0f);
-        ImGui::SliderFloat("S2 orbit [M]", &lp.star_scale_M, 1.0f, 300.0f,
-                           "%.1f", ImGuiSliderFlags_Logarithmic);
+        ImGui::Checkbox("orbit paths", &lp.show_star_paths);
         ImGui::SameLine();
-        if (ImGui::SmallButton("fit")) fit();
+        ImGui::SetNextItemWidth(96.0f);
+        ImGui::SliderFloat("scale 1:N", &lp.star_scale_ratio, 1.0f, 2000.0f,
+                           "%.0f", ImGuiSliderFlags_Logarithmic);
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Scale the cluster so every orbit fits the\n"
-                              "current camera framing.");
-        if (a_ref > 0.0)
-            ImGui::TextDisabled("scale 1 : %.0f (true a_S2 = %.0f M)",
-                                a_ref / std::max(lp.star_scale_M, 1e-3f),
-                                a_ref);
+            ImGui::SetTooltip("1 = TRUE distance (the renderer is already\n"
+                              "in real geometric units). Higher values pull\n"
+                              "the orbits inward by that factor for an\n"
+                              "overview - never rescales with the camera.");
+        if (ImGui::SmallButton("1:1 true")) lp.star_scale_ratio = 1.0f;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("1:100")) lp.star_scale_ratio = 100.0f;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("1:1000")) lp.star_scale_ratio = 1000.0f;
+        ImGui::SameLine();
+        // Frame the cluster by moving the CAMERA, not by shrinking the
+        // orbits: the honest way to see a 2.4e4 M orbit is to fly out
+        // past it (the hole then really is a lensed dot).
+        if (ImGui::SmallButton("fly out")) {
+            const double rmax = clu_rmax_M_ / std::max(lp.star_scale_ratio,
+                                                       1.0f);
+            const double half = std::tan(0.5 * lp.fov);
+            lp.r_cam = static_cast<float>(
+                std::clamp(rmax / (0.62 * half), 15.0, 1000000.0));
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Move the camera out until the whole cluster\n"
+                              "fits - orbits keep their true proportions.");
+        if (a_ref > 0.0) {
+            // 1 M = GM/c^2; a_AU printed straight from the fit geometry
+            const double a_disp = a_ref / std::max(lp.star_scale_ratio, 1.0f);
+            ImGui::TextDisabled("S2: a = %.0f M true", a_ref);
+            ImGui::TextDisabled("  -> drawn at %.0f M  (disk r_out %.0f M)",
+                                a_disp, lp.disk_r_out);
+        }
         ImGui::SetNextItemWidth(126.0f);
         ImGui::SliderFloat("star time [x real]", &clu_speed_, 1.0e4f, 1.0e8f,
                            "%.0f", ImGuiSliderFlags_Logarithmic);

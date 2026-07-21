@@ -91,7 +91,6 @@ private:
     std::vector<ClusterStar> cluster_;
     bool cluster_available_ = false;
     double clu_rmax_M_ = 0.0;   // largest apoapsis in the set [true M]
-    bool stars_fitted_ = false; // auto-fit the scale on first enable
     double clu_M_ = 0.0;          // joint-fit mass [Msun] (caption)
     double clu_epoch_ = 2026.5;   // displayed epoch [Julian yr]
     double clu_end_ = 2150.0;     // common end of the integrated spans
