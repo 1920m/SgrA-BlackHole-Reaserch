@@ -13,10 +13,12 @@ geodesics to a reproducible research paper.**
 ![paper](https://img.shields.io/badge/paper-MNRAS_style_·_11_pages-blue)
 ![reproducible](https://img.shields.io/badge/every_number-reproducible-purple)
 
-<img src="writeup/screenshots/phase_9/menu_boot.png" width="850" alt="The cinematic main menu — our own Kerr disk, ray-traced by the CPU reference tracer"/>
+<img src="writeup/screenshots/phase_9/menu_boot.png" width="850" alt="The main menu, backed by a 4K CINEMATIC SGR A* plate — 8.3 million Kerr geodesics traced by this code"/>
 
-*The main menu. The backdrop is not artwork — it is 33 million exact Kerr
-geodesics, traced by this code.*
+*The main menu. The backdrop is not artwork — it is 8.3 million exact Kerr
+geodesics (one per 4K pixel) traced by this code in the CINEMATIC SGR A\*
+preset, whose warm dust banks are a display layer composited over the
+unchanged physics.*
 
 <br>
 
@@ -172,8 +174,32 @@ Navigate the menu with **↑/↓ + Enter** or the mouse. In the simulation:
 | 6 | **CINEMATIC SGR A\*** | Volumetric orbiting dust banks over the exact geodesics — warm *Interstellar* white-gold; the `turbulence` slider sets cloud density |
 
 <div align="center">
+<img src="writeup/screenshots/features/preset_cinematic.png" width="410" alt="CINEMATIC SGR A* preset — volumetric dust banks over the exact geodesics"/>
 <img src="writeup/screenshots/phase_8/preset_gargantua.png" width="410" alt="GARGANTUA preset"/>
-<img src="writeup/screenshots/phase_8/preset_arctic.png" width="410" alt="ARCTIC preset"/>
+</div>
+
+<div align="center">
+
+*Left: **CINEMATIC SGR A\***, orbiting dust banks advected by the exact Ω(r).
+Right: **GARGANTUA**. The geometry is identical — only the display layer differs.*
+
+</div>
+
+### The S-star cluster, live
+
+<div align="center">
+<img src="writeup/screenshots/features/sstar_cluster.png" width="410" alt="S2, S1, S8, S12 and S13 on their fitted GR orbits at true scale"/>
+<img src="writeup/screenshots/features/tidal_disruption.png" width="410" alt="S2 tidally disrupted after shrinking its orbit past the Roche threshold"/>
+</div>
+
+<div align="center">
+
+*Left: the five fitted stars at **true scale** — S2's orbit really is ~24 000 M
+across, so the camera has flown out to 5×10⁵ M and the hole is a lensed dot.
+Right: shrink the orbits past a star's tidal radius and it breaks up into a
+bound debris stream — S2 goes at N≈72, S8 at 96, exactly as the cited
+spectroscopy predicts.*
+
 </div>
 
 <details>
@@ -235,10 +261,14 @@ make reproduce   # re-run the ENTIRE science chain: tests → renders →
                  # sub-rings → S2 fits → calibration + sweep → figures
 ```
 
-Every number in the paper is a LaTeX macro generated from the simulation's
-JSON artefacts — nothing is typed by hand, so the paper cannot silently
-drift from the code. The final verification run regenerated **all 55
-numbers bit-identically**.
+Alongside it, **`paper/thesis.pdf`** is the full 203-page report — the same
+physics at length, with the primer chapters, the development history and its
+bug hunts, and the notation glossary.
+
+Every number in both is a LaTeX macro generated from the simulation's JSON
+artefacts — nothing is typed by hand, so they cannot silently drift from the
+code. The final verification run regenerated **all 92 macros
+bit-identically**.
 
 ---
 
