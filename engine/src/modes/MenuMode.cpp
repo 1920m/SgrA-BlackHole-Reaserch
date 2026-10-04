@@ -10,6 +10,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <nlohmann/json.hpp>
+
 #include "app.hpp"
 
 namespace sgr {
@@ -104,8 +106,26 @@ void MenuMode::load_artifacts(App& app) {
     if (!j5.empty()) {
         eps_q_ci95_ = grab_json(j5, "eps_q_ci95_halfwidth", 0.0);
         eps_q_sigma_ = grab_json(j5, "eps_q_sigma", 0.0);
-        forecast_sigma_ = grab_json(j5, "forecast_sigma_10_more_orbits", 0.0);
         nohair_loaded_ = eps_q_ci95_ > 0.0;
+    }
+    // Forecasts of the extension paper (forecast_tool, Fisher + full refits)
+    if (std::ifstream ff{"validation/extension/forecasts.json"}) {
+        const auto j = nlohmann::json::parse(ff, nullptr, false);
+        if (!j.is_discarded()) {
+            try {
+                fc_ten_ = j.at("ten_orbits").at("sigma_eps_fisher").get<double>();
+                fc_ten_naive_ = j.at("ten_orbits").at("sigma_eps_thesis_sqrtN").get<double>();
+                for (const auto& e : j.at("eps_vs_years").at("gravity"))
+                    if (e.at("T_yr").get<double>() == 32.0) fc_grav32_ = e.at("sigma_eps").get<double>();
+                for (const auto& b : j.at("bias"))
+                    if (std::abs(b.at("f_enc").get<double>() - 1e-3) < 1e-12 &&
+                        b.at("T_yr").get<double>() == 32.0)
+                        fc_bias32_ = b.at("deps_over_sigma").get<double>();
+                forecast_loaded_ = fc_ten_ > 0.0;
+            } catch (const std::exception&) {
+                forecast_loaded_ = false;
+            }
+        }
     }
     const std::string j3 = slurp("validation/phase3/subring_report.json");
     if (!j3.empty()) {
@@ -115,22 +135,25 @@ void MenuMode::load_artifacts(App& app) {
         subring_loaded_ = ratio_n0_n1_ > 0.0;
     }
 
-    // Gallery thumbnails: milestone renders from the validation pipeline.
-    const std::pair<const char*, const char*> shots[] = {
-        {"Schwarzschild shadow (Gate 1)",
-         "validation/reference_images/schwarzschild_cpu.png"},
-        {"Kerr a*=0.94 shadow (Gate 2)",
-         "validation/reference_images/kerr_cpu_a94.png"},
-        {"Novikov-Thorne disk (Gate 3)", "validation/phase3/disk_nt.png"},
-        {"Sub-ring n=1 (Gate 3)", "validation/phase3/subring_n1.png"},
-        {"FIRESTORM preset (Gate 8)",
-         "writeup/screenshots/phase_8/preset_firestorm.png"},
-        {"GARGANTUA preset (Gate 8)",
-         "writeup/screenshots/phase_8/preset_gargantua.png"},
-        {"ARCTIC preset (Gate 8)",
-         "writeup/screenshots/phase_8/preset_arctic.png"},
-        {"NEBULA preset (Gate 8)",
-         "writeup/screenshots/phase_8/preset_nebula.png"},
+    // Gallery: renders made by this engine and the fp64 reference tracer, all
+    // at Sgr A*'s parameters (a* = 0.94) except the labelled wormhole.
+    const std::string g = std::string(SGR_ASSET_DIR) + "/gallery/";
+    const std::pair<const char*, std::string> shots[] = {
+        {"Sgr A* lensing the Galactic Centre (real Milky Way, no disk)",
+         g + "g01_lensed_milky_way.png"},
+        {"230 GHz from Earth's angle - the hot flow the EHT sees (false colour)",
+         g + "g02_230ghz_earth.png"},
+        {"230 GHz, close up (false colour)", g + "g03_230ghz_close.png"},
+        {"Earth view, i = 30 deg (hypothetical thin disk, true colour)",
+         g + "g04_earth_view.png"},
+        {"Close orbit (hypothetical thin disk, true colour)", g + "g05_close_orbit.png"},
+        {"Hot spot on the GRAVITY 2018 flare orbit (2.2 um)", g + "g06_hot_spot.png"},
+        {"Light that passed through the ergoregion", g + "g07_ergoregion.png"},
+        {"Falling in: r = 3 M", g + "g08_fall_r3.png"},
+        {"Inside the event horizon: r = 1.1 M", g + "g09_fall_inside.png"},
+        {"Kerr shadow, a* = 0.94 (fp64 CPU reference)", g + "g10_kerr_shadow_cpu.png"},
+        {"Photon sub-ring n = 1 (fp64 CPU reference)", g + "g11_subring_n1.png"},
+        {"Exotic, NOT Sgr A*: the Interstellar wormhole", g + "g12_wormhole.png"},
     };
     for (const auto& [name, path] : shots) {
         if (!fs::exists(path)) continue;
@@ -146,7 +169,7 @@ void MenuMode::load_artifacts(App& app) {
 }
 
 void MenuMode::draw_title(float x, float y) {
-    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
     // Thin rule above the title, like the reference.
     dl->AddLine({x + 2, y - 14}, {x + 46, y - 14}, kIvoryDim, 1.0f);
     tracked_text(dl, font_title_, 64.0f, {x, y}, kIvory, "SGR A*", 14.0f);
@@ -156,7 +179,7 @@ void MenuMode::draw_title(float x, float y) {
 }
 
 void MenuMode::draw_corners() {
-    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
     const ImVec2 ds = ImGui::GetIO().DisplaySize;
     tracked_text(dl, font_small_, 12.0f, {24, 14}, kLore,
                  "+  THE CENTRE OF THE GALAXY NEVER CAN REST", 1.6f, false);
@@ -165,7 +188,7 @@ void MenuMode::draw_corners() {
                  {ds.x - 24 - tracked_width(font_small_, 12.0f, tr, 1.6f), 14},
                  kLore, tr, 1.6f, false);
     tracked_text(dl, font_small_, 12.0f, {24, ds.y - 26}, kLore,
-                 "+  KERR SPACETIME  .  CARTER GEODESICS  .  GILLESSEN+2017",
+                 "+  SGR A* AT 230 GHZ  .  KERR a* = 0.94  .  FALSE COLOUR: BRIGHTNESS TEMPERATURE",
                  1.6f, false);
     const char* br = "EVERY NUMBER REPRODUCIBLE FROM CODE";
     tracked_text(dl, font_small_, 12.0f,
@@ -175,7 +198,7 @@ void MenuMode::draw_corners() {
 }
 
 void MenuMode::draw_items(App& app, float x, float y) {
-    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
     ImGuiIO& io = ImGui::GetIO();
     const float row_h = 46.0f;
     const float item_size = 20.0f;
@@ -246,11 +269,11 @@ void MenuMode::draw_about(App& app) {
     ImGui::SetNextWindowPos({ImGui::GetIO().DisplaySize.x - 470, 90},
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({440, 0}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Appearing);
     ImGui::Begin("ABOUT - Sagittarius A*", &show_about_);
     ImGui::TextWrapped(
         "Sagittarius A* is the supermassive black hole at the centre of the "
-        "Milky Way, 8,277 pc from Earth. The rendered spacetime beside this "
-        "panel is this simulator's own Kerr solution.");
+        "Milky Way, 8,277 pc from Earth.");
     ImGui::Separator();
     ImGui::Text("Mass          4.297 +/- 0.012 x 10^6 Msun   (GRAVITY 2022)");
     ImGui::Text("Distance      8,277 +/- 9 pc                (GRAVITY 2022)");
@@ -260,9 +283,19 @@ void MenuMode::draw_about(App& app) {
     ImGui::Text("S2 period     16.0518 +/- 0.0022 yr         (Gillessen 2017)");
     ImGui::Separator();
     ImGui::TextDisabled("This build:");
-    ImGui::BulletText("S2 fit: M = 4.270e6 Msun, chi2/dof = 0.96 (Phase 4)");
-    ImGui::BulletText("Photon ring at Sgr A*: 49.7 uas (Phase 10)");
+    ImGui::BulletText("S2 fit: M = 4.270e6 Msun, chi2/dof = 0.96 (thesis)");
+    ImGui::BulletText("Photon ring at Sgr A*: 49.7 uas (thesis)");
+    ImGui::BulletText("GPU renderer checked against the fp64 tracer");
+    ImGui::Separator();
+    ImGui::TextDisabled("Documents:");
+    ImGui::BulletText("Thesis: paper/thesis.pdf");
     ImGui::BulletText("Research paper: paper/main.pdf");
+    ImGui::BulletText("Extension paper: paper/extension/extension.pdf");
+    ImGui::Separator();
+    ImGui::TextWrapped(
+        "The backdrop is this simulator's model of Sgr A*'s hot gas flow at "
+        "230 GHz, the band of the Event Horizon Telescope, seen from Earth's "
+        "angle. Radio light has no colour: brightness is shown in false colour.");
     ImGui::End();
 }
 
@@ -270,6 +303,7 @@ void MenuMode::draw_nohair() {
     ImGui::SetNextWindowPos({ImGui::GetIO().DisplaySize.x - 500, 120},
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({470, 0}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Appearing);
     ImGui::Begin("NO-HAIR TEST - free quadrupole", &show_nohair_);
     ImGui::TextWrapped(
         "Kerr fixes the quadrupole at Q = -M a^2. The Hartle-Thorne module "
@@ -288,12 +322,24 @@ void MenuMode::draw_nohair() {
     ImGui::Text("(Schwarzschild term: +11.98 arcmin/orbit)");
     ImGui::Separator();
     if (nohair_loaded_) {
-        ImGui::TextDisabled("Fit to Gillessen+2017 S2 data (Phase 5):");
+        ImGui::TextDisabled("Fit to Gillessen+2017 S2 data (thesis):");
         ImGui::Text("eps_q = 0 +/- %.3g   (95%% CI half-width)", eps_q_ci95_);
         ImGui::Text("sigma(eps_q) = %.3g", eps_q_sigma_);
-        ImGui::Text("forecast, +10 S2 orbits: sigma -> %.3g", forecast_sigma_);
     } else {
-        ImGui::TextDisabled("Phase 5 artefacts not found.");
+        ImGui::TextDisabled("Thesis fit artefacts not found.");
+    }
+    ImGui::Separator();
+    if (forecast_loaded_) {
+        ImGui::TextDisabled("Forecasts (extension paper, chapter 7):");
+        ImGui::Text("+10 orbits, same quality: sigma -> %.3g", fc_ten_);
+        ImGui::TextDisabled("  (the thesis' 1/sqrt(N) estimate gave %.3g)", fc_ten_naive_);
+        ImGui::Text("+32 yr of GRAVITY-quality data: sigma -> %.3g", fc_grav32_);
+        ImGui::TextWrapped(
+            "An extended mass at GRAVITY's present bound, left out of the fit, "
+            "fakes a %.1f-sigma no-hair violation after 32 yr: fit it jointly.",
+            fc_bias32_);
+    } else {
+        ImGui::TextDisabled("Forecasts not found (run forecast_tool).");
     }
     ImGui::End();
 }
@@ -302,6 +348,7 @@ void MenuMode::draw_scope_panel(App& app) {
     ImGui::SetNextWindowPos({ImGui::GetIO().DisplaySize.x - 460, 150},
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({430, 0}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Appearing);
     ImGui::Begin("PHOTON RING SCOPE", &show_scope_);
     ImGui::TextWrapped(
         "Photons that orbit the hole n extra half-turns before escaping form "
@@ -325,18 +372,28 @@ void MenuMode::draw_gallery() {
     ImGui::SetNextWindowPos({ImGui::GetIO().DisplaySize.x - 560, 80},
                             ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({530, 520}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("GALLERY - milestone renders", &show_gallery_);
+    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Appearing);
+    ImGui::Begin("GALLERY - what the simulator shows", &show_gallery_);
     if (gallery_.empty()) {
         ImGui::TextDisabled("No renders found.");
     } else {
         const float cell_w = ImGui::GetContentRegionAvail().x / 2 - 8;
+        const float thumb_h = cell_w * 0.5625f;   // 16:9 cells; squares fit inside
         int col = 0;
         for (const auto& g : gallery_) {
             ImGui::BeginGroup();
             const float ar = static_cast<float>(g.h) / g.w;
-            ImGui::Image(static_cast<ImTextureID>(g.tex_id),
-                         {cell_w, cell_w * ar});
-            ImGui::TextWrapped("%s", g.name.c_str());
+            const float w = ar > 0.5625f ? thumb_h / ar : cell_w;
+            const float h = ar > 0.5625f ? thumb_h : cell_w * ar;
+            const float x0 = ImGui::GetCursorPosX();
+            ImGui::SetCursorPosX(x0 + 0.5f * (cell_w - w));
+            ImGui::Image(static_cast<ImTextureID>(g.tex_id), {w, h});
+            if (h < thumb_h) ImGui::Dummy({cell_w, thumb_h - h});
+            ImGui::SetCursorPosX(x0);
+            ImGui::PushTextWrapPos(x0 + cell_w);
+            ImGui::TextUnformatted(g.name.c_str());
+            ImGui::PopTextWrapPos();
+            ImGui::Dummy({cell_w, 6.0f});
             ImGui::EndGroup();
             col = (col + 1) % 2;
             if (col != 0) ImGui::SameLine();

@@ -1,7 +1,8 @@
 #pragma once
-// Cinematic main menu (Phase 9): engraved serif title over the
-// baked hero plate, square-bullet vertical menu, corner lore text, and the
-// info panels (Settings / No-hair / Photon-ring scope / Gallery / About).
+// Cinematic main menu (Phase 9): engraved serif title over the baked hero
+// plate (Sgr A* at 230 GHz, rendered by this engine), square-bullet vertical
+// menu, corner lore text, and the info panels (Settings / No-hair /
+// Photon-ring scope / Gallery / About).
 // Drawn with ImGui inside SimHUD's frame; App::record_menu blits the plate.
 
 #include <string>
@@ -51,8 +52,11 @@ private:
 
     // Phase 5 artefacts (no-hair panel)
     bool nohair_loaded_ = false;
-    double eps_q_ci95_ = 0.0, eps_q_sigma_ = 0.0, forecast_sigma_ = 0.0;
+    double eps_q_ci95_ = 0.0, eps_q_sigma_ = 0.0;
     float eps_q_slider_ = 0.0f;
+    // Extension-paper forecasts (validation/extension/forecasts.json)
+    bool forecast_loaded_ = false;
+    double fc_ten_ = 0.0, fc_ten_naive_ = 0.0, fc_grav32_ = 0.0, fc_bias32_ = 0.0;
 
     // Phase 3 artefacts (photon-ring panel)
     bool subring_loaded_ = false;

@@ -3,11 +3,13 @@
 //   render_hero <out.png> [width] [height] [ssaa] [a_star] [incl_deg]
 //               [disk_r_out] [t_peak_k] [exposure_ev]
 //
-// Renders the cinematic menu background with the CPU reference tracer:
-// GARGANTUA-style Kerr disk (Novikov-Thorne shading, §7 physics unchanged),
-// 16:9 frame with the black hole placed right of centre / above centre like
-// the design reference (design_menu/). The menu never runs the live renderer —
-// this plate is loaded as a full-screen textured quad.
+// Historical: this CPU tool baked the first (Phase 9) menu background, a
+// Novikov-Thorne Kerr disk. The current plate, engine/assets/hero_plate_4k.png,
+// is Sgr A*'s hot flow at 230 GHz rendered by the live engine:
+//   sgr_engine --shader disk --offscreen --width 3840 --height 2160 --spp 32
+//              --preset 1 --band 230 --rcam 60 --incl 30 --fov 0.42 --aim 0.3 0
+//              --screenshot hero_plate_4k.png
+// The menu never runs the live renderer; the plate is a full-screen quad.
 //
 // Beauty-plate tolerances: rtol/atol 1e-9 (visual output, not metrology; the
 // gate images and all published numbers use the 1e-11 defaults).

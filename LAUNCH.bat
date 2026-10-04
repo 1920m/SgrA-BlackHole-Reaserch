@@ -6,9 +6,11 @@ rem
 rem  - Makes the Vulkan validation layers findable (VK_LAYER_PATH)
 rem  - Builds the engine first if it has never been built
 rem  - Any arguments are passed straight to the engine, e.g.:
-rem      LAUNCH.bat --validation          (turn validation layers ON)
-rem      LAUNCH.bat --preset 3            (start with the ARCTIC preset)
-rem      LAUNCH.bat --shader disk --hud   (skip the menu)
+rem      LAUNCH.bat --validation                     (validation layers ON)
+rem      LAUNCH.bat --shader disk --hud --preset 1   (skip the menu: Earth view)
+rem      LAUNCH.bat --shader disk --hud --band 230   (the EHT's radio band)
+rem      LAUNCH.bat --shader disk --hud --flight     (fall into Sgr A*)
+rem      LAUNCH.bat --shader disk --hud --wormhole   (exotic, not Sgr A*)
 rem ============================================================
 setlocal
 pushd "%~dp0"

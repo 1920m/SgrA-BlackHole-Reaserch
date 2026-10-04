@@ -11,7 +11,7 @@
 // Preset switching changes push constants and display settings only —
 // geodesic and metric code paths are untouched. The Interstellar/GARGANTUA
 // (a* = 0.6) looks and the 8-bit palette LUTs of Phase 8 are retired; their
-// Gate-8 screenshots stay in the gallery as historical records.
+// Gate-8 screenshots remain in writeup/screenshots/ as historical records.
 
 #include <array>
 #include <cstdint>
