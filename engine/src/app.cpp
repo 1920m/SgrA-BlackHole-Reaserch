@@ -194,6 +194,9 @@ App::App(const AppOptions& opts) : opts_(opts) {
     live_.flight_rest = opts_.flight_rest;
     if (opts_.flight || opts_.flight_frames > 0 || opts_.flight_r > 0.0f) {
         live_.flight = true;
+        // Sgr A* has no bright thin disk, and up close the hypothetical one
+        // swamps the view: the fall starts with the sky alone (panel toggle)
+        live_.show_disk = false;
         start_flight();
         if (opts_.flight_r > 0.0f && flight_) {
             const double t = flight_->tau_at_radius(opts_.flight_r);
@@ -224,7 +227,7 @@ App::App(const AppOptions& opts) : opts_(opts) {
         }
     }
     if (opts_.flare_amp > 0.0f) live_.flare_amp = opts_.flare_amp;
-    live_.show_disk = !opts_.no_disk;
+    live_.show_disk = !opts_.no_disk && !live_.flight;   // the fall: sky alone
 
     // Composition aim (--aim X Y): yaw/pitch the ray basis so the hole sits
     // at NDC (X, Y) instead of the frame centre. Built in double precision
@@ -284,6 +287,7 @@ void App::enter_flight() {
     enter_simulation(false);
     live_.flight = true;
     live_.band = 0;
+    live_.show_disk = false;   // the sky alone (the thin disk is hypothetical)
     // look ahead, at the hole
     live_.fwd_r = -1.0f; live_.fwd_th = 0.0f; live_.fwd_ph = 0.0f;
     live_.rgt_r = 0.0f;  live_.rgt_th = 0.0f; live_.rgt_ph = 1.0f;

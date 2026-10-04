@@ -1498,6 +1498,20 @@ void SimHUD::draw_flight(double fps) {
         lp.rgt_r = 1; lp.rgt_th = 0; lp.rgt_ph = 0;
         lp.up_r = 0;  lp.up_th = -1; lp.up_ph = 0;
     }
+    ImGui::Checkbox("hypothetical thin disk", &lp.show_disk);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Sgr A* has no bright thin disk (its real flow is a hot,\n"
+                          "thin plasma). This one is hypothetical, and up close its\n"
+                          "Doppler-boosted light swamps the view.");
+    if (ImGui::Checkbox("auto resolution (target 13 fps)", &lp.auto_res) && !lp.auto_res)
+        app_->request_target_rebuild();
+    ImGui::SetNextItemWidth(170.0f);
+    if (ImGui::SliderFloat("render scale", &lp.render_scale, 0.25f, 2.0f, "%.2f"))
+        app_->request_target_rebuild();
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Internal render resolution vs window size. Pause the\n"
+                          "fall and the image also refines itself (progressive\n"
+                          "anti-aliasing) while the camera is still.");
 
     // ---- where and when ------------------------------------------------------
     ImGui::SeparatorText("where you are");
