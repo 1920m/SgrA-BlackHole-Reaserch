@@ -117,11 +117,24 @@ public:
         lim_r_min_ = r_min_M;
     }
 
+    // Extension paper (Gate 22): an optional extended mass around the black
+    // hole — a Plummer sphere of mass frac·M and scale radius scale_mas
+    // [mas] (GRAVITY 2020 used 0.3″), entering as its Newtonian potential
+    // Φ = −frac·M/√(r² + b²) in g_tt = −(1 − 2M/r + 2Φ) (its own 1PN terms
+    // are O(frac·M/r) smaller still and are neglected). frac = 0, the
+    // default, leaves the metric untouched: every thesis fit is unchanged.
+    void set_extended_mass(double frac, double scale_mas) {
+        ext_frac_ = frac;
+        ext_scale_mas_ = scale_mas;
+    }
+
 private:
     double a_star_, eps_q_;
     double lim_a_mas_ = 5.0;    // minimum angular semi-major axis [mas]
     double lim_a_M_ = 100.0;    // minimum semi-major axis [M]
     double lim_r_min_ = 50.0;   // abort below this radius (plunge) [M]
+    double ext_frac_ = 0.0;     // extended mass / M (0 = pure Kerr/HT)
+    double ext_scale_mas_ = 300.0;   // its Plummer scale radius [mas]
     std::vector<TrajectorySample> traj_; // sorted by t_yr
     double t_peri_cache_ = 0.0;
     double yrM_ = 1.0; // years per geometric time unit (set by integrate)

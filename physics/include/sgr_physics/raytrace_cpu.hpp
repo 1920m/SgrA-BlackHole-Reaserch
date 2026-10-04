@@ -4,9 +4,20 @@
 //
 // Camera: pinhole at (r_cam, θ_cam) with a ZAMO (zero-angular-momentum
 // observer) orthonormal tetrad — reduces to the static observer for a = 0 and
-// stays well-defined inside the ergosphere. Rays are launched forward from the
-// camera (null geodesics are reversible; where the ray lands is what the pixel
-// sees).
+// stays well-defined inside the ergosphere. A pixel looking along the local
+// direction n RECEIVES the photon k = e_t − n·e; its source is found by
+// integrating that null geodesic backward, i.e. the tangent −k = −e_t + n·e
+// (E = −k_t < 0 for this backward tangent).
+//
+// Correction (post-v1.0, thesis appendix "Image handedness"): Phases 1–12
+// launched +e_t + n·e — the photon the camera would EMIT toward n — on the
+// argument that null geodesics are reversible. Reversing a path requires
+// flipping the whole 4-momentum; flipping only its spatial part traces the
+// time-reversed spacetime, which for Kerr (invariant only under t→−t together
+// with φ→−φ) is the left–right MIRROR image. Every scalar result (shadow and
+// ring size, sub-ring ratios, |beaming|) is mirror-invariant and unchanged.
+// CameraConfig::legacy_emitted_photon reproduces the old convention for the
+// appendix's before/after comparison only.
 //
 // Geodesics: Carter/Mino second-order form (null_geodesics.hpp).
 //
@@ -53,6 +64,9 @@ struct CameraConfig {
     double fov_rad = 0.032;     // full horizontal field of view
     int width = 800;
     int height = 800;
+    // Phases 1–12 convention (emitted photon, mirror image in Kerr). Never
+    // set in production — kept so the correction can be quantified from code.
+    bool legacy_emitted_photon = false;
 };
 
 struct DiskConfig {

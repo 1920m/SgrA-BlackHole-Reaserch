@@ -13,6 +13,7 @@ inline constexpr double c_si        = 299'792'458.0;         // m s^-1 (exact)
 inline constexpr double G_si        = 6.674'30e-11;          // m^3 kg^-1 s^-2 (CODATA 2018)
 inline constexpr double GM_sun_si   = 1.327'124'400'18e20;   // m^3 s^-2 (IAU 2015 nominal)
 inline constexpr double M_sun_kg    = GM_sun_si / G_si;      // ≈ 1.98841e30 kg
+inline constexpr double sigma_sb_si = 5.670'374'419e-8;      // W m^-2 K^-4 (exact, SI 2019)
 
 // ---- Astronomical unit conversions --------------------------------------
 inline constexpr double au_m        = 1.495'978'707e11;      // m (IAU 2012, exact)
@@ -30,6 +31,11 @@ inline constexpr double sgrA_spin_default  = 0.94;      // best-bet a* (EHT + ac
 inline constexpr double sgrA_incl_deg      = 30.0;      // observer inclination from spin axis
 inline constexpr double sgrA_shadow_uas    = 48.7;      // ± 7 μas (EHT 2022)
 inline constexpr double sgrA_ring_uas      = 51.8;      // ± 2.3 μas (EHT 2022)
+// Accretion-rate bounds from the 230 GHz Faraday rotation measure
+// (Marrone et al. 2007, ApJ 654, L57): Ṁ < 2e-7 for an ordered, near-
+// equipartition radial field; Ṁ > 2e-9 even for a disordered/toroidal one.
+inline constexpr double sgrA_mdot_min_msun_yr = 2.0e-9;
+inline constexpr double sgrA_mdot_max_msun_yr = 2.0e-7;
 
 // ---- S2 published orbital benchmarks (Gillessen et al. 2017) -------------
 inline constexpr double s2_period_yr       = 16.0518;   // ± 0.0022 yr

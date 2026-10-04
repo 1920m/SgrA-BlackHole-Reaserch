@@ -60,12 +60,17 @@ NullRayInit RaytraceCpu::camera_ray(double x, double y) const {
     const Tetrad tet = zamo_tetrad(metric_, cam_.r_cam, theta_cam);
     const auto n = local_direction(tx, ty);
 
-    // k = e_t + n_r e_r + n_θ e_θ + n_φ e_φ  (local photon energy = 1)
+    // The pixel receives k_rec = e_t − n·e (local photon energy 1, travelling
+    // toward the camera); we integrate its backward tangent
+    //   −k_rec = −e_t + n_r e_r + n_θ e_θ + n_φ e_φ,
+    // so the spatial launch direction is n and E = −k_t < 0. The legacy
+    // (Phases 1–12) convention launched +e_t + n·e — see the header.
+    const double s_t = cam_.legacy_emitted_photon ? 1.0 : -1.0;
     std::array<double, 4> k{};
-    k[0] = tet.et_t;
+    k[0] = s_t * tet.et_t;
     k[1] = n[0] * tet.er_r;
     k[2] = n[1] * tet.eth_th;
-    k[3] = tet.et_phi + n[2] * tet.eph_phi;
+    k[3] = s_t * tet.et_phi + n[2] * tet.eph_phi;
 
     return make_null_ray(metric_, 0.0, cam_.r_cam, theta_cam, 0.0, k);
 }
@@ -137,14 +142,19 @@ TraceResult RaytraceCpu::trace(double x, double y) const {
                 out.disk.r = r_x;
                 out.disk.phi = cross[3];
                 out.disk.subring_n = crossings;
-                // Redshift factor for a prograde circular disk element:
-                // g = ν_obs/ν_em = 1 / (u^t (E − Ω L_z)), local camera energy 1.
+                // Redshift factor for a prograde circular disk element,
+                // g = ν_obs/ν_em = (k_rec·u_cam)/(k_rec·u_disk), local camera
+                // energy 1. With the backward constants (E, L_z) = −(E_rec,
+                // L_rec): g = 1 / (u^t (Ω L_z − E)). The legacy emitted photon
+                // used its own forward constants: 1 / (u^t (E − Ω L_z)).
                 const double Om = metric_.omega_circular(r_x, true);
                 const Metric4<double> gm = metric_.components(r_x, kPi / 2.0);
                 const double denom = -(gm(0, 0) + 2.0 * Om * gm(0, 3) +
                                        Om * Om * gm(3, 3));
                 const double ut = 1.0 / std::sqrt(denom);
-                out.disk.g = 1.0 / (ut * (c.E - Om * c.Lz));
+                out.disk.g = cam_.legacy_emitted_photon
+                                 ? 1.0 / (ut * (c.E - Om * c.Lz))
+                                 : 1.0 / (ut * (Om * c.Lz - c.E));
                 out.total_equator_crossings = crossings;
                 return out;
             }

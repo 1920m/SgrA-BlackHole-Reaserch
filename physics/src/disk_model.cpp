@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include "sgr_physics/constants.hpp"
+#include "sgr_physics/metric.hpp"
+
 namespace sgr {
 
 namespace {
@@ -47,6 +50,12 @@ std::array<double, 3> planck_xyz_raw(double T) {
     return {X, Y, Z};
 }
 } // namespace
+
+std::array<double, 3> planck_to_xyz(double T) {
+    static const double norm = 1.0 / planck_xyz_raw(6500.0)[1];
+    const auto xyz = planck_xyz_raw(T);
+    return {xyz[0] * norm, xyz[1] * norm, xyz[2] * norm};
+}
 
 std::array<double, 3> planck_to_linear_srgb(double T) {
     // Normalise so a 6500 K blackbody has luminance Y = 1.
@@ -129,6 +138,48 @@ std::array<float, 3> NovikovThorneDisk::blackbody_rgb(double T) const {
     for (int c = 0; c < 3; ++c)
         out[c] = bb_lut_[i0][c] * (1.0f - w) + bb_lut_[i0 + 1][c] * w;
     return out;
+}
+
+namespace {
+// 3 Ṁ c⁶ / (8π G² M²) in W m⁻² (the Page-Thorne prefactor with G, c restored).
+double nt_prefactor_si(double mass_msun, double mdot_msun_yr) {
+    using namespace constants;
+    const double M = mass_msun * M_sun_kg;
+    const double mdot = mdot_msun_yr * M_sun_kg / yr_s;
+    const double c3 = c_si * c_si * c_si;
+    return 3.0 * mdot * c3 * c3 / (8.0 * kPi * G_si * G_si * M * M);
+}
+} // namespace
+
+double nt_flux_si(double mass_msun, double mdot_msun_yr, double a_star,
+                  double r_out, double r) {
+    const double r_in = KerrMetric(1.0, a_star).r_isco(true);
+    const NovikovThorneDisk disk(a_star, r_in, r_out);
+    return nt_prefactor_si(mass_msun, mdot_msun_yr) * disk.flux(r);
+}
+
+double nt_peak_temperature_k(double mass_msun, double mdot_msun_yr,
+                             double a_star, double r_out) {
+    const double r_in = KerrMetric(1.0, a_star).r_isco(true);
+    const NovikovThorneDisk disk(a_star, r_in, r_out);
+    // Same 2000-step scan as the constructor's T_scale, refined by golden-
+    // section search around the best sample (the maximum is smooth).
+    double best_r = r_in, best_f = 0.0;
+    for (int i = 1; i <= 2000; ++i) {
+        const double r = r_in + (r_out - r_in) * i / 2000.0;
+        const double f = disk.flux(r);
+        if (f > best_f) { best_f = f; best_r = r; }
+    }
+    const double dr = (r_out - r_in) / 2000.0;
+    double lo = std::max(r_in, best_r - dr), hi = std::min(r_out, best_r + dr);
+    const double gr = 0.5 * (std::sqrt(5.0) - 1.0);
+    for (int it = 0; it < 80; ++it) {
+        const double m1 = hi - gr * (hi - lo), m2 = lo + gr * (hi - lo);
+        if (disk.flux(m1) < disk.flux(m2)) lo = m1; else hi = m2;
+    }
+    best_f = std::max(best_f, disk.flux(0.5 * (lo + hi)));
+    const double F = nt_prefactor_si(mass_msun, mdot_msun_yr) * best_f;
+    return std::pow(F / constants::sigma_sb_si, 0.25);
 }
 
 std::array<float, 3> NovikovThorneDisk::shade(double r, double g) const {

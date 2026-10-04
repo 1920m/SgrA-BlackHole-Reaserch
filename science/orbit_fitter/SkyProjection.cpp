@@ -59,6 +59,31 @@ double line_of_sight_redshift(const IMetric& metric, const TimelikeState& y) {
     return gamma * (1.0 - beta_dot_n) / alpha; // = 1 + z
 }
 
+// Gate 22: Kerr/Hartle–Thorne plus the Newtonian potential of a Plummer
+// sphere of mass mu (units of M) and scale radius b [M], in g_tt only.
+class PlummerMetric final : public IMetric {
+public:
+    PlummerMetric(std::unique_ptr<IMetric> base, double mu, double b)
+        : base_(std::move(base)), mu_(mu), b_(b) {}
+    Metric4<double> components(double r, double theta) const override {
+        Metric4<double> g = base_->components(r, theta);
+        g(0, 0) += 2.0 * mu_ / std::sqrt(r * r + b_ * b_);
+        return g;
+    }
+    Metric4<std::complex<double>> components(std::complex<double> r,
+                                             std::complex<double> theta) const override {
+        Metric4<std::complex<double>> g = base_->components(r, theta);
+        g(0, 0) += 2.0 * mu_ / std::sqrt(r * r + b_ * b_);
+        return g;
+    }
+    double mass() const override { return base_->mass(); }
+    double spin() const override { return base_->spin(); }
+
+private:
+    std::unique_ptr<IMetric> base_;
+    double mu_, b_;
+};
+
 } // namespace
 
 std::array<double, S2Parameters::kNumParams> S2Parameters::to_array() const {
@@ -152,6 +177,9 @@ bool S2Model::integrate(const S2Parameters& p, double t_min_yr, double t_max_yr)
         metric = std::make_unique<KerrMetric>(1.0, a_star_);
     else
         metric = std::make_unique<HartleThorneMetric>(1.0, a_star_, eps_q_);
+    if (ext_frac_ != 0.0)
+        metric = std::make_unique<PlummerMetric>(std::move(metric), ext_frac_,
+                                                 ext_scale_mas_ / masM);
 
     const Metric4<double> g0 = metric->components(r0, th0);
     TimelikeState y0{};

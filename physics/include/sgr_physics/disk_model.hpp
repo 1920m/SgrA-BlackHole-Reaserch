@@ -2,7 +2,7 @@
 // Novikov-Thorne thin-disk emission model (Novikov & Thorne 1973), using the
 // closed-form time-averaged flux of Page & Thorne (1974), eq. (15n):
 //
-//   F(r) = (3 Ṁ / 8π M²) · f(x) / x⁴ ...  with x = √(r/M),
+//   F(r) = (3 Ṁ / 8π M²) · f(x) / x²  with x = √(r/M),
 //
 //   f(x) = 1/(x²(x³ − 3x + 2a*)) · [ x − x₀ − (3/2) a* ln(x/x₀)
 //          − Σ_{i=1..3} (3(x_i − a*)²)/(x_i (x_i − x_j)(x_i − x_k)) ln((x−x_i)/(x₀−x_i)) ]
@@ -73,5 +73,22 @@ private:
 // Planck spectrum → linear sRGB via CIE 1931 colour matching (numerical
 // integration; used to build the LUT and by the LUT generator tool).
 std::array<double, 3> planck_to_linear_srgb(double T_kelvin);
+// The same integration as CIE 1931 XYZ (normalised to Y(6500 K) = 1, no
+// gamut clipping) — for chromaticities.
+std::array<double, 3> planck_to_xyz(double T_kelvin);
+
+// Physical (SI) Novikov-Thorne normalisation. Restoring G and c in the
+// Page-Thorne flux above gives
+//   F(r) = 3 Ṁ c⁶ / (8π G² M²) · NovikovThorneDisk::flux(r)   [W m⁻²]
+// (large-r limit: the Shakura-Sunyaev 3GMṀ/(8πR³)(1 − √(R_in/R))), and the
+// local effective temperature follows from σ T⁴ = F. r is in units of M;
+// the inner edge is the prograde ISCO of spin a_star.
+double nt_flux_si(double mass_msun, double mdot_msun_yr, double a_star,
+                  double r_out, double r);
+// max over r ∈ (r_isco, r_out] of T_eff, in kelvin. For Sgr A* this is a
+// HYPOTHETICAL: the thin, radiatively efficient disk the measured accretion
+// rate would power — the real flow is a hot RIAF.
+double nt_peak_temperature_k(double mass_msun, double mdot_msun_yr,
+                             double a_star, double r_out);
 
 } // namespace sgr

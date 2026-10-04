@@ -77,13 +77,18 @@ TEST_CASE("Kerr a*=0.94 shadow boundary lies on the Bardeen critical curve",
     CHECK(checked >= 12); // the η-check ran for most directions
 
     // Lopsidedness: the two equatorial extents from the look axis must be
-    // asymmetric by far more than any numerical wiggle. (Which side is which
-    // depends on the camera handedness; the asymmetry itself is the physics.)
+    // asymmetric by far more than any numerical wiggle.
     const double ratio = std::max(alpha_east, alpha_west) /
                          std::min(alpha_east, alpha_west);
     INFO("east extent=" << alpha_east << " west extent=" << alpha_west
                         << " ratio=" << ratio);
     CHECK(ratio > 1.5);
+    // Handedness (the camera fixes it: image up = spin axis, image right =
+    // +φ̂). Prograde photons (L_z > 0) reach the camera from the image LEFT
+    // and skim the hole closest, so the WEST edge sits nearer the axis. The
+    // Phases 1–12 camera put it on the right — the mirror image (thesis
+    // appendix "Image handedness"); this check now pins it.
+    CHECK(alpha_west < alpha_east);
 }
 
 TEST_CASE("Kerr shadow width shrinks and displaces with spin",
@@ -110,6 +115,10 @@ TEST_CASE("Kerr shadow width shrinks and displaces with spin",
     const double xi_e = ray_e.constants.Lz / ray_e.constants.E;
     const double xi_w = ray_w.constants.Lz / ray_w.constants.E;
 
+    // Prograde (ξ > 0) boundary photons arrive from the image left (west),
+    // retrograde ones from the right.
+    CHECK(xi_w > 0.0);
+    CHECK(xi_e < 0.0);
     const double width = std::abs(xi_e - xi_w);
     const double width_analytic =
         bardeen_xi(metric.r_photon(true), 1.0, a) -
