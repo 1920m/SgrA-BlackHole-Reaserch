@@ -1,0 +1,31 @@
+{
+  "params": {
+    "a_star": 0.94,
+    "incl_deg": 80.0,
+    "r_cam": 60.0,
+    "fov": 0.7,
+    "r_out": 18.0,
+    "t_peak_k": 6300.0,
+    "exposure_ev": -1.5,
+    "width": 480,
+    "height": 270
+  },
+  "n_pixels": 24728,
+  "median_abs_dlnY": 0.0,
+  "p95_abs_dlnY": 0.020374335851501946,
+  "median_abs_dchroma": 0.0,
+  "beaming_ratio_cpu": 0.05580172139285367,
+  "beaming_ratio_gpu": 0.055655732502868316,
+  "beaming_ratio_rel_err": 0.0026162076427278524,
+  "gpu_black_where_cpu_lit": 0,
+  "cpu_lit_pixels": 24991,
+  "disk_mask_mismatch_frac": 0.003263888888888889,
+  "checks": {
+    "luminance": true,
+    "colour": true,
+    "beaming": true,
+    "no_black_floor": true,
+    "geometry": true
+  },
+  "pass": true
+}

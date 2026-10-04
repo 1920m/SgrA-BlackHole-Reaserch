@@ -1,0 +1,8 @@
+{
+  "flux_ratio": 0.9979199823153291,
+  "correlation": 0.9999493661667973,
+  "centroid_diff_px": 0.03153823694893237,
+  "pixel_M": 0.15,
+  "n_pixels": 160,
+  "pass": true
+}
