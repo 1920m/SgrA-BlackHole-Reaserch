@@ -3,6 +3,9 @@
 //   sgr_engine [--frames N] [--screenshot out.png] [--shader solid|geodesic]
 //              [--validation] [--width W] [--height H] [--astar X]
 //              [--incl DEG] [--exposure EV]
+//              [--display linear|agx|aces] [--spp N] [--bloom S] [--grid]
+//              [--observer zamo|orbit|infall|hover|ride] [--ergo] [--aim X Y]
+//              [--flare] [--flare-r R] [--flare-t T] [--movie N --movie-dt DT]
 //
 // Exit code = number of Vulkan validation errors (0 required by the gates).
 #include <cstdio>
@@ -53,11 +56,53 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--rout")) opts.disk_r_out = static_cast<float>(std::atof(next("--rout")));
         else if (!std::strcmp(argv[i], "--turb")) opts.turb = static_cast<float>(std::atof(next("--turb")));
         else if (!std::strcmp(argv[i], "--blacksky")) opts.black_sky = true;
+        else if (!std::strcmp(argv[i], "--bolometric")) opts.bolometric = true;
+        else if (!std::strcmp(argv[i], "--grid")) opts.grid = true;
+        else if (!std::strcmp(argv[i], "--sky")) opts.sky_ev = static_cast<float>(std::atof(next("--sky")));
+        else if (!std::strcmp(argv[i], "--procedural-sky")) opts.procedural_sky = true;
+        else if (!std::strcmp(argv[i], "--uniform-sky")) opts.uniform_sky = true;
+        else if (!std::strcmp(argv[i], "--no-disk")) opts.no_disk = true;
+        else if (!std::strcmp(argv[i], "--observer")) {
+            const char* o = next("--observer");
+            opts.observer = !std::strcmp(o, "orbit") ? 1 : !std::strcmp(o, "infall") ? 2
+                          : !std::strcmp(o, "hover") ? 3 : !std::strcmp(o, "ride") ? 4 : 0;
+        }
+        else if (!std::strcmp(argv[i], "--ergo")) opts.ergo = true;
+        else if (!std::strcmp(argv[i], "--aim")) {
+            opts.aim_x = static_cast<float>(std::atof(next("--aim")));
+            opts.aim_y = static_cast<float>(std::atof(next("--aim")));
+        }
+        else if (!std::strcmp(argv[i], "--display")) opts.display = next("--display");
+        else if (!std::strcmp(argv[i], "--spp")) opts.spp = std::atoi(next("--spp"));
+        else if (!std::strcmp(argv[i], "--bloom")) opts.bloom = static_cast<float>(std::atof(next("--bloom")));
         else if (!std::strcmp(argv[i], "--stars")) opts.show_stars = true;
         else if (!std::strcmp(argv[i], "--nopaths")) opts.star_paths = false;
         else if (!std::strcmp(argv[i], "--starscale")) opts.star_scale = static_cast<float>(std::atof(next("--starscale")));
         else if (!std::strcmp(argv[i], "--focus")) opts.focus_star = next("--focus");
         else if (!std::strcmp(argv[i], "--ride")) opts.focus_ride = true;
+        else if (!std::strcmp(argv[i], "--epoch")) opts.epoch_yr = std::atof(next("--epoch"));
+        else if (!std::strcmp(argv[i], "--flare")) opts.flare = true;
+        else if (!std::strcmp(argv[i], "--flare-r")) {
+            opts.flare = true;
+            opts.flare_r = static_cast<float>(std::atof(next("--flare-r")));
+        }
+        else if (!std::strcmp(argv[i], "--flare-t")) opts.flare_t = static_cast<float>(std::atof(next("--flare-t")));
+        else if (!std::strcmp(argv[i], "--flare-gray") || !std::strcmp(argv[i], "--gray")) opts.flare_gray = true;
+        else if (!std::strcmp(argv[i], "--band")) opts.band = next("--band");
+        else if (!std::strcmp(argv[i], "--wormhole")) opts.wormhole = true;
+        else if (!std::strcmp(argv[i], "--flight")) opts.flight = true;
+        else if (!std::strcmp(argv[i], "--no-sky-shift")) opts.no_sky_shift = true;
+        else if (!std::strcmp(argv[i], "--look")) opts.look = next("--look");
+        else if (!std::strcmp(argv[i], "--flight-frames")) opts.flight_frames = std::atoi(next("--flight-frames"));
+        else if (!std::strcmp(argv[i], "--flight-r")) opts.flight_r = static_cast<float>(std::atof(next("--flight-r")));
+        else if (!std::strcmp(argv[i], "--flight-r0")) opts.flight_r0 = static_cast<float>(std::atof(next("--flight-r0")));
+        else if (!std::strcmp(argv[i], "--flight-theta")) opts.flight_theta = static_cast<float>(std::atof(next("--flight-theta")));
+        else if (!std::strcmp(argv[i], "--flight-rest")) opts.flight_rest = true;
+        else if (!std::strcmp(argv[i], "--wh-l")) opts.wh_l = static_cast<float>(std::atof(next("--wh-l")));
+        else if (!std::strcmp(argv[i], "--flare-amp")) opts.flare_amp = static_cast<float>(std::atof(next("--flare-amp")));
+        else if (!std::strcmp(argv[i], "--movie")) opts.movie_frames = std::atoi(next("--movie"));
+        else if (!std::strcmp(argv[i], "--max-steps")) opts.max_steps = std::atoi(next("--max-steps"));
+        else if (!std::strcmp(argv[i], "--movie-dt")) opts.movie_dt = static_cast<float>(std::atof(next("--movie-dt")));
         else {
             std::fprintf(stderr, "unknown arg: %s\n", argv[i]);
             return 2;

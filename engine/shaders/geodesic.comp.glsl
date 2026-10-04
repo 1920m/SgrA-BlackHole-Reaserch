@@ -180,10 +180,13 @@ void main() {
     double inv = 1.0LF / sqrt(1.0LF + tx * tx + ty * ty);
     double n_r = -inv, n_th = -ty * inv, n_ph = tx * inv;
 
-    double kt = 1.0LF / alpha;
+    // Backward tangent of the RECEIVED photon, −k_rec = −e_t + n·e (mirrors
+    // RaytraceCpu::camera_ray; Phases 1–12 launched +e_t + n·e, which in Kerr
+    // renders the mirror image — thesis appendix "Image handedness").
+    double kt = -1.0LF / alpha;
     double kr = n_r / sqrt(g_rr);
     double kth = n_th / sqrt(g_thth);
-    double kph = omega / alpha + n_ph / sqrt(g_pp);
+    double kph = -omega / alpha + n_ph / sqrt(g_pp);
 
     Consts cc;
     cc.M = M; cc.a = a;
@@ -250,7 +253,8 @@ void main() {
             if (r_x >= disk_in && r_x <= disk_out) {
                 outcome = 3;
                 disk_r = r_x;
-                // redshift factor g = 1 / (u^t (E − Ω L_z)), prograde disk
+                // redshift factor for the received photon, prograde disk:
+                // g = 1 / (u^t (Ω L_z − E)) with the backward constants
                 double sM = sqrt(M);
                 double Om = sM / (r_x * sqrt(r_x) + a * sM);
                 double sg = r_x * r_x; // Σ at θ=π/2
@@ -261,7 +265,7 @@ void main() {
                 double gpp = AA / sg;
                 double denom = -(gtt + 2.0LF * Om * gtp + Om * Om * gpp);
                 double ut = 1.0LF / sqrt(denom);
-                disk_g = 1.0LF / (ut * (cc.E - Om * cc.Lz));
+                disk_g = 1.0LF / (ut * (Om * cc.Lz - cc.E));
             } else {
                 crossings++;
             }

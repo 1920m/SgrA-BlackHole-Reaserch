@@ -41,6 +41,8 @@ target_compile_definitions(sgr_engine PRIVATE
 target_link_libraries(sgr_engine PRIVATE
     sgr_physics
     sgr_s2_model
+    sgr_flares
+    sgr_wormhole
     nlohmann_json::nlohmann_json
     volk::volk
     vk-bootstrap::vk-bootstrap

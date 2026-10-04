@@ -15,6 +15,10 @@
 #include <nlohmann/json.hpp>
 
 #include "sgr_physics/constants.hpp"
+#include "sgr_physics/metric.hpp"
+#include "sgr_physics/observers.hpp"
+#include "sgr_physics/infall.hpp"
+#include "Wormhole.hpp"
 
 #include "app.hpp"
 #include "modes/MenuMode.hpp"
@@ -337,6 +341,11 @@ void SimHUD::load_cluster_orbits() {
                     std::clamp(cluster_[i].radius_M * 40.0, 0.5, 400.0));
             }
     }
+    // --epoch Y: freeze the S-star clock there (repeatable screenshots)
+    if (app_->boot_epoch() > 0.0) {
+        clu_epoch_ = app_->boot_epoch();
+        clu_play_ = false;
+    }
 }
 
 // Habibi et al. (2017), Table 2 — measured Teff, log g and mass. The stellar
@@ -457,6 +466,10 @@ void SimHUD::new_frame(double fps) {
     ImGui::NewFrame();
     if (menu_ && app_->mode() == App::UiMode::Menu) {
         if (menu_->draw(*app_)) draw_controls(fps);
+    } else if (app_->live_.wormhole) {
+        draw_exotic(fps);   // a different spacetime: none of the Sgr A* panels
+    } else if (app_->live_.flight) {
+        draw_flight(fps);   // Gate 24: the in-faller's own instruments
     } else {
         if (app_->live_.show_stars || app_->live_.science_mode) {
             rescale_cluster(app_->live_.star_scale_ratio);
@@ -602,6 +615,7 @@ void SimHUD::update_focus_camera() {
         lp.focus_index = 0;
     }
 
+    bool ride_valid = false;
     if (idx <= 0 || !cluster_available_) {
         cam_frame_ = camera_frame(lp.r_cam, lp.incl_deg, lp.cam_phi);
     } else {
@@ -636,7 +650,22 @@ void SimHUD::update_focus_camera() {
         lp.cam_phi = static_cast<float>(phi);
         cam_frame_ = camera_frame(lp.r_cam, lp.incl_deg, lp.cam_phi,
                                   lp.focus_ride ? Vec3{0.0, 0.0, 0.0} : tgt);
+        if (lp.focus_ride) {
+            // Observer::RideStar: the star's own velocity (dx/dt [c] from
+            // its full-GR orbit) in the camera's local (r, theta, phi)
+            const ClusterStar& st = cluster_[idx - 1];
+            const double span = std::max(st.t1 - st.t0, 1e-9);
+            const double t = std::clamp(clu_epoch_, st.t0 + 1e-4 * span,
+                                        st.t1 - 1e-4 * span);
+            const TrajectorySample s = st.model.sample_at(t);
+            const Vec3 vel{s.vel[0], s.vel[1], s.vel[2]};
+            lp.ride_v[0] = static_cast<float>(v_dot(vel, cam_frame_.er));
+            lp.ride_v[1] = static_cast<float>(v_dot(vel, cam_frame_.eth));
+            lp.ride_v[2] = static_cast<float>(v_dot(vel, cam_frame_.eph));
+            ride_valid = true;
+        }
     }
+    lp.ride_v_valid = ride_valid;
     lp.fwd_r = static_cast<float>(cam_frame_.fwd[0]);
     lp.fwd_th = static_cast<float>(cam_frame_.fwd[1]);
     lp.fwd_ph = static_cast<float>(cam_frame_.fwd[2]);
@@ -1051,8 +1080,26 @@ void SimHUD::draw_controls(double fps) {
                        ImGuiSliderFlags_Logarithmic);
     ImGui::SliderFloat("fov [rad]", &lp.fov, 0.2f, 1.4f, "%.2f");
     ImGui::SliderFloat("disk r_out [M]", &lp.disk_r_out, 8.0f, 30.0f, "%.1f");
-    ImGui::SliderFloat("exposure [EV]", &lp.exposure_ev, -3.0f, 4.0f, "%.1f");
-    ImGui::SliderFloat("T_peak [K]", &lp.t_peak_k, 2000.0f, 20000.0f, "%.0f");
+    ImGui::SliderFloat("exposure [EV]", &lp.exposure_ev, -6.0f, 6.0f, "%.1f");
+    if (lp.t_peak_from_mdot) {
+        ImGui::SliderFloat("accretion [Msun/yr]", &lp.mdot_msun_yr,
+                           static_cast<float>(constants::sgrA_mdot_min_msun_yr),
+                           static_cast<float>(constants::sgrA_mdot_max_msun_yr),
+                           "%.1e", ImGuiSliderFlags_Logarithmic);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Sgr A*'s accretion rate is bounded by the Faraday\n"
+                "rotation of its 230 GHz light: 2e-9 .. 2e-7 Msun/yr\n"
+                "(Marrone et al. 2007). The disk temperature is\n"
+                "COMPUTED from it (Novikov-Thorne flux, sigma T^4 = F)\n"
+                "- a hypothetical thin disk at the real feeding rate;\n"
+                "the real flow is hot and geometrically thick.");
+        ImGui::Text("T_peak = %.0f K (computed)", app_->effective_t_peak());
+    } else {
+        ImGui::SliderFloat("T_peak [K] (override)", &lp.t_peak_k, 2000.0f,
+                           30000.0f, "%.0f");
+    }
+    ImGui::Checkbox("T_peak from accretion rate", &lp.t_peak_from_mdot);
     ImGui::SliderFloat("turbulence", &lp.turb, 0.0f, 1.0f, "%.2f");
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Artistic filament layer sheared by the real\n"
@@ -1082,6 +1129,187 @@ void SimHUD::draw_controls(double fps) {
         ImGui::SetTooltip("Hide the starfield backdrop: fully black sky.\n"
                           "Display only - the disk and lensing are\n"
                           "unchanged.");
+    ImGui::SameLine();
+    ImGui::Checkbox("thin disk", &lp.show_disk);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Hide the (hypothetical) thin disk to see the\n"
+                          "lensing of the background sky alone.");
+    if (ImGui::CollapsingHeader("Display (camera, not physics)",
+                                ImGuiTreeNodeFlags_DefaultOpen)) {
+        const char* ops[] = {"linear (science)", "AgX filmic", "ACES filmic"};
+        ImGui::Combo("tone curve", &lp.tonemap, ops, 3);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How radiance becomes screen brightness. Filmic\n"
+                              "curves roll highlights off to white instead of\n"
+                              "clipping; 'linear' is the exact transform the\n"
+                              "CPU reference uses (Science Mode forces it).");
+        ImGui::SliderFloat("bloom", &lp.bloom, 0.0f, 0.30f, "%.3f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Lens glare around bright regions (a camera\n"
+                              "effect, energy-preserving). Off in Science Mode.");
+        ImGui::SliderFloat("white balance [K]", &lp.wb_kelvin, 4000.0f,
+                           12000.0f, "%.0f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Camera white point: a blackbody at this\n"
+                              "temperature renders neutral grey. Higher\n"
+                              "values make the scene warmer.");
+        ImGui::SliderFloat("saturation", &lp.saturation, 0.0f, 1.5f, "%.2f");
+        ImGui::Checkbox("progressive AA", &lp.accumulate);
+        ImGui::SameLine();
+        ImGui::TextDisabled("%u spp", app_->accumulated_samples());
+        ImGui::Checkbox("celestial grid", &lp.show_grid);
+        ImGui::SliderFloat("sky [EV]", &lp.sky_ev, -6.0f, 4.0f, "%.1f");
+        ImGui::Checkbox("real Milky Way", &lp.use_sky_map);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "NASA/GSFC SVS Deep Star Maps 2020 (1.7 billion stars;\n"
+                "Gaia DR2: ESA/Gaia/DPAC; Hipparcos-2, Tycho-2), lensed\n"
+                "by Sgr A*. It is the sky as seen from EARTH used as the\n"
+                "distant background - from the Galactic Centre nearby\n"
+                "stars would lie elsewhere. Spin axis: i = 30 deg to our\n"
+                "line of sight, position angle 0 (an assumption).");
+        if (lp.science_mode)
+            ImGui::TextDisabled("Science Mode: linear transform, no bloom");
+    }
+    if (ImGui::CollapsingHeader("Observer - whose eyes",
+                                ImGuiTreeNodeFlags_DefaultOpen)) {
+        const char* obs[] = {"static (ZAMO, non-rotating frame)",
+                             "orbiting at Keplerian Omega(r)",
+                             "falling in from rest at infinity",
+                             "hovering (at rest vs. the stars)",
+                             "riding the focused S-star"};
+        ImGui::Combo("observer", &lp.observer, obs, 5);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Who is holding the camera. Motion changes what you see:\n"
+                "light ahead is aberrated forward, blueshifted and\n"
+                "brightened (relativistic beaming); light behind is\n"
+                "redshifted. ZAMO = the observer that co-rotates with\n"
+                "the frame dragging and has zero angular momentum.\n"
+                "Hovering needs a rocket and is impossible inside the\n"
+                "ergosphere; orbiting at Omega(r) is a geodesic only in\n"
+                "the equatorial plane. Riding a star uses that star's\n"
+                "velocity from its full-GR orbit (focus it and tick\n"
+                "'ride the star').");
+        if (lp.observer == static_cast<int>(Observer::RideStar) && !lp.ride_v_valid)
+            ImGui::TextColored({1.0f, 0.75f, 0.35f, 1.0f},
+                               "focus a star and tick 'ride the star' -"
+                               " showing the ZAMO view");
+        const ObserverState os = app_->observer_state();
+        if (!os.valid)
+            ImGui::TextColored({1.0f, 0.45f, 0.35f, 1.0f},
+                               "this observer would need v >= c here -"
+                               " showing the ZAMO view");
+        const double tg = constants::sgrA_tg_s;        // GM/c^3 [s]
+        const double rg_km = constants::sgrA_rg_m * 1e-3;
+        ImGui::Text("speed vs local ZAMO  %.4f c   (gamma %.4f)", os.v, os.gamma);
+        ImGui::Text("clock rate dtau/dt   %.6f", os.dtau_dt);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Seconds of the observer's own time per second\n"
+                              "of far-away (Earth-frame) time: gravitational\n"
+                              "and velocity time dilation together, 1/u^t.");
+        ImGui::Text("lapse alpha          %.6f", os.alpha);
+        ImGui::Text("frame dragging omega %.3e /M = %.3e rad/s", os.omega,
+                    os.omega / tg);
+        if (os.omega > 0.0)
+            ImGui::Text("  (one ZAMO revolution every %.3g h)",
+                        2.0 * 3.14159265358979 / (os.omega / tg) / 3600.0);
+        const double a = lp.a_star, r = lp.r_cam;
+        const double rp = 1.0 + std::sqrt(std::max(0.0, 1.0 - a * a));
+        const KerrMetric km(1.0, std::clamp(static_cast<double>(a), -0.9999, 0.9999));
+        ImGui::Text("r_cam %.1f M = %.4g km   (r+ %.3f, r_E here %.3f M)", r,
+                    r * rg_km, rp, os.r_ergo);
+        ImGui::Text("photon orbits %.3f / %.3f M, ISCO %.3f M",
+                    km.r_photon(true), km.r_photon(false), km.r_isco(true));
+        // circular equatorial prograde orbit at this radius (BPT72)
+        const double sr = std::sqrt(r);
+        const double den = r * sr - 3.0 * sr + 2.0 * a;
+        if (den > 0.0) {
+            const double ut = (r * sr + a) / (std::sqrt(sr) * std::sqrt(r) * std::sqrt(den));
+            ImGui::Text("orbit at this r: dt/dtau = %.5f (1 h there = %.4g h far away)",
+                        ut, ut);
+        } else {
+            ImGui::TextDisabled("no circular orbit at this radius (inside the photon orbit)");
+        }
+        ImGui::Checkbox("shift the sky by g (Doppler + gravity)", &lp.sky_shift);
+        ImGui::Checkbox("light that visited the ergoregion", &lp.show_ergo);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Tint the light that passed INSIDE the ergosphere\n"
+                              "(r < r_E, where nothing can stay at rest\n"
+                              "relative to the stars) and still escaped: the\n"
+                              "frame-dragged crescent on the prograde side.");
+    }
+    if (ImGui::CollapsingHeader("Band - what kind of camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+        const char* bands[] = {"visible light (hypothetical thin disk)",
+                               "230 GHz radio (the real hot flow, EHT band)",
+                               "2.2 um near-infrared (flares only)"};
+        ImGui::Combo("band", &lp.band, bands, 3);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Sgr A* does not have the bright thin disk of the visible view:\n"
+                "at its measured accretion rate such a disk would outshine it\n"
+                "by 12-1200x. Its real flow is a hot, thin plasma seen best at\n"
+                "230 GHz - what the Event Horizon Telescope imaged. That band\n"
+                "traces thermal synchrotron emission through the plasma with\n"
+                "absorption (shown as brightness temperature, false colour).\n"
+                "At 2.2 um only the flares show (switch the hot spot on).");
+        if (lp.band == 1) {
+            ImGui::Text("n0 = %.3g cm^-3 %s", lp.riaf_n0,
+                        lp.riaf_fitted ? "(fitted: 2.4 Jy at 230 GHz)" : "(NOT normalised)");
+            ImGui::TextDisabled("T0 = %.2g K, beta = %.0f; colour: Tb, 1 = 5e10 K", lp.riaf_T0,
+                                lp.riaf_beta);
+        }
+    }
+    if (ImGui::CollapsingHeader("Flare - orbiting hot spot (GRAVITY 2018)")) {
+        ImGui::Checkbox("hot spot", &lp.flare);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "The model GRAVITY fitted to Sgr A*'s 2018 near-infrared\n"
+                "flares: a compact Gaussian blob (size s) on a circular\n"
+                "orbit. Shown in FALSE COLOUR (2.2 um synchrotron light\n"
+                "has no visible colour). Slow light: every ray carries its\n"
+                "own travel time, so the lensed image behind the hole is\n"
+                "an echo of where the spot was minutes earlier.");
+        const double tg = constants::sgrA_tg_s;
+        const KerrMetric km(1.0, std::clamp(static_cast<double>(lp.a_star), -0.9999, 0.9999));
+        const float r_isco = static_cast<float>(km.r_isco(true));
+        ImGui::SliderFloat("orbit radius R [M]", &lp.flare_R, std::max(r_isco, 1.0f) + 0.05f,
+                           20.0f, "%.2f");
+        if (ImGui::SmallButton("GRAVITY 2018 fit (R = 7)")) lp.flare_R = 7.0f;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("GRAVITY 2020 fit (R = 9)")) lp.flare_R = 9.0f;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("period 40 min")) {
+            // R whose prograde period 2pi(R^1.5 + a) t_g is 40 min
+            const double P = 40.0 * 60.0 / tg;
+            lp.flare_R = static_cast<float>(
+                std::pow(P / (2.0 * 3.14159265358979) - lp.a_star, 2.0 / 3.0));
+        }
+        ImGui::SliderFloat("spot size s [M]", &lp.flare_sigma, 0.2f, 2.0f, "%.2f");
+        ImGui::SliderFloat("spectral index alpha", &lp.flare_alpha, 0.0f, 2.0f, "%.2f");
+        ImGui::SliderFloat("brightness", &lp.flare_amp, 0.05f, 20.0f, "%.2f",
+                           ImGuiSliderFlags_Logarithmic);
+        ImGui::SliderFloat("time warp [M per s]", &lp.flare_speed, 0.0f, 300.0f, "%.0f");
+        ImGui::Checkbox("play", &lp.flare_play);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("restart")) lp.flare_t = 0.0f;
+        const double Om = km.omega_circular(lp.flare_R);
+        const double P = 2.0 * 3.14159265358979 / Om;
+        ImGui::Text("period %.1f min (%.0f M); observing time %.1f min", P * tg / 60.0, P,
+                    lp.flare_t * tg / 60.0);
+        const auto v = observer_velocity(km, ObserverKind::Orbiting, lp.flare_R,
+                                         0.5 * 3.14159265358979);
+        ImGui::Text("orbital speed %.3f c (vs the local ZAMO)", std::abs(v[2]));
+        if (lp.flare_R <= r_isco)
+            ImGui::TextDisabled("inside the ISCO: no stable circular orbit");
+    }
+    ImGui::Checkbox("bolometric view (gT)^4", &lp.bolometric);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Show the disk as grey total (all-wavelength)\n"
+                          "power (gT/6500 K)^4 instead of its visible\n"
+                          "colour. This isolates the g^4 Doppler beaming;\n"
+                          "the default view is what a camera would see\n"
+                          "(blackbody at g*T through the CIE eye curves).");
     ImGui::Checkbox("S-stars in view", &lp.show_stars);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Draw S2/S1/S8/S12/S13 orbiting in the scene,\n"
@@ -1140,7 +1368,212 @@ void SimHUD::draw_controls(double fps) {
     }
     ImGui::Separator();
     ImGui::Checkbox("Science Mode (S2 orbit + fit)", &lp.science_mode);
-    ImGui::TextDisabled("drag: orbit  |  wheel: zoom  |  keys 1-6: presets");
+    ImGui::TextDisabled("drag: orbit  |  wheel: zoom  |  keys 1-5: presets");
+    ImGui::TextDisabled(app_->menu_enabled() ? "Esc: menu" : "Esc: quit");
+    ImGui::End();
+}
+
+// Gate 21: the exotic-spacetime demo. Everything Sgr A* is switched off;
+// the panel title, the banner and every tooltip say so.
+void SimHUD::draw_exotic(double fps) {
+    auto& lp = app_->live_;
+    ImDrawList* bg = ImGui::GetBackgroundDrawList();
+    const ImVec2 ds = ImGui::GetIO().DisplaySize;
+    const char* banner = "EXOTIC SPACETIME - NOT SGR A*  |  hypothetical Dneg wormhole";
+    const ImVec2 tsz = ImGui::CalcTextSize(banner);
+    bg->AddRectFilled({0.5f * (ds.x - tsz.x) - 10, ds.y - 40},
+                      {0.5f * (ds.x + tsz.x) + 10, ds.y - 40 + tsz.y + 10},
+                      IM_COL32(0, 0, 0, 150), 4.0f);
+    bg->AddText({0.5f * (ds.x - tsz.x), ds.y - 35}, IM_COL32(255, 196, 120, 255), banner);
+
+    ImGui::SetNextWindowPos({12, 12}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({420, 0}, ImGuiCond_FirstUseEver);
+    ImGui::Begin("EXOTIC SPACETIME - NOT SGR A*");
+    ImGui::Text("%.1f fps  |  %ux%u internal", fps, app_->target_width(),
+                app_->target_height());
+    ImGui::Separator();
+    ImGui::TextWrapped(
+        "The Double Negative wormhole of Interstellar (James, von Tunzelmann, "
+        "Franklin & Thorne 2015): a hypothetical traversable tunnel to another "
+        "universe. Nothing here describes Sgr A* - it is a test that the "
+        "renderer handles a spacetime other than Kerr.");
+    ImGui::Separator();
+    ImGui::SliderFloat("camera l [rho]", &lp.wh_l, -60.0f, 60.0f, "%.2f");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Proper distance from the throat (radius rho).\n"
+                          "Negative: you are through, in the other universe.\n"
+                          "Mouse wheel: fly along l.");
+    float len = 2.0f * lp.wh_a;
+    if (ImGui::SliderFloat("length 2a [rho]", &len, 0.001f, 4.0f, "%.3f",
+                           ImGuiSliderFlags_Logarithmic))
+        lp.wh_a = 0.5f * len;
+    ImGui::SliderFloat("lens width W [rho]", &lp.wh_W, 0.01f, 2.0f, "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Lensing width: how gradually the mouth flares out\n"
+                          "(W = 1.42953 M). The film's wormhole: 2a = 0.01,\n"
+                          "W = 0.05 (James et al. 2015).");
+    if (ImGui::SmallButton("Interstellar (2a = 0.01, W = 0.05)")) {
+        lp.wh_a = 0.005f;
+        lp.wh_W = 0.05f;
+    }
+    ImGui::SliderFloat("fov [rad]", &lp.fov, 0.2f, 2.4f, "%.2f");
+    ImGui::SliderFloat("exposure [EV]", &lp.exposure_ev, -6.0f, 6.0f, "%.1f");
+    // the other universe's disk, computed: sin(alpha) = rho / r(l_c)
+    sgr::DnegParams p;
+    p.a = lp.wh_a;
+    p.M = lp.wh_W / sgr::DnegWormhole::lensing_width_closed_form(1.0);
+    const sgr::DnegWormhole w(p);
+    const double rc = w.r(lp.wh_l);
+    ImGui::TextWrapped("r(l) = %.3f rho;  other universe: %.2f deg radius", rc,
+                std::asin(std::min(1.0, p.rho / rc)) * 180.0 / 3.14159265358979323846);
+    ImGui::TextDisabled("(the edge is exact: sin(alpha) = rho / r(l))");
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    ImGui::TextWrapped("Other universe = our Milky Way map, turned around and "
+                       "recoloured (illustrative: no one knows its sky).");
+    ImGui::PopStyleColor();
+    ImGui::Separator();
+    if (ImGui::Button("back to Sgr A*")) app_->enter_simulation(false);
+    ImGui::TextDisabled("drag: orbit  |  wheel: fly along l");
+    ImGui::TextDisabled(app_->menu_enabled() ? "Esc: menu" : "Esc: quit");
+    ImGui::End();
+}
+
+// Gate 24: falling into Sgr A*. Every readout is computed from the fp64
+// worldline (sgr_physics/infall.hpp) at the current proper time.
+void SimHUD::draw_flight(double fps) {
+    auto& lp = app_->live_;
+    const InfallTrajectory* tr = app_->flight_trajectory();
+    ImGui::SetNextWindowPos({12, 12}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({430, 0}, ImGuiCond_FirstUseEver);
+    ImGui::Begin("FALL INTO SGR A* - your own worldline");
+    ImGui::Text("%.1f fps  |  %ux%u internal", fps, app_->target_width(),
+                app_->target_height());
+    if (!tr) {
+        ImGui::TextDisabled("no trajectory");
+        ImGui::End();
+        return;
+    }
+    const KerrSchild& ks = tr->chart();
+    const InfallSample s = tr->at(lp.flight_tau);
+    const double rp = ks.r_plus(), rm = ks.r_minus();
+    const double tg = constants::sgrA_tg_s;              // seconds per M of time
+    const double rg_km = constants::sgrA_rg_m / 1000.0;  // km per M of length
+    constexpr double kG0 = 9.80665;                      // standard gravity [m/s²]
+
+    // ---- controls ------------------------------------------------------------
+    if (ImGui::Button(lp.flight_play ? "pause" : "fall")) lp.flight_play = !lp.flight_play;
+    ImGui::SameLine();
+    if (ImGui::Button("restart")) {
+        lp.flight_tau = 0.0;
+        lp.flight_play = true;
+    }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(170.0f);
+    ImGui::SliderFloat("time warp [M/s]", &lp.flight_warp, 0.02f, 50.0f, "%.2f",
+                       ImGuiSliderFlags_Logarithmic);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Your proper time per second of wall clock, in units of\n"
+                          "M = GM/c^3 = %.1f s for Sgr A*. At this setting the\n"
+                          "whole fall takes %.0f s of wall clock.", tg,
+                          tr->tau_end() / lp.flight_warp);
+    float tau = static_cast<float>(lp.flight_tau);
+    if (ImGui::SliderFloat("proper time [M]", &tau, 0.0f, static_cast<float>(tr->tau_end()),
+                           "%.3f"))
+        lp.flight_tau = tau;
+    if (ImGui::Button("look ahead (in)")) {
+        lp.fwd_r = -1; lp.fwd_th = 0; lp.fwd_ph = 0;
+        lp.rgt_r = 0;  lp.rgt_th = 0; lp.rgt_ph = 1;
+        lp.up_r = 0;   lp.up_th = -1; lp.up_ph = 0;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("look back (out)")) {
+        lp.fwd_r = 1; lp.fwd_th = 0; lp.fwd_ph = 0;
+        lp.rgt_r = 0; lp.rgt_th = 0; lp.rgt_ph = -1;
+        lp.up_r = 0;  lp.up_th = -1; lp.up_ph = 0;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("look along orbit")) {
+        lp.fwd_r = 0; lp.fwd_th = 0; lp.fwd_ph = 1;
+        lp.rgt_r = 1; lp.rgt_th = 0; lp.rgt_ph = 0;
+        lp.up_r = 0;  lp.up_th = -1; lp.up_ph = 0;
+    }
+
+    // ---- where and when ------------------------------------------------------
+    ImGui::SeparatorText("where you are");
+    ImGui::Text("r = %.3f M  =  %.3g million km", s.r, s.r * rg_km / 1e6);
+    const double ct = std::cos(s.theta);
+    const double r_ergo = 1.0 + std::sqrt(std::max(0.0, 1.0 - ks.a() * ks.a() * ct * ct));
+    if (s.r > r_ergo)
+        ImGui::TextDisabled("outside the ergosphere (r_E = %.2f M here)", r_ergo);
+    else if (s.r > rp)
+        ImGui::TextColored({1.0f, 0.75f, 0.35f, 1.0f},
+                           "inside the ergosphere: nothing can stay at rest");
+    else
+        ImGui::TextColored({1.0f, 0.45f, 0.35f, 1.0f},
+                           "inside the horizon: every future leads inward");
+    ImGui::SeparatorText("time");
+    ImGui::Text("your proper time   %.3f M  =  %.1f s", s.tau, s.tau * tg);
+    if (s.r > rp && std::isfinite(s.t_bl))
+        ImGui::Text("far-away time      %.1f M  =  %.2f h", s.t_bl, s.t_bl * tg / 3600.0);
+    else
+        ImGui::TextWrapped("far-away time: undefined - no signal you send can ever "
+                           "reach Earth again.");
+    if (s.tau < tr->tau_horizon())
+        ImGui::Text("horizon in          %.3f M  =  %.1f s", tr->tau_horizon() - s.tau,
+                    (tr->tau_horizon() - s.tau) * tg);
+    else
+        ImGui::Text("horizon crossed %.3f M (%.1f s) ago", s.tau - tr->tau_horizon(),
+                    (s.tau - tr->tau_horizon()) * tg);
+    ImGui::Text("end of the model in %.3f M  =  %.1f s", tr->tau_end() - s.tau,
+                (tr->tau_end() - s.tau) * tg);
+
+    // ---- light and tides --------------------------------------------------------
+    const auto e = infall_tetrad(ks, s.X, s.U);
+    {
+        // light arriving from straight behind (outward): k = e0 − e1
+        const Metric4<double> g = ks.metric(s.X);
+        Vec4 k{}, kc{};
+        for (int m = 0; m < 4; ++m) k[m] = e[0][m] - e[1][m];
+        for (int m = 0; m < 4; ++m)
+            for (int n = 0; n < 4; ++n) kc[m] += g(m, n) * k[n];
+        const double ratio = 1.0 / (-kc[0]);   // ν_seen / ν_at_infinity
+        ImGui::SeparatorText("light");
+        ImGui::Text("sky straight behind you: frequency x %.3f (%s)", ratio,
+                    ratio > 1.0 ? "blueshifted" : "redshifted");
+    }
+    {
+        const TidalField t = tidal_field(ks, s.X, e);
+        const double L = 2.0;   // a 2 m body
+        const double stretch = -t.eig[0] * L / (tg * tg), squeeze = t.eig[2] * L / (tg * tg);
+        ImGui::SeparatorText("tides across a 2 m body");
+        ImGui::Text("stretch %.3g m/s^2 (%.2g g)   squeeze %.3g m/s^2", stretch,
+                    stretch / kG0, squeeze);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Eigenvalues of the tidal tensor in your frame (exact,\n"
+                              "from the Riemann tensor). They grow like M/r^3, so a\n"
+                              "black hole as heavy as Sgr A* has a gentle horizon.");
+    }
+    ImGui::Separator();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    ImGui::TextWrapped("The trip ends just above the inner horizon r- = %.2f M: inside it "
+                       "the classical Kerr interior is unstable (mass inflation), so "
+                       "nothing beyond is modelled. The sky is the Milky Way as seen from "
+                       "Earth, used as the distant background.", rm);
+    ImGui::PopStyleColor();
+
+    // ---- launch -------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("launch")) {
+        ImGui::SliderFloat("start r [M]", &lp.flight_r0, 3.0f, 300.0f, "%.0f",
+                           ImGuiSliderFlags_Logarithmic);
+        ImGui::SliderFloat("start polar angle [deg]", &lp.flight_theta, 15.0f, 90.0f, "%.0f");
+        ImGui::Checkbox("start at rest (else: falling from infinity)", &lp.flight_rest);
+        if (ImGui::Button("launch")) {
+            app_->start_flight();
+            lp.flight_play = true;
+        }
+    }
+    if (ImGui::Button("back to the exterior views")) app_->enter_simulation(false);
     ImGui::TextDisabled(app_->menu_enabled() ? "Esc: menu" : "Esc: quit");
     ImGui::End();
 }

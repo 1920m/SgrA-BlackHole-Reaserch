@@ -54,6 +54,8 @@ private:
     void rescale_cluster(float ratio);   // re-integrate at 1:N (real shrink)
     void update_cluster_time();
     void draw_controls(double fps);
+    void draw_exotic(double fps);   // Gate 21 wormhole demo (NOT Sgr A*)
+    void draw_flight(double fps);   // Gate 24: fall into Sgr A*
     void draw_science();
     void draw_cluster3d();
     void draw_stars_overlay();

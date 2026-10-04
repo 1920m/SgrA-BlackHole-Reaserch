@@ -77,8 +77,9 @@ struct MenuItem {
 };
 constexpr MenuItem kItems[] = {
     {"ENTER SIMULATION"}, {"SCIENCE MODE"},   {"NO-HAIR TEST"},
-    {"PHOTON RING SCOPE"}, {"SETTINGS"},      {"GALLERY"},
-    {"ABOUT"},             {"EXIT"},
+    {"PHOTON RING SCOPE"}, {"FALL INTO SGR A*"}, {"SETTINGS"},
+    {"GALLERY"},           {"EXOTIC (NOT SGR A*)"}, {"ABOUT"},
+    {"EXIT"},
 };
 constexpr int kItemCount = static_cast<int>(sizeof(kItems) / sizeof(kItems[0]));
 
@@ -231,10 +232,12 @@ void MenuMode::draw_items(App& app, float x, float y) {
         case 1: app.enter_simulation(true); break;
         case 2: show_nohair_ = !show_nohair_; break;
         case 3: show_scope_ = !show_scope_; break;
-        case 4: show_settings_ = !show_settings_; break;
-        case 5: show_gallery_ = !show_gallery_; break;
-        case 6: show_about_ = !show_about_; break;
-        case 7: app.request_quit(); break;
+        case 4: app.enter_flight(); break;   // Gate 24
+        case 5: show_settings_ = !show_settings_; break;
+        case 6: show_gallery_ = !show_gallery_; break;
+        case 7: app.enter_exotic(); break;   // Gate 21 wormhole demo
+        case 8: show_about_ = !show_about_; break;
+        case 9: app.request_quit(); break;
     }
 }
 

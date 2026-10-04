@@ -28,6 +28,9 @@ public:
     // as long as the slot isn't concurrently accessed).
     void write_storage_image(uint32_t slot, VkImageView view);
     void write_sampled_image(uint32_t slot, VkImageView view, VkSampler sampler);
+    // Binding 2: the per-frame parameter storage buffer (one, written once;
+    // contents updated with vkCmdUpdateBuffer each frame).
+    void write_storage_buffer(VkBuffer buffer, VkDeviceSize range);
 
 private:
     VkDevice device_;
