@@ -330,6 +330,28 @@ round features need round cells; and a differentially sheared flow
 needs re-forming phases, because no static pattern survives
 unbounded shear.}
 
+\subsection{The mirror-image black hole}
+\label{sec:mirrorbug}
+After version~1.0, every rendered image of a rotating system turned
+out to be the left--right mirror of the true one: the camera launched
+the photon it would \emph{emit} toward each pixel instead of tracing
+the photon it \emph{receives} backwards. The shortcut was justified as
+``null geodesics are time-reversible'', but reversing a path reverses
+the whole four-momentum, and reversing only its spatial part traces the
+time-reversed system — which for Kerr is the mirror image, and for any
+orbiting disk swaps the bright and dim limbs. Every gate passed because
+every gate was mirror-invariant: the one test that could see the side
+had been written, deliberately, to ignore it. The error was found when
+an independent Kerr--Schild integrator forced the camera to be derived
+again from first principles, and confirmed by the exact mirror identity
+between the two conventions; Appendix~\ref{app:handedness} gives the
+full account. No number changed; the affected images were regenerated
+and the tests now pin the side. \emph{Lesson: before invoking a
+symmetry to justify a shortcut, check that the system actually has it —
+light paths in a static spacetime are time-symmetric, rotating systems
+are not; and a test written to be agnostic about a quantity cannot
+catch an error in it.}
+
 \section{The convergence evidence}
 
 The quantitative artefacts behind these narratives — the projection

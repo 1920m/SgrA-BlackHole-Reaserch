@@ -195,6 +195,24 @@ def fig_shadow_boundary() -> None:
             np.append(b_M * np.sin(psi), b_M[0] * np.sin(psi[0])),
             "-o", ms=3, lw=1.0, color=OKABE["purple"],
             label=rf"Kerr $a_*={kerr['a_star']}$ (traced)")
+    # Analytic Bardeen (1973) critical curve at the render's inclination:
+    # alpha = -xi/sin i, beta = ±sqrt(eta + a^2 cos^2 i - xi^2 cot^2 i).
+    # Same orientation convention as the camera (image up = spin axis), so
+    # the traced points must land on it side for side — the check the
+    # handedness correction restored.
+    a = kerr["a_star"]
+    inc = np.radians(kerr.get("incl_deg", 90.0))
+    rp = 2.0 * (1.0 + np.cos(2.0 / 3.0 * np.arccos(-a)))
+    rr = 2.0 * (1.0 + np.cos(2.0 / 3.0 * np.arccos(+a)))
+    rt = np.linspace(rp * (1 + 1e-9), rr * (1 - 1e-9), 4000)
+    xi = (rt**2 * (3.0 - rt) - a**2 * (rt + 1.0)) / (a * (rt - 1.0))
+    eta = rt**3 * (4.0 * a**2 - rt * (rt - 3.0) ** 2) / (a**2 * (rt - 1.0) ** 2)
+    beta2 = eta + a**2 * np.cos(inc) ** 2 - xi**2 / np.tan(inc) ** 2
+    ok = beta2 >= 0.0
+    al, be = -xi[ok] / np.sin(inc), np.sqrt(beta2[ok])
+    ax.plot(np.concatenate([al, al[::-1]]), np.concatenate([be, -be[::-1]]),
+            "-", lw=0.9, color=OKABE["orange"], zorder=1,
+            label=rf"Bardeen (1973), $i={np.degrees(inc):.0f}^\circ$")
     if schw:
         b0 = np.sqrt(27.0)
         th = np.linspace(0, 2 * np.pi, 200)
@@ -222,9 +240,23 @@ def fig_brightness_profile() -> None:
     figr, (ax, ax2) = plt.subplots(2, 1, figsize=(5.6, 4.2), sharex=True,
                                    height_ratios=[2, 1])
     ax.semilogy(x, I, ".", ms=2, color=OKABE["orange"])
-    # label the narrow n=1 shoulder at the shadow edge
-    ax.annotate(r"$n=1$ sub-ring", (0.33, I.max() * 0.5), fontsize=8,
-                color="0.35")
+    # Every sample on the major axis is a direct (n = 0) image at this
+    # inclination — the n = 1 ring lies above/below the shadow (Fig.
+    # subrings) — so label what is actually plotted, at data positions:
+    # the beamed approaching limb (image left, spin axis up), the receding
+    # limb, and the shadow gap between the steep inner edges.
+    pos = I > 0
+    xl = x[pos & (x < 0)][np.argmax(I[pos & (x < 0)])]
+    xr = x[pos & (x > 0)][np.argmax(I[pos & (x > 0)])]
+    ax.annotate("approaching\nlimb", (xl, I.max()), xytext=(xl - 0.05, I.max() * 0.05),
+                fontsize=8, color="0.35", ha="center",
+                arrowprops=dict(arrowstyle="->", lw=0.6, color="0.35"))
+    ax.annotate("receding\nlimb", (xr, I[pos & (x > 0)].max()),
+                xytext=(xr + 0.08, I[pos & (x > 0)].max() * 0.02),
+                fontsize=8, color="0.35", ha="center",
+                arrowprops=dict(arrowstyle="->", lw=0.6, color="0.35"))
+    gap = 0.5 * (x[pos & (x < 0)].max() + x[pos & (x > 0)].min())
+    ax.text(gap, I[pos].min() * 3, "shadow", fontsize=8, color="0.35", ha="center")
     ax.set_ylabel(r"$I_{\rm bol}$ [arb.]")
     ax2.plot(x, g, ".", ms=2, color=OKABE["blue"])
     ax2.axhline(1.0, color="0.6", lw=0.5)
@@ -592,7 +624,10 @@ def fig_critical_curves() -> None:
                 np.concatenate([beta, -beta[::-1]]), color=c, lw=1.1,
                 label=lab)
     ax.set_aspect("equal")
-    ax.set_xlabel(r"$\alpha$ [$M$] (prograde $\rightarrow$)")
+    # alpha = -xi: prograde photons (xi > 0) appear on the image LEFT for an
+    # observer whose image "up" is the spin axis (thesis appendix "Image
+    # handedness"; the label used to point the other way).
+    ax.set_xlabel(r"$\alpha$ [$M$] ($\leftarrow$ prograde)")
     ax.set_ylabel(r"$\beta$ [$M$]")
     ax.legend(loc="upper right", fontsize=7)
     save(figr, "fig_critical_curves.pdf")
@@ -934,9 +969,9 @@ def fig_disk_profiles() -> None:
 
 def fig_cie_locus() -> None:
     try:
-        import gen_luts as gl
+        import planck_cie as gl
     except Exception:
-        return warn_skip("cie_locus", ROOT / "scripts/gen_luts.py")
+        return warn_skip("cie_locus", ROOT / "scripts/planck_cie.py")
     T = np.geomspace(1000.0, 40000.0, 300)
     xyz = np.array([gl.planck_xyz(t) for t in T])
     xy = xyz[:, :2] / xyz.sum(axis=1, keepdims=True)

@@ -1,0 +1,237 @@
+\chapter{Image Handedness: an Error Found and Corrected}
+\label{app:handedness}
+
+After version~1.0 of this report, while an independent integrator was
+being written for the real-time renderer, we found that every image the
+ray tracer had produced of a \emph{rotating} system was the mirror image
+of the true one. No number in this report was affected — every
+quantitative result is invariant under the mirror — but which side of a
+rendered disk is brighter, and which side of a Kerr shadow is flattened,
+were reversed relative to the stated orientation. This appendix records
+what the error was, why it arose, why the validation ladder of
+Chapter~\ref{ch:devhistory} did not catch it, and how it was found,
+verified and corrected. Every affected figure has been regenerated with
+the corrected camera; every number quoted here is produced by
+\texttt{validation/handedness\_tool} and typeset from
+\texttt{numbers.tex} (Appendix~\ref{app:repro}).
+
+\section{What a pixel records}
+\label{sec:hand-pixel}
+
+A pixel looking along the unit direction $n^{\hat\imath}$ of the ZAMO
+camera (Section~\ref{sec:camera}) records the photon that \emph{arrives}
+from that direction. With the local energy fixed to unity, its
+four-momentum is
+\begin{equation}
+k_{\rm rec} = e_{\hat 0} - n^{\hat\imath}\, e_{\hat\imath},
+\label{eq:krec}
+\end{equation}
+travelling from the sky toward the camera. To find where it came from we
+follow its geodesic backwards in time, which means launching the
+reversed tangent
+\begin{equation}
+-k_{\rm rec} = -e_{\hat 0} + n^{\hat\imath}\, e_{\hat\imath}.
+\label{eq:kback}
+\end{equation}
+Its spatial part points along $n^{\hat\imath}$, out into the scene, as
+intuition expects; its time component is negative, so the constants
+extracted by \texttt{make\_null\_ray} (Section~\ref{sec:makenullray})
+have $E = -k_t < 0$. Carter's equations need no modification. The
+potentials $R(r)$ and $\Theta(\theta)$ are quadratic in $(E, L_z)$, so
+$r(\tau)$ and $\theta(\tau)$ are exactly those of the physical light ray,
+while the $t$- and $\phi$-equations, linear in $(E, L_z)$, simply run
+along the backward path. The received photon carries $(-E, -L_z)$, so
+the disk redshift \eqref{eq:gfactor} — whose impact-parameter form
+depends only on $b_\gamma = L_z/E$ — reads, in terms of the backward
+constants,
+\begin{equation}
+g = \frac{1}{u^t\,(\Omega L_z - E)} .
+\label{eq:gback}
+\end{equation}
+
+\section{The error}
+\label{sec:hand-error}
+
+Phases 1--12 launched instead
+\begin{equation}
+k_{\rm legacy} = e_{\hat 0} + n^{\hat\imath}\, e_{\hat\imath},
+\label{eq:klegacy}
+\end{equation}
+with the justification, then printed in Section~\ref{sec:camera}, that
+null geodesics are time-reversible, so that where a launched ray lands
+is what the pixel sees. The premise is true of a geodesic as a curve,
+but traversing a curve backwards reverses \emph{all four} components of
+its tangent. Reversing only the spatial part, as \eqref{eq:klegacy}
+does, produces a different photon: the one the camera would
+\emph{emit} toward $n^{\hat\imath}$, which is the time reverse of the
+photon it receives.
+
+In a static spacetime that distinction leaves the light paths
+unchanged. In Kerr it does not. The metric \eqref{eq:kerr} is invariant
+under $(t, \phi) \to (-t, -\phi)$ taken \emph{together}; the
+frame-dragging term $g_{t\phi}\,\mathrm{d}t\,\mathrm{d}\phi$ changes sign
+under either reversal alone. Reversing time is therefore equivalent to
+reversing the azimuth, $\phi \to -\phi$: a black hole spinning the other
+way. For a camera at $\phi = 0$ that reflection is through the plane
+containing the camera and the spin axis, which on the image is a
+left--right mirror. The same reversal sets the disk orbiting backwards,
+so a legacy image is a \emph{correct} image of the mirror-image system —
+which is why nothing about it looked wrong.
+
+Algebraically, the ZAMO relations of Section~\ref{sec:camera} give the
+legacy photon at pixel direction $(n^{\hat r}, n^{\hat\theta},
+n^{\hat\phi})$ the constants $(-E, -L_z, Q)$ of the backward tangent
+\eqref{eq:kback} at the mirror direction $(n^{\hat r}, n^{\hat\theta},
+-n^{\hat\phi})$. With $R$ and $\Theta$ quadratic and the $\phi$-equation
+linear in $(E, L_z)$, the two rays share $r(\tau)$ and $\theta(\tau)$
+exactly and have opposite $\phi(\tau)$; comparing \eqref{eq:gback} with
+the legacy formula $g = 1/[u^t(E - \Omega L_z)]$, their redshifts are
+identical. The legacy pixel $(x, y)$ shows exactly what is physically
+at $(-x, y)$.
+
+Without spin the shadow is symmetric and the light paths agree, but
+the disk still rotates, and the error reduces to exchanging the
+Doppler-bright and Doppler-dim limbs. For the reference camera — image
+up along the spin axis, image right along $+\hat\phi$ — gas orbiting
+prograde (counter-clockwise seen from the pole) \emph{approaches} the
+camera on the image \emph{left}, and the prograde photons that skim the
+hole most closely, flattening the shadow, also arrive from the left.
+
+\section{What was and was not affected}
+\label{sec:hand-scope}
+
+Every number in this report is mirror-invariant and therefore unchanged:
+the shadow and photon-ring diameters and their comparison with the EHT
+(Chapters~\ref{ch:shadow} and \ref{ch:calib}), the axis ratio, the
+sub-ring flux ratios and widths (Chapter~\ref{ch:ring}), the magnitude
+of the Doppler asymmetry (\BeamRatio) and the redshift range, the
+Lyapunov exponents, and all S-star and no-hair results, whose orbit
+integrators do not use the ray tracer at all. What changed is
+orientation: the rendered images
+(Figs.~\ref{fig:boundary}, \ref{fig:disk}, \ref{fig:subrings} and
+\ref{fig:profile}), the sign of the horizontal centroid displacement
+in Fig.~\ref{fig:shapemaps}, and two statements that had followed the
+renders. Table~\ref{tab:handedness} compares the two conventions run on
+the same integrator.
+
+\begin{table}
+\centering
+\caption{Legacy (emitted-photon) versus corrected (received-photon)
+camera on the same Carter integrator; image up along the spin axis.
+Limb flux ratios are bolometric sums over the image major axis
+(camera at $r = 1000\,M$, $i = 80\degr$); $g$ is the disk redshift on
+either side of the hole; $\xi = L_z/E$ labels the shadow's equatorial
+edges for an edge-on camera.}
+\label{tab:handedness}
+\begin{tabular}{lcc}
+\hline
+ & legacy & corrected \\
+\hline
+brighter limb, $\astar = 0$ (ratio) & right (\HandBeamLegacyAZero) & left (\HandBeamAZero) \\
+brighter limb, $\astar = 0.94$ (ratio) & right (\HandBeamLegacyAHigh) & left (\HandBeamAHigh) \\
+$g$ left / right, $\astar = 0$, $r \approx \HandRHitAZero\,M$ & \HandGRightAZero{} / \HandGLeftAZero & \HandGLeftAZero{} / \HandGRightAZero \\
+shadow edge $\xi$ [$M$] left / right, $\astar = 0.94$ & $\HandXiRight$ / $\HandXiLeft$ & $\HandXiLeft$ / $\HandXiRight$ \\
+\hline
+\end{tabular}
+\end{table}
+
+The magnitudes are identical — only the side changes. For comparison,
+the analytic Bardeen edges are $\xi = \HandXiBardeenPro\,M$ (prograde)
+and $\HandXiBardeenRetro\,M$ (retrograde). (The major-axis limb ratio
+of the table is a different measure from the whole-image ratio
+\BeamRatio{} of Chapter~\ref{ch:disk}; both are mirror-invariant in
+magnitude.)
+
+\section{Why the validation ladder did not catch it}
+\label{sec:hand-why}
+
+\begin{itemize}
+\item The one check that could have, the Gate-2 lopsidedness test,
+compared only the magnitudes of the two equatorial shadow extents, with
+the comment that which side is which ``depends on the camera
+handedness; the asymmetry itself is the physics''. Once the camera fixes
+image-up along the spin axis and image-right along $+\hat\phi$, as ours
+does, the side \emph{is} physics.
+\item Every other gate is mirror-invariant: the Synge radius, the
+membership of a boundary ray's $(\xi, \eta)$ in the Bardeen set (a
+mirrored boundary ray is simply another point of the same curve), the
+diameters, the axis ratio, the sub-ring ratios, and the beaming test,
+which compared the brighter limb with the dimmer one.
+\item The CPU--GPU comparison of Gate~7 tested two implementations of
+the same convention against each other.
+\item A legacy image is a physically valid image of the mirror system,
+so nothing looked wrong. Even an internal inconsistency went
+unnoticed: the analytic critical curves of Fig.~\ref{fig:critcurves},
+drawn in Bardeen's convention $\alpha = -\xi$, had the correct
+orientation all along, while the traced boundary of
+Fig.~\ref{fig:boundary} was their reflection. The two shapes differ
+only by that reflection, and the axis label of the former had been
+written to match the renders.
+\item The shortcut is exact for the light paths of a static spacetime,
+where it was first validated (Gate~1); the error enters only with
+rotation, of the disk or of the hole.
+\end{itemize}
+
+\section{How it was found and verified}
+\label{sec:hand-found}
+
+The error surfaced when a second, independent integrator was written
+for the real-time renderer in the Cartesian Kerr--Schild coordinates of
+\eqref{eq:kerrschild} (in their outgoing form, which is regular on the
+past horizon that backward-traced rays reach). That integrator uses a
+Hamiltonian formulation with no Carter separation and has no polar
+coordinate singularity. Its camera launcher had to be derived from
+scratch in the new coordinates, and writing down which photon a pixel
+receives exposed the sign of the time component in \eqref{eq:klegacy}.
+Four measurements then established the diagnosis:
+\begin{enumerate}
+\item \emph{Mirror identity.} On \HandMirrorPixels{} disk pixels at
+$\astar = 0.94$, the legacy pixel $(x, y)$ and the corrected pixel
+$(-x, y)$ give the same disk-hit radius and redshift and opposite
+azimuths; the largest difference is $\HandMirrorMaxDiff$. The two
+computations are bit-for-bit reflections of each other, so the error is
+a pure mirror and nothing else.
+\item \emph{Bardeen orientation.} With the corrected camera, the
+edge-on shadow edges sit at $\xi = \HandXiLeft\,M$ on the image left and
+$\HandXiRight\,M$ on the right, matching the analytic prograde and
+retrograde edges to $\HandXiAgree\,M$ — with the prograde edge on the
+side physics requires.
+\item \emph{Independent integrator.} On \HandKSPixels{} disk pixels the
+Kerr--Schild tracer agrees with the corrected Carter camera to
+$\HandKSOffAxisDr$ in hit radius and $\HandKSOffAxisDg$ in redshift
+(relative) away from the image column above the spin axis. On that
+column, where Boyer--Lindquist coordinates, and with them the Carter
+reference, are singular, the difference reaches $\HandKSAxisDr$. Along
+these rays the Kerr--Schild integration conserves $L_z$, $Q$ and the
+null condition to $\HandKSConsL$, $\HandKSConsQ$ and $\HandKSConsH$
+relative.
+\item \emph{An elementary check.} For a non-rotating hole, disk gas to
+the right of the hole moves away from the camera. The corrected camera
+measures $g = \HandGRightAZero$ there, a redshift, and
+$g = \HandGLeftAZero$ on the left; the legacy camera had them the other
+way round.
+\end{enumerate}
+
+\section{The correction}
+\label{sec:hand-fix}
+
+Both science renderers, \texttt{RaytraceCpu::camera\_ray} and the
+double-precision GPU shader, now launch \eqref{eq:kback} and evaluate
+\eqref{eq:gback}. The legacy convention survives only behind an
+explicit flag (\texttt{CameraConfig::legacy\_emitted\_photon}), set by
+\texttt{handedness\_tool} to produce Table~\ref{tab:handedness} and by
+a regression test that pins the mirror identity. The tests that were
+deliberately side-agnostic now fix the side: Gate~2 requires the
+prograde (west) shadow edge to lie nearer the look axis and prograde
+boundary photons ($\xi > 0$) to arrive from the image left; Gate~3
+requires the left limb to be the brighter one. New tests require the
+Schwarzschild disk to be redshifted on the image right, and the Carter
+and Kerr--Schild cameras to agree pixel by pixel. The real-time renderer
+shared the legacy convention and has been corrected in the same way.
+
+The affected figures were regenerated, Section~\ref{sec:camera} and
+the captions of Figs.~\ref{fig:critcurves} and \ref{fig:boundary} were
+corrected, and Fig.~\ref{fig:boundary} now overlays the analytic
+Bardeen curve at the render's inclination, so that agreement in
+orientation, not only in shape, is visible on the page. The lesson is
+recorded with the other bug hunts in Section~\ref{sec:bughunts}.

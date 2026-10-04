@@ -60,14 +60,23 @@ the optics — two photons launched at mirror-image local angles carry
 asymmetric about Kerr images descends from that line.
 
 A pixel at normalised image-plane position $(x, y)$ defines a unit
-direction $(n^{\hat r}, n^{\hat\theta}, n^{\hat\phi})$ on the local sky;
-contracting with the tetrad legs and fixing the local photon energy to
-unity gives the BL four-momentum $k^\mu$, from which
-\texttt{make\_null\_ray} extracts $(E, L_z, Q)$ algebraically
-(Section~\ref{sec:makenullray}). Rays are launched \emph{forward}: null
-geodesics are time-reversible, so where a launched ray lands is what the
-pixel sees, and integrating outward avoids sampling subtleties at the
-camera. The production camera sits at $r_{\rm cam} = 1000\,M$ — far
+direction $(n^{\hat r}, n^{\hat\theta}, n^{\hat\phi})$ on the local sky,
+with image up along $-e_{\hat\theta}$ (toward the spin axis) and image
+right along $+e_{\hat\phi}$. The pixel records the photon
+\emph{arriving} from that direction, $k_{\rm rec} = e_{\hat 0} -
+n^{\hat\imath} e_{\hat\imath}$ with unit local energy, and its source is
+found by integrating that geodesic backwards in time: the tracer
+launches the reversed tangent $-k_{\rm rec} = -e_{\hat 0} +
+n^{\hat\imath} e_{\hat\imath}$, from which \texttt{make\_null\_ray}
+extracts $(E, L_z, Q)$ algebraically (Section~\ref{sec:makenullray};
+$E < 0$ for this backward tangent, and the redshift \eqref{eq:gfactor}
+is evaluated with the received photon's $(-E, -L_z)$). Launching
+$+e_{\hat 0} + n^{\hat\imath} e_{\hat\imath}$ instead — the photon the
+camera would \emph{emit} — is exact for a static spacetime but in Kerr
+traces the time-reversed, i.e.\ mirror-image, system. Versions of this
+report before the correction did exactly that;
+Appendix~\ref{app:handedness} documents the error and how it was fixed. The production camera
+sits at $r_{\rm cam} = 1000\,M$ — far
 enough that the residual bending between camera and infinity is a
 correction below $10^{-3}$, applied analytically in
 Section~\ref{sec:metrology}.
@@ -196,9 +205,10 @@ degeneracy quantified in Chapter~\ref{ch:calib}.
 \centering
 \includegraphics[width=0.62\textwidth]{figures/fig_critical_curves.pdf}
 \caption{Analytic critical curves \eqref{eq:bardeen}--%
-\eqref{eq:criticalimage} for an edge-on observer at four spins. The
-prograde (right) side flattens and the curve displaces as spin grows;
-the mean diameter changes by only a few per cent.}
+\eqref{eq:criticalimage} for an edge-on observer at four spins, image
+up along the spin axis. The prograde (left, $\alpha < 0$) side flattens
+and the curve displaces toward the retrograde side as spin grows; the
+mean diameter changes by only a few per cent.}
 \label{fig:critcurves}
 \end{figure}
 
@@ -211,10 +221,12 @@ integrator, and the bisection logic end to end.
 \begin{figure}
 \centering
 \includegraphics[width=0.62\textwidth]{figures/fig_shadow_boundary.pdf}
-\caption{Traced Kerr shadow boundary at $\astar=0.94$, edge-on, against
-the analytic \citet{Bardeen1973} critical curve. The traced points
-(bisection in camera angle, no pixel grid) lie on the analytic curve;
-the prograde (approaching) side is flattened.}
+\caption{Traced Kerr shadow boundary at $\astar=0.94$ seen from
+$i = 80\degr$, against the analytic \citet{Bardeen1973} critical curve
+at the same inclination (orange) and the Schwarzschild circle (dashed).
+The traced points (bisection in camera angle, no pixel grid) lie on the
+analytic curve side for side: the prograde (approaching, image-left)
+side is flattened.}
 \label{fig:boundary}
 \end{figure}
 

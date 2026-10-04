@@ -1,0 +1,92 @@
+{
+  "beaming": {
+    "a0": {
+      "legacy": {
+        "brighter_side": "right",
+        "left": 13.260817308278824,
+        "left_over_right": 0.06682333909607663,
+        "right": 198.44589461793896
+      },
+      "physical": {
+        "brighter_side": "left",
+        "left": 198.44589461784537,
+        "left_over_right": 14.964831352736748,
+        "right": 13.260817308278844
+      }
+    },
+    "a094": {
+      "legacy": {
+        "brighter_side": "right",
+        "left": 1.9942704350021545,
+        "left_over_right": 0.019142426853370125,
+        "right": 104.1806480587937
+      },
+      "physical": {
+        "brighter_side": "left",
+        "left": 104.18064805874026,
+        "left_over_right": 52.23998021040053,
+        "right": 1.9942704350029365
+      }
+    }
+  },
+  "kerr_schild_crosscheck": {
+    "max_rel_H": 6.633037582946007e-11,
+    "max_rel_dLz": 6.094938750456903e-12,
+    "max_rel_dQ": 7.696025829735022e-12,
+    "max_rel_dg": 5.7244064481195395e-06,
+    "max_rel_dg_off_axis": 1.8273051662450478e-11,
+    "max_rel_dr": 6.384256761571546e-05,
+    "max_rel_dr_off_axis": 2.7476830531148996e-11,
+    "pixels": 24,
+    "worst_pixel": {
+      "order_carter": 1,
+      "order_ks": 1,
+      "r_carter": 18.761608145071964,
+      "r_ks": 18.762805934308545,
+      "x": -1.1102230246251565e-16,
+      "y": -0.3
+    }
+  },
+  "mirror_identity": {
+    "max_abs_phi_sum": 0.0,
+    "max_rel_dg": 0.0,
+    "max_rel_dr": 0.0,
+    "pixels": 24
+  },
+  "shadow_edges": {
+    "bardeen_xi_prograde": 2.6415078414439503,
+    "bardeen_xi_retrograde": -6.899638805946874,
+    "xi_left": 2.641507841443938,
+    "xi_right": -6.8996388059468705
+  },
+  "side_redshift": {
+    "a0": {
+      "legacy": {
+        "g_left": 0.725144269466076,
+        "g_right": 1.215907632458274,
+        "r_left": 17.01593265116646,
+        "r_right": 17.01593265116646
+      },
+      "physical": {
+        "g_left": 1.215907632458274,
+        "g_right": 0.725144269466076,
+        "r_left": 17.01593265116646,
+        "r_right": 17.01593265116646
+      }
+    },
+    "a094": {
+      "legacy": {
+        "g_left": 0.7268268831778687,
+        "g_right": 1.2117784734268637,
+        "r_left": 16.885788014097315,
+        "r_right": 17.08740795174877
+      },
+      "physical": {
+        "g_left": 1.2117784734268637,
+        "g_right": 0.7268268831778687,
+        "r_left": 17.08740795174877,
+        "r_right": 16.885788014097315
+      }
+    }
+  }
+}

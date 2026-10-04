@@ -204,6 +204,46 @@ def main() -> None:
             cl["sigma_M_msun"] ** 2 + 0.012e6 ** 2) ** 0.5
         macro("ClusterMassNSigma", f"{nsig:.1f}")
 
+    # ---- image-handedness correction (thesis appendix; handedness_tool) -----
+    hd = load("validation/thesis/handedness.json")
+    if hd:
+        def sci(v: float) -> str:  # 2.7e-11 -> 2.7\times10^{-11} (math mode)
+            if v == 0.0:
+                return "0"
+            m, e = f"{v:.1e}".split("e")
+            return rf"{m}\times10^{{{int(e)}}}"
+
+        b0, b9 = hd["beaming"]["a0"], hd["beaming"]["a094"]
+        # corrected camera: left (approaching) over right; legacy: right/left
+        macro("HandBeamAZero", f"{b0['physical']['left_over_right']:.1f}")
+        macro("HandBeamAHigh", f"{b9['physical']['left_over_right']:.1f}")
+        macro("HandBeamLegacyAZero", f"{1 / b0['legacy']['left_over_right']:.1f}")
+        macro("HandBeamLegacyAHigh", f"{1 / b9['legacy']['left_over_right']:.1f}")
+        s0 = hd["side_redshift"]["a0"]
+        macro("HandGLeftAZero", f"{s0['physical']['g_left']:.3f}")
+        macro("HandGRightAZero", f"{s0['physical']['g_right']:.3f}")
+        macro("HandRHitAZero", f"{s0['physical']['r_left']:.1f}")
+        mi = hd["mirror_identity"]
+        macro("HandMirrorPixels", f"{mi['pixels']}")
+        macro("HandMirrorMaxDiff",
+              sci(max(mi["max_rel_dr"], mi["max_rel_dg"], mi["max_abs_phi_sum"])))
+        se = hd["shadow_edges"]
+        macro("HandXiLeft", f"{se['xi_left']:+.4f}")
+        macro("HandXiRight", f"{se['xi_right']:+.4f}")
+        macro("HandXiBardeenPro", f"{se['bardeen_xi_prograde']:+.4f}")
+        macro("HandXiBardeenRetro", f"{se['bardeen_xi_retrograde']:+.4f}")
+        macro("HandXiAgree", sci(max(
+            abs(se["xi_left"] - se["bardeen_xi_prograde"]),
+            abs(se["xi_right"] - se["bardeen_xi_retrograde"]))))
+        ks = hd["kerr_schild_crosscheck"]
+        macro("HandKSPixels", f"{ks['pixels']}")
+        macro("HandKSOffAxisDr", sci(ks["max_rel_dr_off_axis"]))
+        macro("HandKSOffAxisDg", sci(ks["max_rel_dg_off_axis"]))
+        macro("HandKSAxisDr", sci(ks["max_rel_dr"]))
+        macro("HandKSConsL", sci(ks["max_rel_dLz"]))
+        macro("HandKSConsQ", sci(ks["max_rel_dQ"]))
+        macro("HandKSConsH", sci(ks["max_rel_H"]))
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"wrote {OUT} ({len(lines) - 2} macros)")

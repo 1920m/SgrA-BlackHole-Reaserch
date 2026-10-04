@@ -3,7 +3,7 @@
   "gate7_pass": true,
   "incl_deg": 80.0,
   "max_abs_diff": 0.6972976256120942,
-  "mean_abs_diff": 0.0028885857400813525,
+  "mean_abs_diff": 0.0028885857400813533,
   "outlier_pixels": 32,
   "size": 64
 }
