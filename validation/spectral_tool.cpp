@@ -1,6 +1,5 @@
 // Gates 13–15 (extension paper, "Spectral rendering"): every number the
-// extension quotes on the hypothetical thin disk's colour and brightness
-//.
+// extension quotes on the hypothetical thin disk's colour and brightness.
 //
 //   spectral_tool <outdir>     → <outdir>/spectral.json
 //

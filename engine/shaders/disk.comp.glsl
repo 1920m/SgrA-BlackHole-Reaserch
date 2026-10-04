@@ -16,7 +16,7 @@
 //   slot 0: blackbody radiance table, RGBA32F, built on the CPU from
 //           sgr_physics::planck_to_linear_srgb (app.cpp load_luts) —
 //           absolute linear sRGB, log T 300 K → 1e5 K, texelFetch only
-//   slot 1–4: preset display LUTs (§9): firestorm, gargantua, arctic, nebula
+//   slot 1: the Milky Way sky map (Gate 15, prepare_sky.py)
 #version 450
 
 layout(local_size_x = 8, local_size_y = 8) in;
