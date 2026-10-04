@@ -1,0 +1,135 @@
+\chapter{A Horizon-Penetrating Integrator}
+\label{ch:xks}
+
+The thesis integrates Carter's separated equations in Boyer--Lindquist (BL)
+coordinates, in Mino time, in double precision. For metrology that is ideal:
+the constants of motion are exact, and the integrator is tested to
+$10^{-12}$. For a real-time renderer the same coordinates bring two problems.
+The polar axis $\theta = 0, \pi$ is a coordinate singularity. Rays passing
+near it needed clamps, a snap of the angular momentum and a step-squeeze
+heuristic, and they still left a faint seam down the image's central column.
+And the horizon is a coordinate singularity too ($\Delta \to 0$), where
+backward-traced captured rays stall. This chapter describes the replacement
+used by every live image of the extension: Hamiltonian geodesics in
+Cartesian Kerr--Schild coordinates \citep{KerrSchild2009, Visser2007}.
+
+\section{The Kerr--Schild form}
+
+In Kerr--Schild form the Kerr metric is a flat metric plus a null-vector
+term \citep{Kerr1963, KerrSchild2009},
+\begin{equation}
+g_{\mu\nu} = \eta_{\mu\nu} + f\,l_\mu l_\nu, \qquad
+f = \frac{2Mr^3}{r^4 + a^2z^2},
+\label{eq:ksmetric}
+\end{equation}
+\begin{equation}
+l_\mu = \left(1,\; s\,\frac{rx + s\,ay}{r^2 + a^2},\;
+s\,\frac{ry - s\,ax}{r^2 + a^2},\; s\,\frac{z}{r}\right),
+\end{equation}
+where the BL radius $r$ is the positive root of
+$r^4 - (x^2 + y^2 + z^2 - a^2)\,r^2 - a^2z^2 = 0$ and $s = \pm1$ selects the
+chart. Because $l$ is null for both $\eta$ and $g$, the inverse needs no
+matrix inversion: $g^{\mu\nu} = \eta^{\mu\nu} - f\,l^\mu l^\nu$. The relation
+to BL coordinates is
+\begin{equation}
+\begin{gathered}
+x + iy = (r + i s a)\sin\theta\,e^{i\phi_{\rm KS}}, \qquad z = r\cos\theta, \\
+t_{\rm KS} = t_{\rm BL} + s\,T(r), \qquad \phi_{\rm KS} = \phi_{\rm BL} + s\,\Phi(r),
+\end{gathered}
+\end{equation}
+with $T = \int 2Mr/\Delta\,dr$ and $\Phi = \int a/\Delta\,dr$. The two charts
+differ in which horizon they cover regularly. The \emph{outgoing} chart
+($s = -1$) is regular across the past horizon, which is where camera rays
+traced backward in time end when they fall in. The \emph{ingoing} chart
+($s = +1$) is regular across the future horizon, which an in-falling observer
+crosses (Chapter~\ref{ch:xinfall}).
+
+\section{Hamiltonian equations with an analytic gradient}
+
+With $H = \tfrac12 g^{\mu\nu}p_\mu p_\nu$ and $l\cdot p \equiv l^\mu p_\mu$, the
+flat part of the inverse metric is constant, so Hamilton's equations reduce
+to
+\begin{equation}
+\frac{dx^\mu}{d\lambda} = \eta^{\mu\nu}p_\nu - f\,l^\mu\,(l\cdot p),
+\qquad
+\frac{dp_i}{d\lambda} = \tfrac12\,\partial_i\!\left[f\,(l\cdot p)^2\right],
+\qquad
+\frac{dp_t}{d\lambda} = 0 .
+\label{eq:kshamilton}
+\end{equation}
+The gradient follows in closed form from $\partial_i r = r(r^2x_i +
+a^2z\,\delta_{iz})/(r^4 + a^2z^2)$ and the explicit $f$ and $l$. Unlike the
+finite-difference gradients common in real-time renderers, this introduces
+no step-size-dependent truncation error. Stationarity and axisymmetry make
+$E = -p_t$ and $L_z = x\,p_y - y\,p_x$ exact constants. The Carter constant is
+recovered by transforming the covector back to BL components, and $H = 0$
+measures the null condition.
+
+The double-precision twin (\texttt{physics/src/kerr\_schild.cpp}) integrates
+\eqref{eq:kshamilton} with the thesis' adaptive Dormand--Prince scheme.
+Cameras build their rays in BL components in the observer's frame
+(Chapter~\ref{ch:xobs}), map them to Kerr--Schild components with the
+Jacobian of the coordinate change, and lower them with \eqref{eq:ksmetric}.
+
+\section{Validation}
+
+The Catch2 suite (\texttt{test\_kerr\_schild.cpp}) checks the following:
+\begin{itemize}
+\item \eqref{eq:ksmetric} reproduces the BL Kerr metric, transformed, to
+$10^{-12}$ at 240 points;
+\item the inverse and the analytic gradient match their numerical
+counterparts;
+\item the Schwarzschild limit gives the critical impact parameter
+$\sqrt{27}\,M$;
+\item the constants of motion are conserved;
+\item the camera traces the photon it receives (thesis Appendix on image
+handedness).
+\end{itemize}
+Against the thesis' Carter tracer the image-plane comparison of the thesis
+appendix gives, over $\HandKSPixels$ pixels off the spin-axis column:
+\begin{itemize}
+\item disk-hit radii agree to $\HandKSOffAxisDr$ and redshift factors to
+$\HandKSOffAxisDg$;
+\item the worst drifts along the Kerr--Schild rays are $\HandKSConsL$ in
+$L_z$, $\HandKSConsQ$ in $Q$ and $\HandKSConsH$ in $H$, far inside the
+thesis' $10^{-6}$ health criterion.
+\end{itemize}
+On the image's central column the agreement is $\HandKSAxisDr$. That column
+is where BL rays pass closest to the polar coordinate singularity, so the
+difference measures the reference, not the new integrator.
+
+The time coordinate needs its own check once sources vary (Chapter~\ref{ch:xflares}).
+Along a Kerr--Schild ray $dt/d\lambda = -p_t + f\,(l\cdot p)$. In the outgoing
+chart the KS time of an equatorial crossing must equal the BL time from
+Carter's $t$-equation plus $s\,T(r)$. The flare test suite verifies this to
+$10^{-7}\,M$ for three rays of the GRAVITY flare geometry. Building that test
+taught a lesson about the reference. A fresh Carter integration without the
+thesis' constraint projection, which re-imposes $p_r^2 = R(r)$ and
+$p_\theta^2 = \Theta(\theta)$ after every step, agreed with the Kerr--Schild
+time only to $10^{-4}$ at this near-face-on inclination. It converged to the
+Kerr--Schild value only as its tolerance was tightened, whereas the
+Kerr--Schild result was unchanged to twelve digits at every tolerance. With
+the projection restored, the two agree to $10^{-10}$.
+
+\section{The live kernel}
+
+The GPU kernel is a single-precision port of the twin:
+\begin{itemize}
+\item classical fourth-order Runge--Kutta with steps of a few per cent of
+$r$, finer inside the photon region and near the disk plane;
+\item bisection of each equatorial crossing on the step fraction;
+\item capture at $r < r_+$;
+\item for escaping rays, the asymptotic direction from the coordinate
+velocity, so the background map has no parallax.
+\end{itemize}
+The seam heuristics of the BL kernel are gone, and the axis column renders
+like any other. Three quantitative comparisons with fp64 references
+underwrite it:
+\begin{itemize}
+\item the colour comparison of \S\ref{sec:livecolour}: $\XLiveBeamErr$\,\%
+in Doppler contrast;
+\item the moving-observer shadow edges of Chapter~\ref{ch:xobs}:
+$\XObsGpuMaxPx$\,pixel;
+\item the flare images of Chapter~\ref{ch:xflares}: centroids within
+$\XFlGpuCentroidPx$\,pixel, total flux within $\XFlGpuFluxDev$\,\%.
+\end{itemize}

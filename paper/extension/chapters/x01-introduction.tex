@@ -1,0 +1,110 @@
+\chapter{Introduction}
+\label{ch:xintro}
+
+The thesis built a simulator of \sgra{} to \emph{measure} things: the size and
+shape of the shadow and photon ring against the Event Horizon Telescope
+\citep{EHT2022}, the mass and distance from the orbit of S2
+\citep{Gillessen2017, Gravity2018, Gravity2020, Gravity2022}, and a
+free-quadrupole test of the no-hair theorem. Its images were instruments ---
+bisected boundaries, sub-ring decompositions, flux ratios --- and the renders
+that accompanied them were illustrations.
+
+This report asks a different question of the same spacetime: \emph{what
+would one actually see?} Answering it honestly takes physics the thesis did
+not need. A camera does not record bolometric intensity but a spectrum
+filtered by its colour response. A moving observer sees a different sky from
+a static one at the same point. The light reaching the camera now left its
+source at different times along different paths, so a variable source ---
+the near-infrared flares of \sgra{} --- appears smeared, delayed and echoed.
+And the real accretion flow of \sgra{} is not the thin disk of the thesis'
+renders at all, but a hot, optically thin plasma best seen at millimetre
+wavelengths.
+
+\section{What this extension adds}
+
+Table~\ref{tab:phenomena} lists the phenomena the simulator now shows, the
+gate of the extension plan that added each one and the chapter that
+documents it. Every scene uses one spacetime --- \sgra{} with $\astar = 0.94$
+\citep{EHT2022} and the GRAVITY mass and distance \citep{Gravity2022}. The
+only exception, a traversable wormhole, appears in an appendix as a labelled
+test of the code's generality, never as a model of \sgra{}.
+
+\begin{table}
+\centering
+\caption{Phenomena added by the extension. ``Thesis'' marks what the thesis
+already modelled; chapters in brackets are pending.}
+\label{tab:phenomena}
+\small
+\begin{tabular}{p{7.4cm}cc}
+\toprule
+Phenomenon & Gate & Chapter \\
+\midrule
+Shadow, lensing, photon sub-rings, $g^4$ beaming, S2 orbit in full GR,
+no-hair test & thesis & --- \\
+True visual colour of a redshifted blackbody; Doppler hue shift & G13 & \ref{ch:xspectral} \\
+High-dynamic-range display; a thin disk at \sgra's measured accretion rate & G14 & \ref{ch:xspectral} \\
+Lensed real Milky Way panorama & G15 & \ref{ch:xspectral} \\
+Horizon-penetrating Kerr--Schild integrator & G16 & \ref{ch:xks} \\
+Moving observers: aberration, sky Doppler shift, time dilation, frame
+dragging, light that visited the ergoregion & G17 & \ref{ch:xobs} \\
+Orbiting hot spots (the GRAVITY flares) with slow light and photon-ring
+echoes & G18 & \ref{ch:xflares} \\
+Hot accretion flow at 230\,GHz; multi-band views & G19 & \ref{ch:xriaf} \\
+Polarisation & G20 & \ref{ch:xriaf} \\
+Forecasts: extended-mass bias, Lense--Thirring detectability & G22 & \ref{ch:xforecast} \\
+A fall through the horizon of \sgra{} & G24 & \ref{ch:xinfall} \\
+Traversable wormhole (exotic, not \sgra) & G21 & App.~\ref{app:xwormhole} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{How the new physics is validated}
+
+The extension keeps the thesis' rule that a picture is not evidence. Each
+new capability follows the same pattern:
+
+\begin{enumerate}
+\item a \emph{CPU twin} in double precision, built on the thesis' physics
+library, produces the reference numbers;
+\item \emph{tests} pin the twin to closed forms wherever one exists --- the
+Schwarzschild limit, Bardeen--Press--Teukolsky circular orbits
+\citep{BardeenPressTeukolsky1972}, Synge's shadow \citep{Synge1966}, the
+Carter constants \citep{Carter1968}, exact symmetries;
+\item the \emph{live GPU path} (single precision, real time) is compared
+with the twin pixel by pixel, and the agreement is quoted;
+\item every number in this report is written by a tool and reaches the text
+through a generated macro.
+\end{enumerate}
+
+The comparisons in step~3 are not formalities. The observer comparison of
+Chapter~\ref{ch:xobs} exposed a defect in the live renderer that had shifted
+the prograde edge of the high-spin shadow by $\XLegacyBudgetPx$ pixels.
+While building the slow-light test of Chapter~\ref{ch:xflares}, a
+reimplementation of the Carter integrator without the thesis' constraint
+projection disagreed with the Kerr--Schild path at the $10^{-4}$ level, which
+showed that the projection matters even at moderate inclinations.
+
+\section{Conventions}
+
+Units are geometric, $G = c = M = 1$, unless stated. At the GRAVITY mass and
+distance one gravitational radius subtends $\UasPerM\,\muas$ and one unit of
+coordinate time lasts \XMinPerM\ minutes. Cameras trace the photon they
+\emph{receive} (thesis Appendix on image handedness); the default camera
+looks at the hole with image-right along the local $+\hat\phi$ direction and
+image-up toward the spin axis, so prograde material approaches on the left.
+Inclinations are measured from the spin axis; $i > 90\degr$ views the hole
+from below its equatorial plane, where prograde motion appears clockwise.
+
+\section{Outline}
+
+Chapter~\ref{ch:xspectral} treats colour and brightness: what a camera sees
+of a redshifted blackbody, the corrected live colour pipeline, the display
+chain, the hypothetical thin disk fed at \sgra's real accretion rate, and the
+lensed Milky Way. Chapter~\ref{ch:xks} describes the Kerr--Schild integrator
+that now drives every live image. Chapter~\ref{ch:xobs} adds observers in
+motion. Chapter~\ref{ch:xflares} models the GRAVITY flares as orbiting hot
+spots and compares them with the observations. Chapter~\ref{ch:xriaf}
+replaces the hypothetical thin disk by \sgra's real, hot accretion flow at
+230\,GHz and compares its total-intensity and polarised images with the
+EHT's. The remaining chapters --- forecasts for future orbit monitoring and a
+fall into \sgra{} --- will follow their gates.

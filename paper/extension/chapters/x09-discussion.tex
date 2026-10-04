@@ -1,0 +1,65 @@
+\chapter{Discussion and Limitations}
+\label{ch:xdiscussion}
+
+The chapters so far share a pattern: each new capability is first a
+double-precision tool tested against closed forms, then a live rendering
+path compared with that tool. The comparisons are what make the images
+defensible, and they have found real defects. Three were in the renderer:
+the double-counted colour, the step budget and the missing constraint
+projection. Two were in the orbit fitting. The forecast Jacobian needs
+finite-difference steps far smaller than the thesis used, and the thesis'
+direct no-hair fit cannot move $\epsq$ off its starting value
+(Chapter~\ref{ch:xforecast}). Several limitations remain and are stated
+where they arise.
+
+\begin{itemize}
+\item \emph{The thin disk is hypothetical.} At \sgra's measured accretion
+rate a thin, radiatively efficient disk would be $\XLumFactorLow$--$\XLumFactorHigh$
+times too luminous (\S\ref{sec:thindisk}). The renders that show one are
+labelled as such; the physical flow is the subject of
+Chapter~\ref{ch:xriaf}.
+\item \emph{The sky is Earth's.} The Milky Way panorama is the sky seen from
+the Solar System, used as a backdrop at infinity, and its colour shift treats
+each pixel as a 6500\,K blackbody (\S\ref{sec:sky}).
+\item \emph{The hot spot is the simplest model.} A rigid Gaussian on a
+circular geodesic, optically thin, with a fixed spectral index. It
+reproduces the GRAVITY periods and sense of rotation but not the size of the
+observed centroid motion, exactly the tension GRAVITY reported. Shear, cooling,
+out-of-plane motion and polarisation are not modelled
+(Chapter~\ref{ch:xflares}).
+\item \emph{Display processing is not physics.} Bloom, tone curves, white
+balance and false colour are confined to the display chain and are switched
+off in every quantitative comparison (\S\ref{sec:display}).
+\item \emph{The accretion flow is a semi-analytic RIAF, not a simulation.}
+Its radial profiles are fixed power laws, its electrons are purely thermal,
+and its one free parameter is fitted to a single flux density. The
+comparison with the EHT ring is therefore a test of this family of models,
+not of general relativity. In that test the family's reference temperature
+fails: the ring is too small. The thesis' critical-curve metrology, which
+needs no emission model, remains the result that tests the spacetime.
+\item \emph{Polarisation without Faraday effects.} Rotation and conversion in
+the flow are omitted, and the intrinsic polarisation fraction is a fixed
+assumption. Only quantities independent of that fraction --- the phase of
+$\beta_2$ and $|\beta_2|/|\beta_1|$ --- are compared with the EHT. Interstellar
+scattering toward \sgra{} is not modelled; the EHT notes that it barely
+affects $\beta_2$ \citep{EHT2024pol}.
+\end{itemize}
+
+\begin{itemize}
+\item \emph{The forecasts are idealised.} They use noise-free data, sampled
+uniformly with no seasonal gaps, and include no reference-frame systematics,
+source confusion or second star. They are local (Fisher) estimates, checked
+against full profile-likelihood fits to within $\XFcProfAgree$ per cent. The
+extended mass is a single Plummer profile at GRAVITY's scale radius, and the
+spin axis lies along the line of sight. Both choices change the numbers,
+though not the conclusion that an extended mass must be fitted with any
+future no-hair or spin test (Chapter~\ref{ch:xforecast}).
+\item \emph{The wormhole is not \sgra.} The Dneg metric is a test of the
+renderer's generality. The exotic matter it would need is not modelled, its
+other universe's sky is an illustrative recolouring, and nothing about the
+existence of such objects is implied (Appendix~\ref{app:xwormhole}).
+\item \emph{The fall is classical and stops at $r_-$.} It is one geodesic in
+vacuum Kerr: no accretion flow, no quantum effects, and no interior beyond
+the inner horizon, where mass inflation makes the classical solution
+unreliable (Chapter~\ref{ch:xinfall}).
+\end{itemize}

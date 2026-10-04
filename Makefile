@@ -11,7 +11,7 @@
 PY      ?= py -3.11
 BUILD   ?= build/sci-rel
 
-.PHONY: paper thesis figures reproduce clean-paper
+.PHONY: paper thesis figures reproduce clean-paper reproduce-ext figures-ext extension
 
 figures:
 	$(PY) scripts/make_figures.py
@@ -36,11 +36,40 @@ reproduce:
 	$(BUILD)/validation/convergence_tool.exe validation/thesis
 	$(BUILD)/validation/sweep_tool.exe photonorbits validation/thesis
 	$(BUILD)/science/subring_tool.exe --sweep validation/thesis 80 560
+	$(BUILD)/validation/handedness_tool.exe validation/thesis
 	$(PY) scripts/run_mcmc.py both
 	$(BUILD)/science/orbit_fitter/fit_cluster.exe data/gillessen_2017 validation/phase13
 	$(PY) scripts/make_figures.py
 	$(PY) scripts/make_diagrams.py
 	$(PY) scripts/make_numbers.py
+
+# ---- Extension paper (plan G23) — a separate document, not part of the thesis
+# Every number in paper/extension/ comes from these tools.
+reproduce-ext:
+	cmd //c "scripts\vcenv.cmd ctest --preset sci-rel"
+	$(BUILD)/validation/spectral_tool.exe validation/extension
+	$(PY) validation/phase14/compare_live_colour.py
+	$(BUILD)/validation/observer_tool.exe validation/extension
+	$(PY) validation/phase14/compare_observers.py
+	$(BUILD)/science/flare_tool.exe validation/extension
+	$(PY) validation/phase14/compare_flare.py
+	$(BUILD)/science/riaf_tool.exe validation/extension
+	$(PY) validation/phase14/compare_riaf.py
+	$(BUILD)/science/orbit_fitter/forecast_tool.exe data/gillessen_2017 validation/phase5 validation/extension
+	$(BUILD)/science/wormhole_tool.exe validation/extension
+	$(PY) validation/phase14/compare_wormhole.py
+	$(BUILD)/validation/infall_tool.exe validation/extension
+	$(PY) validation/phase14/compare_infall.py
+	$(PY) scripts/render_ext_gallery.py
+	$(PY) scripts/make_flare_movie.py
+	$(PY) scripts/make_numbers_ext.py
+	$(PY) scripts/make_figures_ext.py
+
+figures-ext:
+	$(PY) scripts/make_figures_ext.py
+
+extension: figures-ext
+	$(MAKE) -C paper extension
 
 clean-paper:
 	$(MAKE) -C paper clean

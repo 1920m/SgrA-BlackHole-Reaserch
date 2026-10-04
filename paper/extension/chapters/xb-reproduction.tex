@@ -1,0 +1,37 @@
+\chapter{Reproducing This Report}
+\label{app:xrepro}
+
+\texttt{make reproduce-ext} runs, in order, every tool whose output this
+report quotes, then regenerates the numbers and figures:
+
+\begin{center}
+\small
+\begin{tabular}{p{5.6cm}p{6.6cm}}
+\toprule
+Command & Produces \\
+\midrule
+\texttt{ctest --preset sci-rel} & all unit tests (thesis and extension) \\
+\texttt{spectral\_tool} & \texttt{spectral.json}: thin disk at the measured $\dot M$; visual vs bolometric contrast \\
+\texttt{compare\_live\_colour.py} & \texttt{g13\_colour.json}: live colour vs CPU reference \\
+\texttt{observer\_tool} & \texttt{observers.json}: observer kinematics and shadow edges \\
+\texttt{compare\_observers.py} & \texttt{g17\_observers\_gpu.json}: live observers vs fp64 \\
+\texttt{flare\_tool} & \texttt{flares.json}, light curves, centroid tracks, echoes, images \\
+\texttt{compare\_flare.py} & \texttt{g18\_flare\_gpu.json}: live hot spot vs fp64 \\
+\texttt{riaf\_tool} & \texttt{riaf.json}: 230\,GHz flow, fit, ring, visibilities, sensitivity, polarisation \\
+\texttt{compare\_riaf.py} & \texttt{g19\_riaf\_gpu.json}: live 230\,GHz band vs fp64 \\
+\texttt{forecast\_tool} & \texttt{forecasts.json}: Fisher forecasts and extended-mass biases (reads the thesis fit, \texttt{validation/phase5}) \\
+\texttt{wormhole\_tool} & \texttt{wormhole.json}: the exotic Dneg wormhole (not \sgra) \\
+\texttt{compare\_wormhole.py} & \texttt{wormhole\_gpu.json}: live wormhole edges vs fp64 \\
+\texttt{infall\_tool} & \texttt{infall.json}: the fall into \sgra{} (worldline, light, tides, reference strips) \\
+\texttt{compare\_infall.py} & \texttt{g24\_infall\_gpu.json}: live in-fall view vs fp64, continuity through $r_+$ \\
+\texttt{render\_ext\_gallery.py} & engine renders used as figures \\
+\texttt{make\_flare\_movie.py} & one-orbit flare movie (GIF) \\
+\texttt{make\_numbers\_ext.py} & \texttt{numbers\_ext.tex}, \texttt{tab\_*.tex} \\
+\texttt{make\_figures\_ext.py} & \texttt{figures/} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Tools write to \texttt{validation/extension/}; the GPU comparisons
+need the Vulkan build (\texttt{cmake --build --preset engine-rel}) and run
+with the validation layers on, which must report zero errors.
